@@ -93,7 +93,7 @@ namespace AgroRenderer
             )
         {
             var callbackData = Marshal.PtrToStructure<Vk.VkDebugUtilsMessengerCallbackDataEXT>(pCallbackData);
-            string message = Marshal.PtrToStringAnsi(callbackData.message) ?? "Unknown";
+            string message = Marshal.PtrToStringAnsi(callbackData.pMessage) ?? "Unknown";
             Console.WriteLine($"[VULKAN DEBUG]: {message}");
             return Vk.VkBool32.VK_FALSE;
         }
@@ -141,8 +141,8 @@ namespace AgroRenderer
                     messageType = Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                                   Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                   Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-                    userCallback = VkDebugCallback,
-                    userData = IntPtr.Zero
+                    pfnUserCallback = VkDebugCallback,
+                    pUserData = IntPtr.Zero
                 };
             }
             var res = VkSharp.CreateInstance(ref instanceCreateInfo, out var instance, debugCreateInfo);
@@ -151,7 +151,7 @@ namespace AgroRenderer
                 Console.WriteLine("Failed to create Vulkan Instance with error: " + res);
                 return;
             }
-            MemUtils.Defer(VkSharp.DestroyInstance, instance);
+            using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
             
             Console.WriteLine("Createed a Vulkan Instance with handle: " + instance.ptr);
             
