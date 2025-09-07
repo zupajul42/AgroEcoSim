@@ -100,6 +100,11 @@ namespace AgroRenderer
         public static void Main(string[] args)
         {
             Console.WriteLine("Starting Up the Vulkan Rendering Test!");
+            var scratch = new MemUtils.Arena(1024 * 1024); // 1 MB scratch space
+            
+            Console.WriteLine("Opening a Window...");
+            IPlatformLayer platform = new X11PlatformLayer();
+            platform.OpenWindow("AgroEcoSim Vulkan Test", 800, 600);
 
             Console.WriteLine("Initializing Vulkan...");
 
@@ -130,47 +135,42 @@ namespace AgroRenderer
                 enabledLayerNames = instanceLayers.ToArray(),
                 enabledExtensionNames = instanceExtensions.ToArray()
             };
-            Vk.VkDebugUtilsMessengerCreateInfoEXT? debugCreateInfo = null;
-            if (enableVkDebug)
+            unsafe
             {
-                debugCreateInfo = new Vk.VkDebugUtilsMessengerCreateInfoEXT
+                Vk.VkDebugUtilsMessengerCreateInfoEXT? debugCreateInfo = null;
+                if (enableVkDebug)
                 {
-                    messageSeverity = Vk.VkDebugUtilsMessageSeverityFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                                      Vk.VkDebugUtilsMessageSeverityFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                                      Vk.VkDebugUtilsMessageSeverityFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-                    messageType = Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                                  Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                                  Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-                    pfnUserCallback = VkDebugCallback,
-                    pUserData = IntPtr.Zero
-                };
+                    debugCreateInfo = new Vk.VkDebugUtilsMessengerCreateInfoEXT
+                    {
+                        messageSeverity = Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
+                                              .VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                                          Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
+                                              .VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                          Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
+                                              .VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+                        messageType =
+                            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+                        pfnUserCallback = &VkDebugCallback,
+                        pUserData = IntPtr.Zero
+                    };
+                }
+
+                var res = VkSharp.CreateInstance(ref instanceCreateInfo, out var instance, scratch, debugCreateInfo);
+                if (res != Vk.VkResult.VK_SUCCESS)
+                {
+                    Console.WriteLine("Failed to create Vulkan Instance with error: " + res);
+                    return;
+                }
+
+                using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
+
+                Console.WriteLine("Createed a Vulkan Instance with handle: " + instance.ptr);
             }
-            var res = VkSharp.CreateInstance(ref instanceCreateInfo, out var instance, debugCreateInfo);
-            if(res != Vk.VkResult.VK_SUCCESS)
-            {
-                Console.WriteLine("Failed to create Vulkan Instance with error: " + res);
-                return;
-            }
-            using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
-            
-            Console.WriteLine("Createed a Vulkan Instance with handle: " + instance.ptr);
-            
+
             Console.WriteLine("Shutting Down the Vulkan Rendering Test!");
-
-
-
-
-
-
-
-
-
-
-
-
-
+            platform.CloseWindow();
         }
-
     }
-
 }

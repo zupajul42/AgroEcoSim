@@ -4351,11 +4351,16 @@ namespace AgroRenderer
         public struct VkAllocationCallbacks
         {
             public IntPtr pUserData; // void*
-            public PFN_vkAllocationFunction pfnAllocation;
-            public PFN_vkReallocationFunction pfnReallocation;
-            public PFN_vkFreeFunction pfnFree;
-            public PFN_vkInternalAllocationNotification pfnInternalAllocation;
-            public PFN_vkInternalFreeNotification pfnInternalFree;
+            public delegate* unmanaged<IntPtr, UInt64, UInt64, VkSystemAllocationScope, void> pfnAllocation; 
+            // void (*PFN_vkAllocationFunction)(IntPtr userData, UInt64 size, UInt64 alignment, VkSystemAllocationScope allocationScope);
+            public delegate* unmanaged<IntPtr, IntPtr, UInt64, UInt64, VkSystemAllocationScope, void> pfnReallocation;
+            // void (*PFN_vkReallocationFunction) (void* userData, void* original, size_t size, size_t alignment, VkSystemAllocationScope allocationScope);
+            public delegate* unmanaged<IntPtr, IntPtr, void> pfnFree;
+            // void (*PFN_vkFreeFunction)(void* userData, void* memory);
+            public delegate* unmanaged<IntPtr, UInt64, VkInternalAllocationType, VkSystemAllocationScope, void> pfnInternalAllocation;
+            // void (*PFN_vkInternalAllocationNotification)(void* userData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope);
+            public delegate* unmanaged<IntPtr, UInt64, VkInternalAllocationType, VkSystemAllocationScope, void> pfnInternalFree;
+            // void (*PFN_vkInternalFreeNotification)(void* userData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope);
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -4366,7 +4371,17 @@ namespace AgroRenderer
             public VkDebugUtilsMessengerCreateFlagsEXT flags;
             public VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity;
             public VkDebugUtilsMessageTypeFlagBitsEXT messageType;
-            public PFN_vkDebugUtilsMessengerCallbackEXT pfnUserCallback;
+            public delegate* managed<
+                VkDebugUtilsMessageSeverityFlagBitsEXT,
+                VkDebugUtilsMessageTypeFlagBitsEXT,
+                IntPtr, // const VkDebugUtilsMessengerCallbackDataEXT*
+                IntPtr, // void*
+                VkBool32> pfnUserCallback;
+            // VkBool32 (*PFN_vkDebugUtilsMessengerCallbackEXT)(
+            //     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            //     VkDebugUtilsMessageTypeFlagBitsEXT messageType,
+            //     const VkDebugUtilsMessengerCallbackDataEXT*,
+            //     pCallbackData,  void* pUserData );
             public IntPtr pUserData = IntPtr.Zero; // void*
             public VkDebugUtilsMessengerCreateInfoEXT()
             {
@@ -4419,7 +4434,8 @@ namespace AgroRenderer
 
         // ----------------------------------------------------------------
         // Vulkan Function Pointer Definitions
-
+        static delegate* unmanaged[Cdecl] <int, int> test;
+        
         public delegate void PFN_vkAllocationFunction(IntPtr userData, UInt64 size, UInt64 alignment,
             VkSystemAllocationScope allocationScope);
 
@@ -4465,6 +4481,8 @@ namespace AgroRenderer
         // ----------------------------------------------------------------
         // Non Vulkan Helper Functions
         
+        // Return Type: VkResult (*PFN_vkCreateDebugUtilsMessengerEXT)(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger)
+        // In Delegaet Speak: delegate* unmanaged<VkInstance, IntPtr, IntPtr, IntPtr, VkResult>
         public static PFN_vkCreateDebugUtilsMessengerEXT? Get_vkCreateDebugUtilsMessengerEXT(VkInstance instance)
         {
             if (_vkCreateDebugUtilsMessengerEXT is null)
@@ -4518,7 +4536,7 @@ namespace AgroRenderer
         // ----------------------------------------------------------------
         // Vulkan Functions
 
-        public static Vk.VkResult CreateInstance(ref InstanceCreateInfo createInfo, out Vk.VkInstance instance, Vk.VkDebugUtilsMessengerCreateInfoEXT? debugCreateInfo = null)
+        public static Vk.VkResult CreateInstance(ref InstanceCreateInfo createInfo, out Vk.VkInstance instance, MemUtils.Arena scratch, Vk.VkDebugUtilsMessengerCreateInfoEXT? debugCreateInfo = null)
         {
             Vk.VkInstanceCreateInfo vkCreateInfo = new Vk.VkInstanceCreateInfo();
             vkCreateInfo.sType = createInfo.type;
@@ -4526,36 +4544,30 @@ namespace AgroRenderer
             vkCreateInfo.flags = createInfo.flags;
             if (debugCreateInfo is not null)
             {
-                vkCreateInfo.pNext = Marshal.AllocHGlobal(Marshal.SizeOf<Vk.VkDebugUtilsMessengerCreateInfoEXT>());
-                Marshal.StructureToPtr(debugCreateInfo, vkCreateInfo.pNext, false);
-                using var _dstrNext = MemUtils.Defer(Marshal.FreeHGlobal, vkCreateInfo.pNext);    
+                vkCreateInfo.pNext = (IntPtr) scratch.Alloc<Vk.VkDebugUtilsMessengerCreateInfoEXT>(); 
+                Marshal.StructureToPtr(debugCreateInfo, vkCreateInfo.pNext, false); 
             }
             
-
+            
             Vk.VkApplicationInfo vkAppInfo = new Vk.VkApplicationInfo();
             vkAppInfo.sType = createInfo.applicationInfo.type;
             vkAppInfo.pNext = IntPtr.Zero;
-            vkAppInfo.pApplicationName = Marshal.StringToHGlobalAnsi(createInfo.applicationInfo.applicationName);
+            vkAppInfo.pApplicationName = scratch.AllocANSIString(createInfo.applicationInfo.applicationName);
             vkAppInfo.applicationVersion = createInfo.applicationInfo.applicationVersion;
-            vkAppInfo.pEngineName = Marshal.StringToHGlobalAnsi(createInfo.applicationInfo.engineName);
+            vkAppInfo.pEngineName = scratch.AllocANSIString(createInfo.applicationInfo.engineName);
             vkAppInfo.engineVersion = createInfo.applicationInfo.engineVersion;
             vkAppInfo.apiVersion = createInfo.applicationInfo.apiVersion;
-            using var _dstrApplicaitonName = MemUtils.Defer(Marshal.FreeHGlobal, vkAppInfo.pApplicationName);
-            using var _dstrEngineName = MemUtils.Defer(Marshal.FreeHGlobal, vkAppInfo.pEngineName);
 
             vkCreateInfo.pApplicationInfo = &vkAppInfo;
-
             // Marshal enabled Layer Names
             UInt32 layerCount = (UInt32)createInfo.enabledLayerNames.Length;
             vkCreateInfo.enabledLayerCount = layerCount;
             if (layerCount > 0)
             {
-                IntPtr* layerNames = (IntPtr*)Marshal.AllocHGlobal(Marshal.SizeOf<IntPtr>() * (int)layerCount);
-                using var _dstrLayerNames = MemUtils.Defer(Marshal.FreeHGlobal, *layerNames);
+                IntPtr* layerNames = scratch.Alloc<IntPtr>((int)layerCount);
                 for (int i = 0; i < layerCount; i++)
                 {
-                    layerNames[i] = Marshal.StringToHGlobalAnsi(createInfo.enabledLayerNames[i]);
-                    using var _ = MemUtils.Defer(Marshal.FreeHGlobal, layerNames[i]);
+                    layerNames[i] = scratch.AllocANSIString(createInfo.enabledLayerNames[i]);
                 }
 
                 vkCreateInfo.ppEnabledLayerNames = layerNames;
@@ -4570,12 +4582,10 @@ namespace AgroRenderer
             vkCreateInfo.enabledExtensionCount = extensionCount;
             if (extensionCount > 0)
             {
-                IntPtr* extensionNames = (IntPtr*)Marshal.AllocHGlobal(Marshal.SizeOf<IntPtr>() * (int)extensionCount);
-                using var _dstrExtensionNames = MemUtils.Defer(Marshal.FreeHGlobal, *extensionNames);
+                IntPtr* extensionNames = scratch.Alloc<IntPtr>((int)extensionCount);
                 for (int i = 0; i < extensionCount; i++)
                 {
-                    extensionNames[i] = Marshal.StringToHGlobalAnsi(createInfo.enabledExtensionNames[i]);
-                    using var _ = MemUtils.Defer(Marshal.FreeHGlobal, extensionNames[i]);
+                    extensionNames[i] = scratch.AllocANSIString(createInfo.enabledExtensionNames[i]);
                 }
 
                 vkCreateInfo.ppEnabledExtensionNames = extensionNames;
@@ -4587,6 +4597,8 @@ namespace AgroRenderer
 
             // Call Vulkan Function
             return Vk.vkCreateInstance(&vkCreateInfo, null, out instance);
+            // instance.ptr = IntPtr.Zero;
+            // return Vk.VkResult.VK_SUCCESS;
         }
         
         public static Vk.VkResult DestroyInstance(Vk.VkInstance instance)

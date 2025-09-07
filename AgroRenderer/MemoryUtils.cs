@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 
 namespace AgroRenderer
@@ -37,6 +39,63 @@ namespace AgroRenderer
             public DeferDisposableRet(Func<T1, T2, TRes> func, T1 param1, T2 param2) => (_func, _param1, _param2) = (func, param1, param2);
             public void Dispose() => _func.Invoke(_param1, _param2);
         }
-        
+
+
+        public unsafe struct Arena(int size) : IDisposable
+        {
+            private readonly int _size = size;
+            private readonly byte* _mem = (byte*) Marshal.AllocHGlobal(size);
+            private int _offset = 0;
+
+            private IntPtr Alloc(int size, int alignment = 8)
+            {
+                if(alignment <= 0 || (alignment & (alignment - 1)) != 0)
+                {
+                    throw new ArgumentException("Alignment must be a power of two");
+                }
+                if (size <= 1)
+                {
+                    throw new ArgumentException("Size must be positive");
+                }
+                int alignmentOffset = alignment - (_offset & (alignment - 1)); // o % a === o & (a - 1) when a is power of two
+                if (_offset + alignmentOffset + size > _size)
+                {
+                    throw new OutOfMemoryException("Arena out of memory");
+                }
+
+                IntPtr ptr = (IntPtr)(_mem + _offset + alignmentOffset);
+                _offset = _offset + alignmentOffset + size;
+                // Zero Initialize Memory
+                Unsafe.InitBlockUnaligned((void*)ptr, 0, (uint)size);
+                return ptr;
+            }
+
+            public T* Alloc<T>(int count = 1, int alignment = 8) where T : unmanaged
+            {
+                var elemSize = Unsafe.SizeOf<T>();
+                return (T*)Alloc(elemSize * count, alignment);
+            }
+            
+            public IntPtr AllocANSIString(string str)
+            {
+                var bytes = System.Text.Encoding.ASCII.GetBytes(str);
+                var ptr = Alloc<byte>(bytes.Length + 1, 1);
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    ptr[i] = bytes[i];
+                }
+                ptr[bytes.Length] = 0; // Null-terminate
+                return (IntPtr) ptr;
+            }
+
+            public void Reset()
+            {
+                _offset  = 0;      
+            }
+            public void Dispose()
+            {
+                Marshal.FreeHGlobal((IntPtr)_mem);
+            }
+        }
     }
 }
