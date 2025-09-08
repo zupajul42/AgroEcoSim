@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -7,6 +8,7 @@ namespace AgroRenderer
     // Vulkan Handles that are actually just typedefs to uint64_t
     using VkDebugUtilsMessengerEXT = UInt64;
     
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public static unsafe class Vk
     {
         private static Vk.PFN_vkCreateDebugUtilsMessengerEXT? _vkCreateDebugUtilsMessengerEXT = null;
@@ -4158,6 +4160,11 @@ namespace AgroRenderer
         {
         }
 
+        [Flags]
+        public enum VkXcbSurfaceCreateFlagsKHR : Int32
+        {
+        }
+
         public enum VkResult : Int32
         {
             VK_SUCCESS = 0,
@@ -4409,10 +4416,30 @@ namespace AgroRenderer
             }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
         public struct VkDebugUtilsMessengerEXT
         {
-            
             public VkDebugUtilsMessengerEXT(){}
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkXcbSurfaceCreateInfoKHR
+        {
+            public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+            public IntPtr pNext = IntPtr.Zero; // const void*
+            public VkXcbSurfaceCreateFlagsKHR flags;
+            public IntPtr connection; // xcb_connection_t*
+            public UInt32 window; // xcb_window_t
+            public VkXcbSurfaceCreateInfoKHR()
+            {
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkSurfaceKHR
+        {
+            public UInt64 handle;
+            public VkSurfaceKHR(){}
         }
 
 
@@ -4434,7 +4461,6 @@ namespace AgroRenderer
 
         // ----------------------------------------------------------------
         // Vulkan Function Pointer Definitions
-        static delegate* unmanaged[Cdecl] <int, int> test;
         
         public delegate void PFN_vkAllocationFunction(IntPtr userData, UInt64 size, UInt64 alignment,
             VkSystemAllocationScope allocationScope);
@@ -4476,7 +4502,14 @@ namespace AgroRenderer
         public static extern VkResult vkDestroyInstance(VkInstance instance, VkAllocationCallbacks* pAllocator);
         
         [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr vkGetInstanceProcAddr(VkInstance instance, IntPtr pName /*const char*/);  
+        public static extern IntPtr vkGetInstanceProcAddr(VkInstance instance, IntPtr pName /*const char*/);
+
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern VkResult vkCreateXcbSurfaceKHR(VkInstance instance, VkXcbSurfaceCreateInfoKHR* pCreateInfo,
+            VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);
+        
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void vkDestroySurfaceKHR(VkInstance instance, VkSurfaceKHR surface, VkAllocationCallbacks* pAllocator);
         
         // ----------------------------------------------------------------
         // Non Vulkan Helper Functions
@@ -4603,7 +4636,15 @@ namespace AgroRenderer
         
         public static Vk.VkResult DestroyInstance(Vk.VkInstance instance)
         {
+            Console.WriteLine("Destroying Vulkan Instance with handle: " + instance.ptr);
             return Vk.vkDestroyInstance(instance, null);
+        }
+
+        public static Vk.VkResult DestroySurfaceKHR(Vk.VkInstance instance, Vk.VkSurfaceKHR surface)
+        {
+            Console.WriteLine("Destroying Vulkan Surface with handle: " + surface.handle);
+            Vk.vkDestroySurfaceKHR(instance, surface, null);
+            return Vk.VkResult.VK_SUCCESS;
         }
     }
 }

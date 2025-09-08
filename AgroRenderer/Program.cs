@@ -101,6 +101,8 @@ namespace AgroRenderer
         {
             Console.WriteLine("Starting Up the Vulkan Rendering Test!");
             var scratch = new MemUtils.Arena(1024 * 1024); // 1 MB scratch space
+            var system_is_linux = true;
+            var window_manager = "X11";
             
             Console.WriteLine("Opening a Window...");
             IPlatformLayer platform = new X11PlatformLayer();
@@ -118,6 +120,14 @@ namespace AgroRenderer
             {
                 instanceLayers.AddRange(validationLayers);
                 instanceExtensions.AddRange([Vk.VK_EXT_DEBUG_UTILS_EXTENSION_NAME]);
+            }
+            if (system_is_linux && window_manager == "X11")
+            {
+                instanceExtensions.AddRange(["VK_KHR_surface", "VK_KHR_xcb_surface"]);
+            }
+            else
+            {
+                throw new NotImplementedException("Only Linux with X11 is supported in this example.");
             }
             
             var applicationInfo = new VkSharp.ApplicationInfo
@@ -163,10 +173,14 @@ namespace AgroRenderer
                     Console.WriteLine("Failed to create Vulkan Instance with error: " + res);
                     return;
                 }
+                Console.WriteLine("Createed a Vulkan Instance with handle: " + instance.ptr);
+                var surface = platform.CreateVulkanSurface(instance, scratch);
+                Console.WriteLine("Created a Vulkan Surface with handle: " + surface.handle);
+                using (var _0 = MemUtils.Defer(VkSharp.DestroySurfaceKHR, instance, surface)) ;
+                
 
                 using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
 
-                Console.WriteLine("Createed a Vulkan Instance with handle: " + instance.ptr);
             }
 
             Console.WriteLine("Shutting Down the Vulkan Rendering Test!");

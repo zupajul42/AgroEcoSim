@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace AgroRenderer;
 
 public class X11PlatformLayer : IPlatformLayer
@@ -49,9 +51,27 @@ public class X11PlatformLayer : IPlatformLayer
         }
     }
 
-    public void CreateVulkanSurface(Vk.VkInstance instance)
+    public Vk.VkSurfaceKHR CreateVulkanSurface(Vk.VkInstance instance, MemUtils.Arena scratch)
     {
-        throw new NotImplementedException();
+        unsafe
+        {
+            var createInfo = scratch.Alloc<Vk.VkXcbSurfaceCreateInfoKHR>();
+            createInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+            createInfo->pNext = IntPtr.Zero;
+            createInfo->flags = 0;
+            createInfo->connection = (IntPtr)data.connection;
+            createInfo->window = data.window;
+            
+            var surface = scratch.Alloc<Vk.VkSurfaceKHR>();
+            var result = Vk.vkCreateXcbSurfaceKHR(instance, createInfo, null, surface);
+            if (result != Vk.VkResult.VK_SUCCESS)
+            {
+                throw new Exception($"Failed to create Vulkan XCB surface: {result}");
+            }
+            var surfaceManaged = Marshal.PtrToStructure<Vk.VkSurfaceKHR>((IntPtr)surface);
+
+            return surfaceManaged;
+        }
     }
 }
 
