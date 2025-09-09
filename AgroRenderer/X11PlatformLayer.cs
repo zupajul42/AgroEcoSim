@@ -63,12 +63,15 @@ public class X11PlatformLayer : IPlatformLayer
             createInfo->window = data.window;
             
             var surface = scratch.Alloc<Vk.VkSurfaceKHR>();
+            Console.WriteLine($"Creating Surface at location: 0x{(ulong)surface:X}");
             var result = Vk.vkCreateXcbSurfaceKHR(instance, createInfo, null, surface);
             if (result != Vk.VkResult.VK_SUCCESS)
             {
                 throw new Exception($"Failed to create Vulkan XCB surface: {result}");
             }
-            var surfaceManaged = Marshal.PtrToStructure<Vk.VkSurfaceKHR>((IntPtr)surface);
+            Console.WriteLine($"Creaded Vulkan XCB surface: 0x{surface->handle:X}");
+            var surfaceManaged = new Vk.VkSurfaceKHR();
+            surfaceManaged.handle = surface->handle;
 
             return surfaceManaged;
         }

@@ -113,6 +113,8 @@ namespace AgroRenderer
             const bool enableVkDebug = true;
             
             List<string> validationLayers = ["VK_LAYER_KHRONOS_validation"];
+            // The following layers are useful for debugging API errors, but are very noisy
+            // validationLayers.Add("VK_LAYER_LUNARG_api_dump");
             List<string> instanceLayers = [];
             List<string> instanceExtensions = [];
 
@@ -133,10 +135,10 @@ namespace AgroRenderer
             var applicationInfo = new VkSharp.ApplicationInfo
             {
                 applicationName = "AgroEcoSim",
-                applicationVersion = Vk.VkMakeVersion(1,0,0),
+                applicationVersion = Vk.VK_MAKE_VERSION(1,0,0),
                 engineName = "AgroRenderer",
-                engineVersion = Vk.VkMakeVersion(1,0,0),
-                apiVersion = Vk.VkMakeApiVersion(0, 1, 3 ,0)
+                engineVersion = Vk.VK_MAKE_VERSION(1,0,0),
+                apiVersion = Vk.VK_MAKE_API_VERSION(0, 1, 3 ,0)
             };
             var instanceCreateInfo = new VkSharp.InstanceCreateInfo
             {
@@ -173,13 +175,14 @@ namespace AgroRenderer
                     Console.WriteLine("Failed to create Vulkan Instance with error: " + res);
                     return;
                 }
-                Console.WriteLine("Createed a Vulkan Instance with handle: " + instance.ptr);
+                Console.WriteLine($"Createed a Vulkan Instance with handle: 0x{instance.ptr:X}");
                 var surface = platform.CreateVulkanSurface(instance, scratch);
-                Console.WriteLine("Created a Vulkan Surface with handle: " + surface.handle);
-                using (var _0 = MemUtils.Defer(VkSharp.DestroySurfaceKHR, instance, surface)) ;
+                Console.WriteLine($"Created a Vulkan Surface with handle: 0x{surface.handle:X}");
+                //using (var _0 = MemUtils.Defer(VkSharp.DestroySurfaceKHR, instance, surface)) ;
+                var physicalDevice = VkSharp.FindSuitablePhysicalDevice(instance, surface, scratch);
                 
 
-                using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
+                //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
 
             }
 
