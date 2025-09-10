@@ -51,6 +51,18 @@ namespace AgroRenderer
             public IntPtr ptr;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkDevice
+        {
+            public IntPtr ptr;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkQueue
+        {
+            public IntPtr ptr;
+        }
+        
         // ----------------------------------------------------------------
         // Vulkan Enums and Flags
 
@@ -4390,7 +4402,20 @@ namespace AgroRenderer
             VK_QUEUE_OPTICAL_FLOW_BIT_NV = 0x00000100,
             // Provided by VK_ARM_data_graph
             VK_QUEUE_DATA_GRAPH_BIT_ARM = 0x00000400,            
-        } 
+        }
+
+        [Flags]
+        public enum VkDeviceCreateFlags
+        {
+        }
+
+        [Flags]
+        public enum VkDeviceQueueCreateFlagBits
+        {
+            // Provided by VK_VERSION_1_1
+            VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT = 0x00000001,
+        }
+
         // ----------------------------------------------------------------
         // Vulkan Structures
 
@@ -4719,6 +4744,100 @@ namespace AgroRenderer
             }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkDeviceCreateInfo
+        {
+            public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+            public IntPtr pNext = IntPtr.Zero; // const void*
+            public VkDeviceCreateFlags flags;
+            public UInt32 queueCreateInfoCount;
+            public VkDeviceQueueCreateInfo* pQueueCreateInfos;
+            public UInt32 enabledLayerCount;
+            public IntPtr* ppEnabledLayerNames; // const char* const*
+            public UInt32 enabledExtensionCount;
+            public IntPtr* ppEnabledExtensionNames; // const char* const*
+            public VkPhysicalDeviceFeatures* pEnabledFeatures;
+
+            public VkDeviceCreateInfo()
+            {
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkDeviceQueueCreateInfo
+        {
+            public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            public IntPtr pNext = IntPtr.Zero; // const void*
+            public VkDeviceQueueCreateFlagBits flags;
+            public UInt32 queueFamilyIndex;
+            public UInt32 queueCount;
+            public float* pQueuePriorities; // const float*
+
+            public VkDeviceQueueCreateInfo()
+            {
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkPhysicalDeviceFeatures
+        {
+            public VkBool32 robustBufferAccess;
+            public VkBool32 fullDrawIndexUint32;
+            public VkBool32 imageCubeArray;
+            public VkBool32 independentBlend;
+            public VkBool32 geometryShader;
+            public VkBool32 tessellationShader;
+            public VkBool32 sampleRateShading;
+            public VkBool32 dualSrcBlend;
+            public VkBool32 logicOp;
+            public VkBool32 multiDrawIndirect;
+            public VkBool32 drawIndirectFirstInstance;
+            public VkBool32 depthClamp;
+            public VkBool32 depthBiasClamp;
+            public VkBool32 fillModeNonSolid;
+            public VkBool32 depthBounds;
+            public VkBool32 wideLines;
+            public VkBool32 largePoints;
+            public VkBool32 alphaToOne;
+            public VkBool32 multiViewport;
+            public VkBool32 samplerAnisotropy;
+            public VkBool32 textureCompressionETC2;
+            public VkBool32 textureCompressionASTC_LDR;
+            public VkBool32 textureCompressionBC;
+            public VkBool32 occlusionQueryPrecise;
+            public VkBool32 pipelineStatisticsQuery;
+            public VkBool32 vertexPipelineStoresAndAtomics;
+            public VkBool32 fragmentStoresAndAtomics;
+            public VkBool32 shaderTessellationAndGeometryPointSize;
+            public VkBool32 shaderImageGatherExtended;
+            public VkBool32 shaderStorageImageExtendedFormats;
+            public VkBool32 shaderStorageImageMultisample;
+            public VkBool32 shaderStorageImageReadWithoutFormat;
+            public VkBool32 shaderStorageImageWriteWithoutFormat;
+            public VkBool32 shaderUniformBufferArrayDynamicIndexing;
+            public VkBool32 shaderSampledImageArrayDynamicIndexing;
+            public VkBool32 shaderStorageBufferArrayDynamicIndexing;
+            public VkBool32 shaderStorageImageArrayDynamicIndexing;
+            public VkBool32 shaderClipDistance;
+            public VkBool32 shaderCullDistance;
+            public VkBool32 shaderFloat64;
+            public VkBool32 shaderInt64;
+            public VkBool32 shaderInt16;
+            public VkBool32 shaderResourceResidency;
+            public VkBool32 shaderResourceMinLod;
+            public VkBool32 sparseBinding;
+            public VkBool32 sparseResidencyBuffer;
+            public VkBool32 sparseResidencyImage2D;
+            public VkBool32 sparseResidencyImage3D;
+            public VkBool32 sparseResidency2Samples;
+            public VkBool32 sparseResidency4Samples;
+            public VkBool32 sparseResidency8Samples;
+            public VkBool32 sparseResidency16Samples;
+            public VkBool32 sparseResidencyAliased;
+            public VkBool32 variableMultisampleRate;
+            public VkBool32 inheritedQueries;
+        }
+
         // ----------------------------------------------------------------
         // Vulkan Macros
 
@@ -4833,6 +4952,18 @@ namespace AgroRenderer
         [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
         public static extern VkResult vkGetPhysicalDeviceSurfaceSupportKHR(VkPhysicalDevice physicalDevice,
             UInt32 queueFamilyIndex, VkSurfaceKHR surface, VkBool32* pSupported);
+        
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern VkResult vkCreateDevice(VkPhysicalDevice physicalDevice,
+            VkDeviceCreateInfo* pCreateInfo, VkAllocationCallbacks* pAllocator, VkDevice* pDevice);
+        
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void vkGetDeviceQueue(VkDevice device, UInt32 queueFamilyIndex, UInt32 queueIndex,
+            VkQueue* pQueue);
+        
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern VkResult vkDestroyDevice(VkDevice device, VkAllocationCallbacks* pAllocator);
+        
 
         // ----------------------------------------------------------------
         // Non Vulkan Helper Functions
@@ -4927,6 +5058,21 @@ namespace AgroRenderer
         {
             public Vk.VkPhysicalDevice Device;
             public QueuesToRequest Queues;
+            
+            public void Deconstruct(out Vk.VkPhysicalDevice device, out QueuesToRequest queues)
+            {
+                device = Device;
+                queues = Queues;
+            }
+        }
+
+        public struct LogicalDeviceWithQueues
+        {
+            public Vk.VkDevice Device;
+            public int GraphicsQueueIndex;
+            public Vk.VkQueue GraphicsQueue;
+            public int PresentQueueIndex;
+            public Vk.VkQueue PresentQueue;
         }
 
         // ----------------------------------------------------------------
@@ -5116,6 +5262,133 @@ namespace AgroRenderer
                 Queues = queuesToRequestArr[selectedIndex]
             };
             return physicalDeviceWithQueues;
+        }
+
+        public static LogicalDeviceWithQueues CreateLogicalDevice(Vk.VkPhysicalDevice physicalDevice,
+            QueuesToRequest queuesToRequest, MemUtils.Arena scratch,
+            string[]? enabledLayerNames = null, string[]? enabledExtensionNames = null)
+        {
+            enabledLayerNames ??= [];
+            enabledExtensionNames ??= [];
+            // Prepare Queue Create Infos
+            int queueCreateInfoCount = 0;
+            if (queuesToRequest.Graphics is not null) queueCreateInfoCount++;
+            if (queuesToRequest.Present is not null && queuesToRequest.Present != queuesToRequest.Graphics) queueCreateInfoCount++;
+            var queueCreateInfos = scratch.Alloc<Vk.VkDeviceQueueCreateInfo>(queueCreateInfoCount);
+            var queuePriorities = scratch.Alloc<float>(queueCreateInfoCount); // One priority per queue create info
+            int index = 0;
+            if (queuesToRequest.Graphics is not null)
+            {
+                queueCreateInfos[index] = new Vk.VkDeviceQueueCreateInfo
+                {
+                    sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                    pNext = IntPtr.Zero,
+                    flags = 0,
+                    queueFamilyIndex = (UInt32)queuesToRequest.Graphics.Value,
+                    queueCount =  queuesToRequest.Present != queuesToRequest.Graphics ? 1U : 2U,
+                    pQueuePriorities = &queuePriorities[index]
+                };
+                queuePriorities[index] = 1.0f; // Highest priority
+                index++;
+            }
+
+            if (queuesToRequest.Present is not null && queuesToRequest.Present != queuesToRequest.Graphics)
+            {
+                queueCreateInfos[index] = new Vk.VkDeviceQueueCreateInfo
+                {
+                    sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                    pNext = IntPtr.Zero,
+                    flags = 0,
+                    queueFamilyIndex = (UInt32)queuesToRequest.Present.Value,
+                    queueCount = 1,
+                    pQueuePriorities = &queuePriorities[index]
+                };
+                queuePriorities[index] = 1.0f; // Highest priority
+                index++;
+            }
+
+            // Prepare Device Create Info
+            var deviceCreateInfo = scratch.Alloc<Vk.VkDeviceCreateInfo>();
+            deviceCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+            deviceCreateInfo->pNext = IntPtr.Zero;
+            deviceCreateInfo->flags = 0;
+            deviceCreateInfo->queueCreateInfoCount = (UInt32)queueCreateInfoCount;
+            deviceCreateInfo->pQueueCreateInfos = queueCreateInfos;
+            deviceCreateInfo->enabledLayerCount = (UInt32)enabledLayerNames.Length;
+            deviceCreateInfo->enabledExtensionCount = (UInt32)enabledExtensionNames.Length;
+            deviceCreateInfo->pEnabledFeatures = null; // Enable all features by default
+            // Marshal enabled Layer Names
+            if (deviceCreateInfo->enabledLayerCount > 0)
+            {
+                IntPtr* layerNames = scratch.Alloc<IntPtr>((int)deviceCreateInfo->enabledLayerCount);
+                for (int i = 0; i < deviceCreateInfo->enabledLayerCount; i++)
+                {
+                    layerNames[i] = scratch.AllocANSIString(enabledLayerNames[i]);
+                }
+
+                deviceCreateInfo->ppEnabledLayerNames = layerNames;
+            }
+            else
+            {
+                deviceCreateInfo->ppEnabledLayerNames = null;
+            }
+
+            // Marshal enabled Extension Names
+            if (deviceCreateInfo->enabledExtensionCount > 0)
+            {
+                IntPtr* extensionNames = scratch.Alloc<IntPtr>((int)deviceCreateInfo->enabledExtensionCount);
+                for (int i = 0; i < deviceCreateInfo->enabledExtensionCount; i++)
+                {
+                    extensionNames[i] = scratch.AllocANSIString(enabledExtensionNames[i]);
+                }
+
+                deviceCreateInfo->ppEnabledExtensionNames = extensionNames;
+            }
+            else
+            {
+                deviceCreateInfo->ppEnabledExtensionNames = null;
+            }
+
+            // Create Logical Device
+            var logicalDevice = scratch.Alloc<Vk.VkDevice>();
+            var result = Vk.vkCreateDevice(physicalDevice, deviceCreateInfo, null, logicalDevice);
+            if (result != Vk.VkResult.VK_SUCCESS)
+            {
+                throw new Exception($"Failed to create logical device: {result}");
+            }
+
+            Console.WriteLine($"Created Logical Device with handle: 0x{logicalDevice->ptr:X}");
+
+            var logicalDeviceManaged = new Vk.VkDevice();
+            logicalDeviceManaged.ptr = logicalDevice->ptr;
+            // Retrieve Queues
+            var logicalDeviceWithQueues = new LogicalDeviceWithQueues
+            {
+                Device = logicalDeviceManaged,
+                GraphicsQueueIndex = queuesToRequest.Graphics ?? -1,
+                PresentQueueIndex = queuesToRequest.Present ?? -1
+            };
+            if (queuesToRequest.Graphics is not null)
+            {
+                var graphicsQueue = scratch.Alloc<Vk.VkQueue>();
+                Vk.vkGetDeviceQueue(*logicalDevice, (UInt32)queuesToRequest.Graphics.Value, 0, graphicsQueue);
+                var graphicsQueueManaged = new Vk.VkQueue();
+                graphicsQueueManaged.ptr = graphicsQueue->ptr;
+                logicalDeviceWithQueues.GraphicsQueue = graphicsQueueManaged;
+                Console.WriteLine($"Retrieved Graphics Queue with handle: 0x{graphicsQueue->ptr:X}");
+            }
+
+            if (queuesToRequest.Present is not null)
+            {
+                var presentQueue = scratch.Alloc<Vk.VkQueue>();
+                Vk.vkGetDeviceQueue(*logicalDevice, (UInt32)queuesToRequest.Present.Value,  queuesToRequest.Present != queuesToRequest.Graphics ? 0U : 1U, presentQueue);
+                var presentQueueManaged = new Vk.VkQueue();
+                presentQueueManaged.ptr = presentQueue->ptr;
+                logicalDeviceWithQueues.PresentQueue = presentQueueManaged;
+                Console.WriteLine($"Retrieved Present Queue with handle: 0x{presentQueue->ptr:X}");
+            }
+
+            return logicalDeviceWithQueues;
         }
     }
 }

@@ -114,7 +114,7 @@ namespace AgroRenderer
             
             List<string> validationLayers = ["VK_LAYER_KHRONOS_validation"];
             // The following layers are useful for debugging API errors, but are very noisy
-            // validationLayers.Add("VK_LAYER_LUNARG_api_dump");
+            validationLayers.Add("VK_LAYER_LUNARG_api_dump");
             List<string> instanceLayers = [];
             List<string> instanceExtensions = [];
 
@@ -179,7 +179,8 @@ namespace AgroRenderer
                 var surface = platform.CreateVulkanSurface(instance, scratch);
                 Console.WriteLine($"Created a Vulkan Surface with handle: 0x{surface.handle:X}");
                 //using (var _0 = MemUtils.Defer(VkSharp.DestroySurfaceKHR, instance, surface)) ;
-                var physicalDevice = VkSharp.FindSuitablePhysicalDevice(instance, surface, scratch);
+                var (physicalDevice, QueuesToRequest) = VkSharp.FindSuitablePhysicalDevice(instance, surface, scratch);
+                var loegicalDevice = VkSharp.CreateLogicalDevice(physicalDevice, QueuesToRequest, scratch);
                 
 
                 //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
