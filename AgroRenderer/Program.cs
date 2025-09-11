@@ -183,6 +183,7 @@ namespace AgroRenderer
                 var (loegicalDevice, queueDetails) = VkSharp.CreateLogicalDevice(physicalDevice, queuesToRequest, scratch);
                 var (swapchain, swapchainImages, imageFormat, imageExtent) 
                     = VkSharp.CreateSwapchain(loegicalDevice, physicalDevice, surface, queueDetails, scratch);
+                var imageViews = VkSharp.CreateSwapchainImageViews(loegicalDevice, swapchainImages, imageFormat, scratch);
                 
 
                 //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
