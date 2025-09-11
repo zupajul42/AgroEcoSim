@@ -114,7 +114,7 @@ namespace AgroRenderer
             
             List<string> validationLayers = ["VK_LAYER_KHRONOS_validation"];
             // The following layers are useful for debugging API errors, but are very noisy
-            validationLayers.Add("VK_LAYER_LUNARG_api_dump");
+            // validationLayers.Add("VK_LAYER_LUNARG_api_dump");
             List<string> instanceLayers = [];
             List<string> instanceExtensions = [];
 
@@ -175,12 +175,14 @@ namespace AgroRenderer
                     Console.WriteLine("Failed to create Vulkan Instance with error: " + res);
                     return;
                 }
-                Console.WriteLine($"Createed a Vulkan Instance with handle: 0x{instance.ptr:X}");
+                Console.WriteLine($"Createed a Vulkan Instance with handle: 0x{instance.handle:X}");
                 var surface = platform.CreateVulkanSurface(instance, scratch);
                 Console.WriteLine($"Created a Vulkan Surface with handle: 0x{surface.handle:X}");
                 //using (var _0 = MemUtils.Defer(VkSharp.DestroySurfaceKHR, instance, surface)) ;
-                var (physicalDevice, QueuesToRequest) = VkSharp.FindSuitablePhysicalDevice(instance, surface, scratch);
-                var loegicalDevice = VkSharp.CreateLogicalDevice(physicalDevice, QueuesToRequest, scratch);
+                var (physicalDevice, queuesToRequest) = VkSharp.FindSuitablePhysicalDevice(instance, surface, scratch);
+                var (loegicalDevice, queueDetails) = VkSharp.CreateLogicalDevice(physicalDevice, queuesToRequest, scratch);
+                var (swapchain, swapchainImages, imageFormat, imageExtent) 
+                    = VkSharp.CreateSwapchain(loegicalDevice, physicalDevice, surface, queueDetails, scratch);
                 
 
                 //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);

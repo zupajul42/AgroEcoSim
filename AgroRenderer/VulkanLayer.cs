@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -35,6 +36,7 @@ namespace AgroRenderer
         public const uint VK_MAX_EXTENSION_NAME_SIZE = 256U;
         public const uint VK_MAX_DESCRIPTION_SIZE = 256U;
         public const uint VK_MAX_MEMORY_HEAPS = 16U;
+        public const IntPtr VK_NULL_HANDLE = 0;
 
         // ----------------------------------------------------------------
         // Vulkan Handles
@@ -42,25 +44,37 @@ namespace AgroRenderer
         [StructLayout(LayoutKind.Sequential)]
         public struct VkInstance
         {
-            public IntPtr ptr;
+            public IntPtr handle;
         }
 
         [StructLayout(LayoutKind.Sequential)]
         public struct VkPhysicalDevice
         {
-            public IntPtr ptr;
+            public IntPtr handle;
         }
 
         [StructLayout(LayoutKind.Sequential)]
         public struct VkDevice
         {
-            public IntPtr ptr;
+            public IntPtr handle;
         }
         
         [StructLayout(LayoutKind.Sequential)]
         public struct VkQueue
         {
-            public IntPtr ptr;
+            public IntPtr handle;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkSwapchainKHR
+        {
+            public IntPtr handle;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkImage
+        {
+            public IntPtr handle;
         }
         
         // ----------------------------------------------------------------
@@ -4416,6 +4430,607 @@ namespace AgroRenderer
             VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT = 0x00000001,
         }
 
+        public enum VkFormat
+        {
+                VK_FORMAT_UNDEFINED = 0,
+    VK_FORMAT_R4G4_UNORM_PACK8 = 1,
+    VK_FORMAT_R4G4B4A4_UNORM_PACK16 = 2,
+    VK_FORMAT_B4G4R4A4_UNORM_PACK16 = 3,
+    VK_FORMAT_R5G6B5_UNORM_PACK16 = 4,
+    VK_FORMAT_B5G6R5_UNORM_PACK16 = 5,
+    VK_FORMAT_R5G5B5A1_UNORM_PACK16 = 6,
+    VK_FORMAT_B5G5R5A1_UNORM_PACK16 = 7,
+    VK_FORMAT_A1R5G5B5_UNORM_PACK16 = 8,
+    VK_FORMAT_R8_UNORM = 9,
+    VK_FORMAT_R8_SNORM = 10,
+    VK_FORMAT_R8_USCALED = 11,
+    VK_FORMAT_R8_SSCALED = 12,
+    VK_FORMAT_R8_UINT = 13,
+    VK_FORMAT_R8_SINT = 14,
+    VK_FORMAT_R8_SRGB = 15,
+    VK_FORMAT_R8G8_UNORM = 16,
+    VK_FORMAT_R8G8_SNORM = 17,
+    VK_FORMAT_R8G8_USCALED = 18,
+    VK_FORMAT_R8G8_SSCALED = 19,
+    VK_FORMAT_R8G8_UINT = 20,
+    VK_FORMAT_R8G8_SINT = 21,
+    VK_FORMAT_R8G8_SRGB = 22,
+    VK_FORMAT_R8G8B8_UNORM = 23,
+    VK_FORMAT_R8G8B8_SNORM = 24,
+    VK_FORMAT_R8G8B8_USCALED = 25,
+    VK_FORMAT_R8G8B8_SSCALED = 26,
+    VK_FORMAT_R8G8B8_UINT = 27,
+    VK_FORMAT_R8G8B8_SINT = 28,
+    VK_FORMAT_R8G8B8_SRGB = 29,
+    VK_FORMAT_B8G8R8_UNORM = 30,
+    VK_FORMAT_B8G8R8_SNORM = 31,
+    VK_FORMAT_B8G8R8_USCALED = 32,
+    VK_FORMAT_B8G8R8_SSCALED = 33,
+    VK_FORMAT_B8G8R8_UINT = 34,
+    VK_FORMAT_B8G8R8_SINT = 35,
+    VK_FORMAT_B8G8R8_SRGB = 36,
+    VK_FORMAT_R8G8B8A8_UNORM = 37,
+    VK_FORMAT_R8G8B8A8_SNORM = 38,
+    VK_FORMAT_R8G8B8A8_USCALED = 39,
+    VK_FORMAT_R8G8B8A8_SSCALED = 40,
+    VK_FORMAT_R8G8B8A8_UINT = 41,
+    VK_FORMAT_R8G8B8A8_SINT = 42,
+    VK_FORMAT_R8G8B8A8_SRGB = 43,
+    VK_FORMAT_B8G8R8A8_UNORM = 44,
+    VK_FORMAT_B8G8R8A8_SNORM = 45,
+    VK_FORMAT_B8G8R8A8_USCALED = 46,
+    VK_FORMAT_B8G8R8A8_SSCALED = 47,
+    VK_FORMAT_B8G8R8A8_UINT = 48,
+    VK_FORMAT_B8G8R8A8_SINT = 49,
+    VK_FORMAT_B8G8R8A8_SRGB = 50,
+    VK_FORMAT_A8B8G8R8_UNORM_PACK32 = 51,
+    VK_FORMAT_A8B8G8R8_SNORM_PACK32 = 52,
+    VK_FORMAT_A8B8G8R8_USCALED_PACK32 = 53,
+    VK_FORMAT_A8B8G8R8_SSCALED_PACK32 = 54,
+    VK_FORMAT_A8B8G8R8_UINT_PACK32 = 55,
+    VK_FORMAT_A8B8G8R8_SINT_PACK32 = 56,
+    VK_FORMAT_A8B8G8R8_SRGB_PACK32 = 57,
+    VK_FORMAT_A2R10G10B10_UNORM_PACK32 = 58,
+    VK_FORMAT_A2R10G10B10_SNORM_PACK32 = 59,
+    VK_FORMAT_A2R10G10B10_USCALED_PACK32 = 60,
+    VK_FORMAT_A2R10G10B10_SSCALED_PACK32 = 61,
+    VK_FORMAT_A2R10G10B10_UINT_PACK32 = 62,
+    VK_FORMAT_A2R10G10B10_SINT_PACK32 = 63,
+    VK_FORMAT_A2B10G10R10_UNORM_PACK32 = 64,
+    VK_FORMAT_A2B10G10R10_SNORM_PACK32 = 65,
+    VK_FORMAT_A2B10G10R10_USCALED_PACK32 = 66,
+    VK_FORMAT_A2B10G10R10_SSCALED_PACK32 = 67,
+    VK_FORMAT_A2B10G10R10_UINT_PACK32 = 68,
+    VK_FORMAT_A2B10G10R10_SINT_PACK32 = 69,
+    VK_FORMAT_R16_UNORM = 70,
+    VK_FORMAT_R16_SNORM = 71,
+    VK_FORMAT_R16_USCALED = 72,
+    VK_FORMAT_R16_SSCALED = 73,
+    VK_FORMAT_R16_UINT = 74,
+    VK_FORMAT_R16_SINT = 75,
+    VK_FORMAT_R16_SFLOAT = 76,
+    VK_FORMAT_R16G16_UNORM = 77,
+    VK_FORMAT_R16G16_SNORM = 78,
+    VK_FORMAT_R16G16_USCALED = 79,
+    VK_FORMAT_R16G16_SSCALED = 80,
+    VK_FORMAT_R16G16_UINT = 81,
+    VK_FORMAT_R16G16_SINT = 82,
+    VK_FORMAT_R16G16_SFLOAT = 83,
+    VK_FORMAT_R16G16B16_UNORM = 84,
+    VK_FORMAT_R16G16B16_SNORM = 85,
+    VK_FORMAT_R16G16B16_USCALED = 86,
+    VK_FORMAT_R16G16B16_SSCALED = 87,
+    VK_FORMAT_R16G16B16_UINT = 88,
+    VK_FORMAT_R16G16B16_SINT = 89,
+    VK_FORMAT_R16G16B16_SFLOAT = 90,
+    VK_FORMAT_R16G16B16A16_UNORM = 91,
+    VK_FORMAT_R16G16B16A16_SNORM = 92,
+    VK_FORMAT_R16G16B16A16_USCALED = 93,
+    VK_FORMAT_R16G16B16A16_SSCALED = 94,
+    VK_FORMAT_R16G16B16A16_UINT = 95,
+    VK_FORMAT_R16G16B16A16_SINT = 96,
+    VK_FORMAT_R16G16B16A16_SFLOAT = 97,
+    VK_FORMAT_R32_UINT = 98,
+    VK_FORMAT_R32_SINT = 99,
+    VK_FORMAT_R32_SFLOAT = 100,
+    VK_FORMAT_R32G32_UINT = 101,
+    VK_FORMAT_R32G32_SINT = 102,
+    VK_FORMAT_R32G32_SFLOAT = 103,
+    VK_FORMAT_R32G32B32_UINT = 104,
+    VK_FORMAT_R32G32B32_SINT = 105,
+    VK_FORMAT_R32G32B32_SFLOAT = 106,
+    VK_FORMAT_R32G32B32A32_UINT = 107,
+    VK_FORMAT_R32G32B32A32_SINT = 108,
+    VK_FORMAT_R32G32B32A32_SFLOAT = 109,
+    VK_FORMAT_R64_UINT = 110,
+    VK_FORMAT_R64_SINT = 111,
+    VK_FORMAT_R64_SFLOAT = 112,
+    VK_FORMAT_R64G64_UINT = 113,
+    VK_FORMAT_R64G64_SINT = 114,
+    VK_FORMAT_R64G64_SFLOAT = 115,
+    VK_FORMAT_R64G64B64_UINT = 116,
+    VK_FORMAT_R64G64B64_SINT = 117,
+    VK_FORMAT_R64G64B64_SFLOAT = 118,
+    VK_FORMAT_R64G64B64A64_UINT = 119,
+    VK_FORMAT_R64G64B64A64_SINT = 120,
+    VK_FORMAT_R64G64B64A64_SFLOAT = 121,
+    VK_FORMAT_B10G11R11_UFLOAT_PACK32 = 122,
+    VK_FORMAT_E5B9G9R9_UFLOAT_PACK32 = 123,
+    VK_FORMAT_D16_UNORM = 124,
+    VK_FORMAT_X8_D24_UNORM_PACK32 = 125,
+    VK_FORMAT_D32_SFLOAT = 126,
+    VK_FORMAT_S8_UINT = 127,
+    VK_FORMAT_D16_UNORM_S8_UINT = 128,
+    VK_FORMAT_D24_UNORM_S8_UINT = 129,
+    VK_FORMAT_D32_SFLOAT_S8_UINT = 130,
+    VK_FORMAT_BC1_RGB_UNORM_BLOCK = 131,
+    VK_FORMAT_BC1_RGB_SRGB_BLOCK = 132,
+    VK_FORMAT_BC1_RGBA_UNORM_BLOCK = 133,
+    VK_FORMAT_BC1_RGBA_SRGB_BLOCK = 134,
+    VK_FORMAT_BC2_UNORM_BLOCK = 135,
+    VK_FORMAT_BC2_SRGB_BLOCK = 136,
+    VK_FORMAT_BC3_UNORM_BLOCK = 137,
+    VK_FORMAT_BC3_SRGB_BLOCK = 138,
+    VK_FORMAT_BC4_UNORM_BLOCK = 139,
+    VK_FORMAT_BC4_SNORM_BLOCK = 140,
+    VK_FORMAT_BC5_UNORM_BLOCK = 141,
+    VK_FORMAT_BC5_SNORM_BLOCK = 142,
+    VK_FORMAT_BC6H_UFLOAT_BLOCK = 143,
+    VK_FORMAT_BC6H_SFLOAT_BLOCK = 144,
+    VK_FORMAT_BC7_UNORM_BLOCK = 145,
+    VK_FORMAT_BC7_SRGB_BLOCK = 146,
+    VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK = 147,
+    VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK = 148,
+    VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK = 149,
+    VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK = 150,
+    VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK = 151,
+    VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK = 152,
+    VK_FORMAT_EAC_R11_UNORM_BLOCK = 153,
+    VK_FORMAT_EAC_R11_SNORM_BLOCK = 154,
+    VK_FORMAT_EAC_R11G11_UNORM_BLOCK = 155,
+    VK_FORMAT_EAC_R11G11_SNORM_BLOCK = 156,
+    VK_FORMAT_ASTC_4x4_UNORM_BLOCK = 157,
+    VK_FORMAT_ASTC_4x4_SRGB_BLOCK = 158,
+    VK_FORMAT_ASTC_5x4_UNORM_BLOCK = 159,
+    VK_FORMAT_ASTC_5x4_SRGB_BLOCK = 160,
+    VK_FORMAT_ASTC_5x5_UNORM_BLOCK = 161,
+    VK_FORMAT_ASTC_5x5_SRGB_BLOCK = 162,
+    VK_FORMAT_ASTC_6x5_UNORM_BLOCK = 163,
+    VK_FORMAT_ASTC_6x5_SRGB_BLOCK = 164,
+    VK_FORMAT_ASTC_6x6_UNORM_BLOCK = 165,
+    VK_FORMAT_ASTC_6x6_SRGB_BLOCK = 166,
+    VK_FORMAT_ASTC_8x5_UNORM_BLOCK = 167,
+    VK_FORMAT_ASTC_8x5_SRGB_BLOCK = 168,
+    VK_FORMAT_ASTC_8x6_UNORM_BLOCK = 169,
+    VK_FORMAT_ASTC_8x6_SRGB_BLOCK = 170,
+    VK_FORMAT_ASTC_8x8_UNORM_BLOCK = 171,
+    VK_FORMAT_ASTC_8x8_SRGB_BLOCK = 172,
+    VK_FORMAT_ASTC_10x5_UNORM_BLOCK = 173,
+    VK_FORMAT_ASTC_10x5_SRGB_BLOCK = 174,
+    VK_FORMAT_ASTC_10x6_UNORM_BLOCK = 175,
+    VK_FORMAT_ASTC_10x6_SRGB_BLOCK = 176,
+    VK_FORMAT_ASTC_10x8_UNORM_BLOCK = 177,
+    VK_FORMAT_ASTC_10x8_SRGB_BLOCK = 178,
+    VK_FORMAT_ASTC_10x10_UNORM_BLOCK = 179,
+    VK_FORMAT_ASTC_10x10_SRGB_BLOCK = 180,
+    VK_FORMAT_ASTC_12x10_UNORM_BLOCK = 181,
+    VK_FORMAT_ASTC_12x10_SRGB_BLOCK = 182,
+    VK_FORMAT_ASTC_12x12_UNORM_BLOCK = 183,
+    VK_FORMAT_ASTC_12x12_SRGB_BLOCK = 184,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G8B8G8R8_422_UNORM = 1000156000,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_B8G8R8G8_422_UNORM = 1000156001,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM = 1000156002,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G8_B8R8_2PLANE_420_UNORM = 1000156003,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM = 1000156004,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G8_B8R8_2PLANE_422_UNORM = 1000156005,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM = 1000156006,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_R10X6_UNORM_PACK16 = 1000156007,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_R10X6G10X6_UNORM_2PACK16 = 1000156008,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16 = 1000156009,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16 = 1000156010,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16 = 1000156011,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16 = 1000156012,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16 = 1000156013,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16 = 1000156014,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16 = 1000156015,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16 = 1000156016,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_R12X4_UNORM_PACK16 = 1000156017,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_R12X4G12X4_UNORM_2PACK16 = 1000156018,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16 = 1000156019,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16 = 1000156020,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16 = 1000156021,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16 = 1000156022,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16 = 1000156023,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16 = 1000156024,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16 = 1000156025,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 = 1000156026,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G16B16G16R16_422_UNORM = 1000156027,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_B16G16R16G16_422_UNORM = 1000156028,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM = 1000156029,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G16_B16R16_2PLANE_420_UNORM = 1000156030,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM = 1000156031,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G16_B16R16_2PLANE_422_UNORM = 1000156032,
+  // Provided by VK_VERSION_1_1
+    VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM = 1000156033,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_G8_B8R8_2PLANE_444_UNORM = 1000330000,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16 = 1000330001,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16 = 1000330002,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_G16_B16R16_2PLANE_444_UNORM = 1000330003,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_A4R4G4B4_UNORM_PACK16 = 1000340000,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_A4B4G4R4_UNORM_PACK16 = 1000340001,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK = 1000066000,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK = 1000066001,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK = 1000066002,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK = 1000066003,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK = 1000066004,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK = 1000066005,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK = 1000066006,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK = 1000066007,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK = 1000066008,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK = 1000066009,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK = 1000066010,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK = 1000066011,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK = 1000066012,
+  // Provided by VK_VERSION_1_3
+    VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK = 1000066013,
+  // Provided by VK_VERSION_1_4
+    VK_FORMAT_A1B5G5R5_UNORM_PACK16 = 1000470000,
+  // Provided by VK_VERSION_1_4
+    VK_FORMAT_A8_UNORM = 1000470001,
+  // Provided by VK_IMG_format_pvrtc
+    VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG = 1000054000,
+  // Provided by VK_IMG_format_pvrtc
+    VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG = 1000054001,
+  // Provided by VK_IMG_format_pvrtc
+    VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG = 1000054002,
+  // Provided by VK_IMG_format_pvrtc
+    VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG = 1000054003,
+  // Provided by VK_IMG_format_pvrtc
+    VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG = 1000054004,
+  // Provided by VK_IMG_format_pvrtc
+    VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG = 1000054005,
+  // Provided by VK_IMG_format_pvrtc
+    VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG = 1000054006,
+  // Provided by VK_IMG_format_pvrtc
+    VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG = 1000054007,
+  // Provided by VK_ARM_tensors
+    VK_FORMAT_R8_BOOL_ARM = 1000460000,
+  // Provided by VK_NV_optical_flow
+    VK_FORMAT_R16G16_SFIXED5_NV = 1000464000,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R10X6_UINT_PACK16_ARM = 1000609000,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R10X6G10X6_UINT_2PACK16_ARM = 1000609001,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R10X6G10X6B10X6A10X6_UINT_4PACK16_ARM = 1000609002,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R12X4_UINT_PACK16_ARM = 1000609003,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R12X4G12X4_UINT_2PACK16_ARM = 1000609004,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R12X4G12X4B12X4A12X4_UINT_4PACK16_ARM = 1000609005,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R14X2_UINT_PACK16_ARM = 1000609006,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R14X2G14X2_UINT_2PACK16_ARM = 1000609007,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R14X2G14X2B14X2A14X2_UINT_4PACK16_ARM = 1000609008,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R14X2_UNORM_PACK16_ARM = 1000609009,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R14X2G14X2_UNORM_2PACK16_ARM = 1000609010,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_R14X2G14X2B14X2A14X2_UNORM_4PACK16_ARM = 1000609011,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_G14X2_B14X2R14X2_2PLANE_420_UNORM_3PACK16_ARM = 1000609012,
+  // Provided by VK_ARM_format_pack
+    VK_FORMAT_G14X2_B14X2R14X2_2PLANE_422_UNORM_3PACK16_ARM = 1000609013,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK,
+  // Provided by VK_EXT_texture_compression_astc_hdr
+    VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK_EXT = VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G8B8G8R8_422_UNORM_KHR = VK_FORMAT_G8B8G8R8_422_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_B8G8R8G8_422_UNORM_KHR = VK_FORMAT_B8G8R8G8_422_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM_KHR = VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G8_B8R8_2PLANE_420_UNORM_KHR = VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM_KHR = VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G8_B8R8_2PLANE_422_UNORM_KHR = VK_FORMAT_G8_B8R8_2PLANE_422_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM_KHR = VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_R10X6_UNORM_PACK16_KHR = VK_FORMAT_R10X6_UNORM_PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_R10X6G10X6_UNORM_2PACK16_KHR = VK_FORMAT_R10X6G10X6_UNORM_2PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16_KHR = VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16_KHR = VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16_KHR = VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16_KHR = VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_R12X4_UNORM_PACK16_KHR = VK_FORMAT_R12X4_UNORM_PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_R12X4G12X4_UNORM_2PACK16_KHR = VK_FORMAT_R12X4G12X4_UNORM_2PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16_KHR = VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16_KHR = VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16_KHR = VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16_KHR = VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G16B16G16R16_422_UNORM_KHR = VK_FORMAT_G16B16G16R16_422_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_B16G16R16G16_422_UNORM_KHR = VK_FORMAT_B16G16R16G16_422_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM_KHR = VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G16_B16R16_2PLANE_420_UNORM_KHR = VK_FORMAT_G16_B16R16_2PLANE_420_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM_KHR = VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G16_B16R16_2PLANE_422_UNORM_KHR = VK_FORMAT_G16_B16R16_2PLANE_422_UNORM,
+  // Provided by VK_KHR_sampler_ycbcr_conversion
+    VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM_KHR = VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM,
+  // Provided by VK_EXT_ycbcr_2plane_444_formats
+    VK_FORMAT_G8_B8R8_2PLANE_444_UNORM_EXT = VK_FORMAT_G8_B8R8_2PLANE_444_UNORM,
+  // Provided by VK_EXT_ycbcr_2plane_444_formats
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16_EXT = VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16,
+  // Provided by VK_EXT_ycbcr_2plane_444_formats
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16_EXT = VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16,
+  // Provided by VK_EXT_ycbcr_2plane_444_formats
+    VK_FORMAT_G16_B16R16_2PLANE_444_UNORM_EXT = VK_FORMAT_G16_B16R16_2PLANE_444_UNORM,
+  // Provided by VK_EXT_4444_formats
+    VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT = VK_FORMAT_A4R4G4B4_UNORM_PACK16,
+  // Provided by VK_EXT_4444_formats
+    VK_FORMAT_A4B4G4R4_UNORM_PACK16_EXT = VK_FORMAT_A4B4G4R4_UNORM_PACK16,
+  // Provided by VK_NV_optical_flow
+  // VK_FORMAT_R16G16_S10_5_NV is a deprecated alias
+    VK_FORMAT_R16G16_S10_5_NV = VK_FORMAT_R16G16_SFIXED5_NV,
+  // Provided by VK_KHR_maintenance5
+    VK_FORMAT_A1B5G5R5_UNORM_PACK16_KHR = VK_FORMAT_A1B5G5R5_UNORM_PACK16,
+  // Provided by VK_KHR_maintenance5
+    VK_FORMAT_A8_UNORM_KHR = VK_FORMAT_A8_UNORM,
+        }
+
+        public enum VkColorSpaceKHR
+        {
+            VK_COLOR_SPACE_SRGB_NONLINEAR_KHR = 0,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT = 1000104001,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT = 1000104002,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_DISPLAY_P3_LINEAR_EXT = 1000104003,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_DCI_P3_NONLINEAR_EXT = 1000104004,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_BT709_LINEAR_EXT = 1000104005,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_BT709_NONLINEAR_EXT = 1000104006,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_BT2020_LINEAR_EXT = 1000104007,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_HDR10_ST2084_EXT = 1000104008,
+            // Provided by VK_EXT_swapchain_colorspace
+            // VK_COLOR_SPACE_DOLBYVISION_EXT is deprecated, but no reason was given in the API XML
+            VK_COLOR_SPACE_DOLBYVISION_EXT = 1000104009,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_HDR10_HLG_EXT = 1000104010,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_ADOBERGB_LINEAR_EXT = 1000104011,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT = 1000104012,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_PASS_THROUGH_EXT = 1000104013,
+            // Provided by VK_EXT_swapchain_colorspace
+            VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT = 1000104014,
+            // Provided by VK_AMD_display_native_hdr
+            VK_COLOR_SPACE_DISPLAY_NATIVE_AMD = 1000213000,
+            // VK_COLORSPACE_SRGB_NONLINEAR_KHR is a deprecated alias
+            VK_COLORSPACE_SRGB_NONLINEAR_KHR = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+            // Provided by VK_EXT_swapchain_colorspace
+            // VK_COLOR_SPACE_DCI_P3_LINEAR_EXT is a deprecated alias
+            VK_COLOR_SPACE_DCI_P3_LINEAR_EXT = VK_COLOR_SPACE_DISPLAY_P3_LINEAR_EXT,
+        }
+        
+        [Flags]
+        public enum VkImageUsageFlagBits
+        {
+                VK_IMAGE_USAGE_TRANSFER_SRC_BIT = 0x00000001,
+    VK_IMAGE_USAGE_TRANSFER_DST_BIT = 0x00000002,
+    VK_IMAGE_USAGE_SAMPLED_BIT = 0x00000004,
+    VK_IMAGE_USAGE_STORAGE_BIT = 0x00000008,
+    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT = 0x00000010,
+    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT = 0x00000020,
+    VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT = 0x00000040,
+    VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT = 0x00000080,
+  // Provided by VK_VERSION_1_4
+    VK_IMAGE_USAGE_HOST_TRANSFER_BIT = 0x00400000,
+  // Provided by VK_KHR_video_decode_queue
+    VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR = 0x00000400,
+  // Provided by VK_KHR_video_decode_queue
+    VK_IMAGE_USAGE_VIDEO_DECODE_SRC_BIT_KHR = 0x00000800,
+  // Provided by VK_KHR_video_decode_queue
+    VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR = 0x00001000,
+  // Provided by VK_EXT_fragment_density_map
+    VK_IMAGE_USAGE_FRAGMENT_DENSITY_MAP_BIT_EXT = 0x00000200,
+  // Provided by VK_KHR_fragment_shading_rate
+    VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR = 0x00000100,
+  // Provided by VK_KHR_video_encode_queue
+    VK_IMAGE_USAGE_VIDEO_ENCODE_DST_BIT_KHR = 0x00002000,
+  // Provided by VK_KHR_video_encode_queue
+    VK_IMAGE_USAGE_VIDEO_ENCODE_SRC_BIT_KHR = 0x00004000,
+  // Provided by VK_KHR_video_encode_queue
+    VK_IMAGE_USAGE_VIDEO_ENCODE_DPB_BIT_KHR = 0x00008000,
+  // Provided by VK_EXT_attachment_feedback_loop_layout
+    VK_IMAGE_USAGE_ATTACHMENT_FEEDBACK_LOOP_BIT_EXT = 0x00080000,
+  // Provided by VK_HUAWEI_invocation_mask
+    VK_IMAGE_USAGE_INVOCATION_MASK_BIT_HUAWEI = 0x00040000,
+  // Provided by VK_QCOM_image_processing
+    VK_IMAGE_USAGE_SAMPLE_WEIGHT_BIT_QCOM = 0x00100000,
+  // Provided by VK_QCOM_image_processing
+    VK_IMAGE_USAGE_SAMPLE_BLOCK_MATCH_BIT_QCOM = 0x00200000,
+  // Provided by VK_ARM_tensors
+    VK_IMAGE_USAGE_TENSOR_ALIASING_BIT_ARM = 0x00800000,
+  // Provided by VK_QCOM_tile_memory_heap
+    VK_IMAGE_USAGE_TILE_MEMORY_BIT_QCOM = 0x08000000,
+  // Provided by VK_KHR_video_encode_quantization_map
+    VK_IMAGE_USAGE_VIDEO_ENCODE_QUANTIZATION_DELTA_MAP_BIT_KHR = 0x02000000,
+  // Provided by VK_KHR_video_encode_quantization_map
+    VK_IMAGE_USAGE_VIDEO_ENCODE_EMPHASIS_MAP_BIT_KHR = 0x04000000,
+  // Provided by VK_NV_shading_rate_image
+    VK_IMAGE_USAGE_SHADING_RATE_IMAGE_BIT_NV = VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR,
+  // Provided by VK_EXT_host_image_copy
+    VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT = VK_IMAGE_USAGE_HOST_TRANSFER_BIT,
+}
+
+        [Flags]
+        public enum VkSurfaceTransformFlagBitsKHR
+        {
+            VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR = 0x00000001,
+            VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR = 0x00000002,
+            VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR = 0x00000004,
+            VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR = 0x00000008,
+            VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR = 0x00000010,
+            VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR = 0x00000020,
+            VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR = 0x00000040,
+            VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR = 0x00000080,
+            VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR = 0x00000100,
+        }
+
+        [Flags]
+        public enum VkCompositeAlphaFlagBitsKHR
+        {
+            VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR = 0x00000001,
+            VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR = 0x00000002,
+            VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR = 0x00000004,
+            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR = 0x00000008,
+        }
+
+        public enum VkSharingMode
+        {
+            VK_SHARING_MODE_EXCLUSIVE = 0,
+            VK_SHARING_MODE_CONCURRENT = 1,
+        }
+        
+        public enum VkPresentModeKHR
+        {
+            VK_PRESENT_MODE_IMMEDIATE_KHR = 0,
+            VK_PRESENT_MODE_MAILBOX_KHR = 1,
+            VK_PRESENT_MODE_FIFO_KHR = 2,
+            VK_PRESENT_MODE_FIFO_RELAXED_KHR = 3,
+            // Provided by VK_KHR_shared_presentable_image
+            VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR = 1000111000,
+            // Provided by VK_KHR_shared_presentable_image
+            VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR = 1000111001,
+            // Provided by VK_KHR_present_mode_fifo_latest_ready
+            VK_PRESENT_MODE_FIFO_LATEST_READY_KHR = 1000361000,
+            // Provided by VK_EXT_present_mode_fifo_latest_ready
+            VK_PRESENT_MODE_FIFO_LATEST_READY_EXT = VK_PRESENT_MODE_FIFO_LATEST_READY_KHR,
+        }
+        
         // ----------------------------------------------------------------
         // Vulkan Structures
 
@@ -4838,6 +5453,72 @@ namespace AgroRenderer
             public VkBool32 inheritedQueries;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkSwapchainCreateInfoKHR
+        {
+            public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+            public IntPtr pNext = IntPtr.Zero; // const void*
+            public UInt32 flags;
+            public VkSurfaceKHR surface;
+            public UInt32 minImageCount;
+            public VkFormat imageFormat;
+            public VkColorSpaceKHR imageColorSpace;
+            public VkExtent2D imageExtent;
+            public UInt32 imageArrayLayers;
+            public VkImageUsageFlagBits imageUsage;
+            public VkSharingMode imageSharingMode;
+            public UInt32 queueFamilyIndexCount;
+            public UInt32* pQueueFamilyIndices; // const UInt32*
+            public VkSurfaceTransformFlagBitsKHR preTransform;
+            public VkCompositeAlphaFlagBitsKHR compositeAlpha;
+            public VkPresentModeKHR presentMode;
+            public VkBool32 clipped;
+            public VkSwapchainKHR oldSwapchain;
+
+            public VkSwapchainCreateInfoKHR()
+            {
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkExtent2D
+        {
+            public UInt32 width;
+            public UInt32 height;
+
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkSurfaceCapabilitiesKHR
+        {
+            public UInt32 minImageCount;
+            public UInt32 maxImageCount;
+            public VkExtent2D currentExtent;
+            public VkExtent2D minImageExtent;
+            public VkExtent2D maxImageExtent;
+            public UInt32 maxImageArrayLayers;
+            public VkSurfaceTransformFlagBitsKHR supportedTransforms;
+            public VkSurfaceTransformFlagBitsKHR currentTransform;
+            public VkCompositeAlphaFlagBitsKHR supportedCompositeAlpha;
+            public VkImageUsageFlagBits supportedUsageFlags;
+
+            public VkSurfaceCapabilitiesKHR()
+            {
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct VkSurfaceFormatKHR
+        {
+            public VkFormat format;
+            public VkColorSpaceKHR colorSpace;
+
+            public VkSurfaceFormatKHR()
+            {
+            }
+        }
+        
+
         // ----------------------------------------------------------------
         // Vulkan Macros
 
@@ -4964,7 +5645,26 @@ namespace AgroRenderer
         [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
         public static extern VkResult vkDestroyDevice(VkDevice device, VkAllocationCallbacks* pAllocator);
         
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern VkResult vkCreateSwapchainKHR(VkDevice device,
+            VkSwapchainCreateInfoKHR* pCreateInfo, VkAllocationCallbacks* pAllocator,
+            VkSwapchainKHR* pSwapchain);
+        
 
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern VkResult vkGetSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain,
+            UInt32* pSwapchainImageCount, VkImage* pSwapchainImages);
+        
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern VkResult vkGetPhysicalDeviceSurfaceCapabilitiesKHR(VkPhysicalDevice physicalDevice,
+            VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities);
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern VkResult vkGetPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice physicalDevice,
+            VkSurfaceKHR surface, UInt32* pSurfaceFormatCount, VkSurfaceFormatKHR* pSurfaceFormats);
+        [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+        public static extern VkResult vkGetPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice physicalDevice,
+            VkSurfaceKHR surface, UInt32* pPresentModeCount, VkPresentModeKHR* pPresentModes);
+        
         // ----------------------------------------------------------------
         // Non Vulkan Helper Functions
 
@@ -4998,13 +5698,15 @@ namespace AgroRenderer
         // Helper Functions
         public static string ApiVersionToStr(uint version)
         {
-            return $"{Vk.VK_API_VERSION_VARIANT(version)}.{Vk.VK_API_VERSION_MAJOR(version)}.{Vk.VK_API_VERSION_MINOR(version)}.{Vk.VK_API_VERSION_PATCH(version)}";
+            return
+                $"{Vk.VK_API_VERSION_VARIANT(version)}.{Vk.VK_API_VERSION_MAJOR(version)}.{Vk.VK_API_VERSION_MINOR(version)}.{Vk.VK_API_VERSION_PATCH(version)}";
         }
+
         public static string VersionToStr(uint version)
         {
             return $"{Vk.VK_VERSION_MAJOR(version)}.{Vk.VK_VERSION_MINOR(version)}.{Vk.VK_VERSION_PATCH(version)}";
         }
-        
+
         // ----------------------------------------------------------------
         // Vulkan Structures
 
@@ -5034,7 +5736,7 @@ namespace AgroRenderer
             {
             }
         }
-        
+
         // ----------------------------------------------------------------
         // Custom Structures
 
@@ -5053,12 +5755,12 @@ namespace AgroRenderer
             {
             }
         }
-        
+
         public struct PhysicalDeviceWithQueues
         {
             public Vk.VkPhysicalDevice Device;
             public QueuesToRequest Queues;
-            
+
             public void Deconstruct(out Vk.VkPhysicalDevice device, out QueuesToRequest queues)
             {
                 device = Device;
@@ -5066,13 +5768,56 @@ namespace AgroRenderer
             }
         }
 
-        public struct LogicalDeviceWithQueues
+        public struct QueueDetails
         {
-            public Vk.VkDevice Device;
             public int GraphicsQueueIndex;
             public Vk.VkQueue GraphicsQueue;
             public int PresentQueueIndex;
             public Vk.VkQueue PresentQueue;
+        }
+        
+        public struct LogicalDeviceWithQueues
+        {
+            public Vk.VkDevice Device;            
+            public int GraphicsQueueIndex;
+            public Vk.VkQueue GraphicsQueue;
+            public int PresentQueueIndex;
+            public Vk.VkQueue PresentQueue;
+
+            public void Deconstruct(out Vk.VkDevice device, out QueueDetails queueDetails)
+            {
+                device = Device;
+                queueDetails = new QueueDetails
+                {
+                    GraphicsQueueIndex = GraphicsQueueIndex,
+                    GraphicsQueue = GraphicsQueue,
+                    PresentQueueIndex = PresentQueueIndex,
+                    PresentQueue = PresentQueue
+                };
+            }
+        }
+
+        public struct SwapchainWithImages
+        {
+            public Vk.VkSwapchainKHR Swapchain;
+            public Vk.VkImage[] Images;
+            public Vk.VkFormat ImageFormat;
+            public Vk.VkExtent2D ImageExtent;
+            
+            public void Deconstruct(out Vk.VkSwapchainKHR swapchain, out Vk.VkImage[] images, out Vk.VkFormat imageFormat, out Vk.VkExtent2D imageExtent)
+            {
+                swapchain = Swapchain;
+                images = Images;
+                imageFormat = ImageFormat;
+                imageExtent = ImageExtent;
+            }
+        }
+
+        public struct SwapchainSupportDeails
+        {
+            public Vk.VkSurfaceCapabilitiesKHR Capabilities;
+            public Vk.VkSurfaceFormatKHR[] Formats;
+            public Vk.VkPresentModeKHR[] PresentModes;
         }
 
         // ----------------------------------------------------------------
@@ -5146,7 +5891,7 @@ namespace AgroRenderer
 
         public static Vk.VkResult DestroyInstance(Vk.VkInstance instance)
         {
-            Console.WriteLine($"Destroying Vulkan Instance with handle: 0x{instance.ptr:X}");
+            Console.WriteLine($"Destroying Vulkan Instance with handle: 0x{instance.handle:X}");
             return Vk.vkDestroyInstance(instance, null);
         }
 
@@ -5156,7 +5901,7 @@ namespace AgroRenderer
             Vk.vkDestroySurfaceKHR(instance, surface, null);
             return Vk.VkResult.VK_SUCCESS;
         }
-        
+
         public static PhysicalDevices GetPhysicalDevices(Vk.VkInstance instance, MemUtils.Arena scratch)
         {
             UInt32 deviceCount = 0;
@@ -5193,12 +5938,14 @@ namespace AgroRenderer
                 devicesStruct.Devices[i] = devices[i];
                 devicesStruct.Properties[i] = properties[i];
             }
+
             return devicesStruct;
         }
 
-        public static PhysicalDeviceWithQueues FindSuitablePhysicalDevice(Vk.VkInstance instance, Vk.VkSurfaceKHR surface,
+        public static PhysicalDeviceWithQueues FindSuitablePhysicalDevice(Vk.VkInstance instance,
+            Vk.VkSurfaceKHR surface,
             MemUtils.Arena scratch)
-        {                 
+        {
             var physicalDevices = GetPhysicalDevices(instance, scratch);
             var queuesToRequestArr = new QueuesToRequest[physicalDevices.Devices.Length];
             for (var i = 0; i < physicalDevices.Devices.Length; i++)
@@ -5215,22 +5962,26 @@ namespace AgroRenderer
                         $"   Queue Family {j}: Flags: {queueFamilyProperties[j].queueFlags}, Count: {queueFamilyProperties[j].queueCount}, MinImageTransferGranularity: {queueFamilyProperties[j].minImageTransferGranularity.width}x{queueFamilyProperties[j].minImageTransferGranularity.height}x{queueFamilyProperties[j].minImageTransferGranularity.depth}");
                     var timesUsed = 0;
                     // Check for graphics support
-                    var graphicsSupport = Convert.ToBoolean(Vk.VkQueueFlagBits.VK_QUEUE_GRAPHICS_BIT & queueFamilyProperties[j].queueFlags);
-                    if(graphicsSupport)
+                    var graphicsSupport = Convert.ToBoolean(Vk.VkQueueFlagBits.VK_QUEUE_GRAPHICS_BIT &
+                                                            queueFamilyProperties[j].queueFlags);
+                    if (graphicsSupport)
                         Console.WriteLine($"      -> Suitable for Graphics Commands");
-                    if (graphicsSupport && queuesToRequestArr[i].Graphics is null && timesUsed < queueFamilyProperties[j].queueCount)
+                    if (graphicsSupport && queuesToRequestArr[i].Graphics is null &&
+                        timesUsed < queueFamilyProperties[j].queueCount)
                     {
                         queuesToRequestArr[i].Graphics = j;
                         timesUsed++;
                     }
+
                     // Check for surface presentation support
                     Vk.VkBool32 presentSupportBool32 = 0;
                     var res = Vk.vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevices.Devices[i], (uint)j, surface,
                         &presentSupportBool32);
                     bool presentSupport = res == Vk.VkResult.VK_SUCCESS && presentSupportBool32 == Vk.VkBool32.VK_TRUE;
-                    if(presentSupport)
+                    if (presentSupport)
                         Console.WriteLine($"      -> Suitable for Surface Presentation");
-                    if (presentSupport && queuesToRequestArr[i].Present is null && timesUsed < queueFamilyProperties[j].queueCount)
+                    if (presentSupport && queuesToRequestArr[i].Present is null &&
+                        timesUsed < queueFamilyProperties[j].queueCount)
                     {
                         queuesToRequestArr[i].Present = j;
                         timesUsed++;
@@ -5243,18 +5994,22 @@ namespace AgroRenderer
             var selectedIndex = -1;
             for (int i = 0; i < physicalDevices.Devices.Length; i++)
             {
-                if (queuesToRequestArr[i].Graphics is not null && queuesToRequestArr[i].Present is not null && physicalDevices.Properties[i].deviceType ==
+                if (queuesToRequestArr[i].Graphics is not null && queuesToRequestArr[i].Present is not null &&
+                    physicalDevices.Properties[i].deviceType ==
                     Vk.VkPhysicalDeviceType.VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
                 {
                     selectedDevice = physicalDevices.Devices[i];
                     selectedIndex = i;
                     break;
-                } else if (queuesToRequestArr[i].Graphics is not null && queuesToRequestArr[i].Present is not null && selectedDevice is null)
+                }
+                else if (queuesToRequestArr[i].Graphics is not null && queuesToRequestArr[i].Present is not null &&
+                         selectedDevice is null)
                 {
                     selectedDevice = physicalDevices.Devices[i];
                     selectedIndex = i;
                 }
             }
+
             Console.WriteLine($"Selected Physical Device: {selectedIndex}");
             var physicalDeviceWithQueues = new PhysicalDeviceWithQueues
             {
@@ -5269,11 +6024,12 @@ namespace AgroRenderer
             string[]? enabledLayerNames = null, string[]? enabledExtensionNames = null)
         {
             enabledLayerNames ??= [];
-            enabledExtensionNames ??= [];
+            enabledExtensionNames ??= ["VK_KHR_swapchain"];
             // Prepare Queue Create Infos
             int queueCreateInfoCount = 0;
             if (queuesToRequest.Graphics is not null) queueCreateInfoCount++;
-            if (queuesToRequest.Present is not null && queuesToRequest.Present != queuesToRequest.Graphics) queueCreateInfoCount++;
+            if (queuesToRequest.Present is not null && queuesToRequest.Present != queuesToRequest.Graphics)
+                queueCreateInfoCount++;
             var queueCreateInfos = scratch.Alloc<Vk.VkDeviceQueueCreateInfo>(queueCreateInfoCount);
             var queuePriorities = scratch.Alloc<float>(queueCreateInfoCount); // One priority per queue create info
             int index = 0;
@@ -5285,7 +6041,7 @@ namespace AgroRenderer
                     pNext = IntPtr.Zero,
                     flags = 0,
                     queueFamilyIndex = (UInt32)queuesToRequest.Graphics.Value,
-                    queueCount =  queuesToRequest.Present != queuesToRequest.Graphics ? 1U : 2U,
+                    queueCount = queuesToRequest.Present != queuesToRequest.Graphics ? 1U : 2U,
                     pQueuePriorities = &queuePriorities[index]
                 };
                 queuePriorities[index] = 1.0f; // Highest priority
@@ -5357,10 +6113,10 @@ namespace AgroRenderer
                 throw new Exception($"Failed to create logical device: {result}");
             }
 
-            Console.WriteLine($"Created Logical Device with handle: 0x{logicalDevice->ptr:X}");
+            Console.WriteLine($"Created Logical Device with handle: 0x{logicalDevice->handle:X}");
 
             var logicalDeviceManaged = new Vk.VkDevice();
-            logicalDeviceManaged.ptr = logicalDevice->ptr;
+            logicalDeviceManaged.handle = logicalDevice->handle;
             // Retrieve Queues
             var logicalDeviceWithQueues = new LogicalDeviceWithQueues
             {
@@ -5373,22 +6129,258 @@ namespace AgroRenderer
                 var graphicsQueue = scratch.Alloc<Vk.VkQueue>();
                 Vk.vkGetDeviceQueue(*logicalDevice, (UInt32)queuesToRequest.Graphics.Value, 0, graphicsQueue);
                 var graphicsQueueManaged = new Vk.VkQueue();
-                graphicsQueueManaged.ptr = graphicsQueue->ptr;
+                graphicsQueueManaged.handle = graphicsQueue->handle;
                 logicalDeviceWithQueues.GraphicsQueue = graphicsQueueManaged;
-                Console.WriteLine($"Retrieved Graphics Queue with handle: 0x{graphicsQueue->ptr:X}");
+                Console.WriteLine($"Retrieved Graphics Queue with handle: 0x{graphicsQueue->handle:X}");
             }
 
             if (queuesToRequest.Present is not null)
             {
                 var presentQueue = scratch.Alloc<Vk.VkQueue>();
-                Vk.vkGetDeviceQueue(*logicalDevice, (UInt32)queuesToRequest.Present.Value,  queuesToRequest.Present != queuesToRequest.Graphics ? 0U : 1U, presentQueue);
+                Vk.vkGetDeviceQueue(*logicalDevice, (UInt32)queuesToRequest.Present.Value,
+                    queuesToRequest.Present != queuesToRequest.Graphics ? 0U : 1U, presentQueue);
                 var presentQueueManaged = new Vk.VkQueue();
-                presentQueueManaged.ptr = presentQueue->ptr;
+                presentQueueManaged.handle = presentQueue->handle;
                 logicalDeviceWithQueues.PresentQueue = presentQueueManaged;
-                Console.WriteLine($"Retrieved Present Queue with handle: 0x{presentQueue->ptr:X}");
+                Console.WriteLine($"Retrieved Present Queue with handle: 0x{presentQueue->handle:X}");
             }
 
             return logicalDeviceWithQueues;
+        }
+
+        public static SwapchainWithImages CreateSwapchain(Vk.VkDevice device, Vk.VkPhysicalDevice physicalDevice,
+            Vk.VkSurfaceKHR surface, QueueDetails queueDetails, MemUtils.Arena scratch, Vk.VkExtent2D? desiredExtent = null,
+            Vk.VkFormat? desiredFormat = null, Vk.VkColorSpaceKHR? desiredColorSpace = null,  
+            Vk.VkPresentModeKHR? desiredPresentMode = null)
+        {
+            var swapchainSupport = QuerySwapchainSupport(physicalDevice, surface, scratch);
+            
+            if (desiredFormat is null && desiredColorSpace is null)
+            {
+                foreach (var format in swapchainSupport.Formats)
+                {
+                    if (format is
+                        {
+                            format: Vk.VkFormat.VK_FORMAT_B8G8R8A8_SRGB,
+                            colorSpace: Vk.VkColorSpaceKHR.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+                        })
+                    {
+                        desiredFormat = format.format;
+                        desiredColorSpace = format.colorSpace;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                var found = false;
+                foreach (var format in swapchainSupport.Formats)
+                {
+                    if (format.format == desiredFormat &&
+                        (desiredColorSpace is null || format.colorSpace == desiredColorSpace))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    
+                    desiredFormat = null;
+                    desiredColorSpace = null;
+                }
+            }
+
+            // If the preferred format is not found, just take the first available one
+            if (desiredFormat is null && desiredColorSpace is null)
+            {
+                Console.WriteLine("Preferred format not found, using first available format.");
+                desiredFormat = swapchainSupport.Formats[0].format;
+                desiredColorSpace = swapchainSupport.Formats[0].colorSpace;
+            }
+
+            Console.WriteLine($"Selected Swapchain Format: {desiredFormat}, Color Space: {desiredColorSpace}");
+            
+            if (desiredExtent is null)
+            {
+                // Use the current extent if it's not the special value
+                if (swapchainSupport.Capabilities.currentExtent.width != UInt32.MaxValue)
+                {
+                    desiredExtent = swapchainSupport.Capabilities.currentExtent;
+                }
+                else
+                {
+                    // Otherwise, set to some default value within the allowed range
+                    desiredExtent = new Vk.VkExtent2D
+                    {
+                        width = Math.Clamp(800, swapchainSupport.Capabilities.minImageExtent.width,
+                            swapchainSupport.Capabilities.maxImageExtent.width),
+                        height = Math.Clamp(600, swapchainSupport.Capabilities.minImageExtent.height,
+                            swapchainSupport.Capabilities.maxImageExtent.height)
+                    };
+                }
+            }
+            
+            Console.WriteLine($"Selected Swapchain Extent: {desiredExtent?.width}x{desiredExtent?.height}");
+            
+            if (desiredPresentMode is null)
+            {
+                // Prefer MAILBOX if available, otherwise use FIFO which is guaranteed to be available
+                desiredPresentMode = Vk.VkPresentModeKHR.VK_PRESENT_MODE_FIFO_KHR;
+                foreach (var presentMode in swapchainSupport.PresentModes)
+                {
+                    if (presentMode == Vk.VkPresentModeKHR.VK_PRESENT_MODE_MAILBOX_KHR)
+                    {
+                        desiredPresentMode = presentMode;
+                        break;
+                    }
+                }
+            }
+            
+            Console.WriteLine($"Selected Present Mode: {desiredPresentMode}");
+
+            // Prepare Swapchain Create Info
+            var swapchainCreateInfo = scratch.Alloc<Vk.VkSwapchainCreateInfoKHR>();
+            swapchainCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+            swapchainCreateInfo->pNext = IntPtr.Zero;
+            swapchainCreateInfo->flags = 0;
+            swapchainCreateInfo->surface = surface;
+            swapchainCreateInfo->minImageCount = 2; // Double buffering
+            swapchainCreateInfo->imageFormat =
+                desiredFormat ?? throw new UnreachableException("No desired format specified.");
+            swapchainCreateInfo->imageColorSpace = desiredColorSpace ??
+                                                   throw new UnreachableException("No desired color space specified.");
+            swapchainCreateInfo->imageExtent =
+                desiredExtent ?? throw new UnreachableException("No desired extent specified.");
+            swapchainCreateInfo->imageArrayLayers = 1;
+            swapchainCreateInfo->imageUsage = Vk.VkImageUsageFlagBits.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            swapchainCreateInfo->preTransform = Vk.VkSurfaceTransformFlagBitsKHR.VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+            swapchainCreateInfo->compositeAlpha = Vk.VkCompositeAlphaFlagBitsKHR.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+            swapchainCreateInfo->presentMode = desiredPresentMode ?? throw new UnreachableException();
+            swapchainCreateInfo->clipped = Vk.VkBool32.VK_TRUE;
+            swapchainCreateInfo->oldSwapchain = new Vk.VkSwapchainKHR { handle = 0 };
+            if (queueDetails.GraphicsQueueIndex != queueDetails.PresentQueueIndex)
+            {
+                swapchainCreateInfo->imageSharingMode = Vk.VkSharingMode.VK_SHARING_MODE_CONCURRENT;
+                swapchainCreateInfo->queueFamilyIndexCount = 2;
+                var queueFamilyIndices = scratch.Alloc<UInt32>(2);
+                queueFamilyIndices[0] = (UInt32)queueDetails.GraphicsQueueIndex;
+                queueFamilyIndices[1] = (UInt32)queueDetails.PresentQueueIndex;
+                swapchainCreateInfo->pQueueFamilyIndices = queueFamilyIndices;
+            }
+            else
+            {
+                swapchainCreateInfo->imageSharingMode = Vk.VkSharingMode.VK_SHARING_MODE_EXCLUSIVE;
+                swapchainCreateInfo->queueFamilyIndexCount = 0;
+                swapchainCreateInfo->pQueueFamilyIndices = null;
+            }
+
+            // Create Swapchain
+            var swapchain = scratch.Alloc<Vk.VkSwapchainKHR>();
+            var result = Vk.vkCreateSwapchainKHR(device, swapchainCreateInfo, null, swapchain);
+            if (result != Vk.VkResult.VK_SUCCESS)
+            {
+                throw new Exception($"Failed to create swapchain: {result}");
+            }
+
+            Console.WriteLine($"Created Swapchain with handle: 0x{swapchain->handle:X}");
+            var swapchainManaged = new Vk.VkSwapchainKHR();
+            swapchainManaged.handle = swapchain->handle;
+            // Retrieve Swapchain Images
+            UInt32 imageCount = 0;
+            result = Vk.vkGetSwapchainImagesKHR(device, swapchainManaged, &imageCount, null);
+            if (result != Vk.VkResult.VK_SUCCESS || imageCount == 0)
+            {
+                throw new Exception("Failed to get swapchain images or no images found.");
+            }
+
+            var images = scratch.Alloc<Vk.VkImage>((int)imageCount);
+            result = Vk.vkGetSwapchainImagesKHR(device, swapchainManaged, &imageCount, images);
+            if (result != Vk.VkResult.VK_SUCCESS)
+            {
+                throw new Exception("Failed to get swapchain images.");
+            }
+
+            Console.WriteLine($"Retrieved {imageCount} Swapchain Images.");
+            var imagesManaged = new Vk.VkImage[imageCount];
+            for (var i = 0; i < imageCount; i++)
+            {
+                var img = new Vk.VkImage
+                {
+                    handle = images[i].handle
+                };
+                imagesManaged[i] = img;
+                Console.WriteLine($"   Image {i}: Handle: 0x{images[i].handle:X}");
+            }
+
+            var swapchainWithImages = new SwapchainWithImages
+            {
+                Swapchain = swapchainManaged,
+                Images = imagesManaged,
+                ImageFormat = desiredFormat ?? throw new UnreachableException("No desired format specified."),
+                ImageExtent = desiredExtent ?? throw new UnreachableException("No desired extent specified.")
+            };
+            return swapchainWithImages;
+        }
+
+        public static SwapchainSupportDeails QuerySwapchainSupport(Vk.VkPhysicalDevice physicalDevice,
+            Vk.VkSurfaceKHR surface, MemUtils.Arena scratch)
+        {
+            // Capabilities
+            var capabilities = scratch.Alloc<Vk.VkSurfaceCapabilitiesKHR>();
+            var result = Vk.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, capabilities);
+            if (result != Vk.VkResult.VK_SUCCESS)
+            {
+                throw new Exception("Failed to get surface capabilities.");
+            }
+
+            // Formats
+            UInt32 formatCount = 0;
+            result = Vk.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, null);
+            if (result != Vk.VkResult.VK_SUCCESS || formatCount == 0)
+            {
+                throw new Exception("Failed to get surface formats or no formats found.");
+            }
+
+            var formats = scratch.Alloc<Vk.VkSurfaceFormatKHR>((int)formatCount);
+            result = Vk.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, formats);
+            if (result != Vk.VkResult.VK_SUCCESS)
+            {
+                throw new Exception("Failed to get surface formats.");
+            }
+
+            // Present Modes
+            UInt32 presentModeCount = 0;
+            result = Vk.vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, null);
+            if (result != Vk.VkResult.VK_SUCCESS || presentModeCount == 0)
+            {
+                throw new Exception("Failed to get present modes or no present modes found.");
+            }
+
+            var presentModes = scratch.Alloc<Vk.VkPresentModeKHR>((int)presentModeCount);
+            result = Vk.vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount,
+                presentModes);
+            if (result != Vk.VkResult.VK_SUCCESS)
+            {
+                throw new Exception("Failed to get present modes.");
+            }
+
+            var details = new SwapchainSupportDeails();
+            details.Capabilities = *capabilities;
+            details.Formats = new Vk.VkSurfaceFormatKHR[formatCount];
+            for (var i = 0; i < formatCount; i++)
+            {
+                details.Formats[i] = formats[i];
+            }
+
+            details.PresentModes = new Vk.VkPresentModeKHR[presentModeCount];
+            for (var i = 0; i < presentModeCount; i++)
+            {
+                details.PresentModes[i] = presentModes[i];
+            }
+
+            return details;
         }
     }
 }
