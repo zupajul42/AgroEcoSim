@@ -134,38 +134,37 @@ namespace AgroRenderer
             
             var applicationInfo = new VkSharp.ApplicationInfo
             {
-                applicationName = "AgroEcoSim",
-                applicationVersion = Vk.VK_MAKE_VERSION(1,0,0),
-                engineName = "AgroRenderer",
-                engineVersion = Vk.VK_MAKE_VERSION(1,0,0),
-                apiVersion = Vk.VK_MAKE_API_VERSION(0, 1, 3 ,0)
+                ApplicationName = "AgroEcoSim",
+                ApplicationVersion = new VkSharp.Version(0,1,0,0),
+                EngineName = "AgroRenderer",
+                EngineVersion = new VkSharp.Version(0, 1,0,0),
+                ApiVersion = new VkSharp.Version(0, 1, 3 ,0)
             };
             var instanceCreateInfo = new VkSharp.InstanceCreateInfo
             {
-                flags = 0,
-                applicationInfo = applicationInfo,
-                enabledLayerNames = instanceLayers.ToArray(),
-                enabledExtensionNames = instanceExtensions.ToArray()
+                Flags = 0,
+                ApplicationInfo = applicationInfo,
+                EnabledLayerNames = instanceLayers.ToArray(),
+                EnabledExtensionNames = instanceExtensions.ToArray()
             };
-            unsafe
-            {
-                Vk.VkDebugUtilsMessengerCreateInfoEXT? debugCreateInfo = null;
+            
+                VkSharp.DebugMessengerCreateInfo? debugCreateInfo = null;
                 if (enableVkDebug)
                 {
-                    debugCreateInfo = new Vk.VkDebugUtilsMessengerCreateInfoEXT
+                    debugCreateInfo = new VkSharp.DebugMessengerCreateInfo
                     {
-                        messageSeverity = Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
+                        MessageSeverity = Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
                                               .VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
                                           Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
                                               .VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                           Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
                                               .VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-                        messageType =
+                        MessageType =
                             Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                             Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                             Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-                        pfnUserCallback = &VkDebugCallback,
-                        pUserData = IntPtr.Zero
+                        PfnUserCallback = VkDebugCallback,
+                        PUserData = IntPtr.Zero
                     };
                 }
 
@@ -187,8 +186,6 @@ namespace AgroRenderer
                 
 
                 //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
-
-            }
 
             Console.WriteLine("Shutting Down the Vulkan Rendering Test!");
             platform.CloseWindow();

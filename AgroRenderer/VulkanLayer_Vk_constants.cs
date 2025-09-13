@@ -5,6 +5,7 @@ namespace AgroRenderer;
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 [SuppressMessage("ReSharper", "UnusedMember.Global")]
 [SuppressMessage("ReSharper", "UnusedType.Global")]
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public static partial class Vk
 {
     // ----------------------------------------------------------------
