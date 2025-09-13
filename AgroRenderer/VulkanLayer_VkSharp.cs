@@ -54,8 +54,20 @@ public static unsafe class VkSharp
             Vk.VkStructureType.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 
         public Vk.VkDebugUtilsMessengerCreateFlagsEXT Flags = 0;
-        public Vk.VkDebugUtilsMessageSeverityFlagBitsEXT MessageSeverity = 0;
-        public Vk.VkDebugUtilsMessageTypeFlagBitsEXT MessageType = 0;
+
+        public Vk.VkDebugUtilsMessageSeverityFlagBitsEXT MessageSeverity =
+            Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
+                .VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+            Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
+                .VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+            Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
+                .VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+
+        public Vk.VkDebugUtilsMessageTypeFlagBitsEXT MessageType =
+            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+
         public required Vk.PFN_vkDebugUtilsMessengerCallbackEXT PfnUserCallback;
         public IntPtr PUserData = IntPtr.Zero;
 

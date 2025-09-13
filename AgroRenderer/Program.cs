@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace AgroRenderer
 {
-
     class Utilities
     {
         public static string[] ConvertCStrArrtoCsharp(IntPtr cStrArr, int size)
@@ -35,7 +34,6 @@ namespace AgroRenderer
         public Vec3F()
         {
         }
-
     }
 
     struct Vec2F
@@ -86,24 +84,25 @@ namespace AgroRenderer
     class Program
     {
         private static Vk.VkBool32 VkDebugCallback(
-            Vk.VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, 
-            Vk.VkDebugUtilsMessageTypeFlagBitsEXT messageTypes, 
+            Vk.VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            Vk.VkDebugUtilsMessageTypeFlagBitsEXT messageTypes,
             IntPtr pCallbackData, // const VkDebugUtilsMessengerCallbackDataEXT*  
             IntPtr pUserData // void*
-            )
+        )
         {
             var callbackData = Marshal.PtrToStructure<Vk.VkDebugUtilsMessengerCallbackDataEXT>(pCallbackData);
             string message = Marshal.PtrToStringAnsi(callbackData.pMessage) ?? "Unknown";
             Console.WriteLine($"[VULKAN DEBUG]: {message}");
             return Vk.VkBool32.VK_FALSE;
         }
+
         public static void Main(string[] args)
         {
             Console.WriteLine("Starting Up the Vulkan Rendering Test!");
             var scratch = new MemUtils.Arena(1024 * 1024); // 1 MB scratch space
-            var system_is_linux = true;
-            var window_manager = "X11";
-            
+            var systemIsLinux = true;
+            var windowManager = "X11";
+
             Console.WriteLine("Opening a Window...");
             IPlatformLayer platform = new X11PlatformLayer();
             platform.OpenWindow("AgroEcoSim Vulkan Test", 800, 600);
@@ -111,7 +110,7 @@ namespace AgroRenderer
             Console.WriteLine("Initializing Vulkan...");
 
             const bool enableVkDebug = true;
-            
+
             List<string> validationLayers = ["VK_LAYER_KHRONOS_validation"];
             // The following layers are useful for debugging API errors, but are very noisy
             // validationLayers.Add("VK_LAYER_LUNARG_api_dump");
@@ -123,7 +122,8 @@ namespace AgroRenderer
                 instanceLayers.AddRange(validationLayers);
                 instanceExtensions.AddRange([Vk.VK_EXT_DEBUG_UTILS_EXTENSION_NAME]);
             }
-            if (system_is_linux && window_manager == "X11")
+
+            if (systemIsLinux && windowManager == "X11")
             {
                 instanceExtensions.AddRange(["VK_KHR_surface", "VK_KHR_xcb_surface"]);
             }
@@ -131,14 +131,14 @@ namespace AgroRenderer
             {
                 throw new NotImplementedException("Only Linux with X11 is supported in this example.");
             }
-            
+
             var applicationInfo = new VkSharp.ApplicationInfo
             {
                 ApplicationName = "AgroEcoSim",
-                ApplicationVersion = new VkSharp.Version(0,1,0,0),
+                ApplicationVersion = new VkSharp.Version(0, 1, 0, 0),
                 EngineName = "AgroRenderer",
-                EngineVersion = new VkSharp.Version(0, 1,0,0),
-                ApiVersion = new VkSharp.Version(0, 1, 3 ,0)
+                EngineVersion = new VkSharp.Version(0, 1, 0, 0),
+                ApiVersion = new VkSharp.Version(0, 1, 3, 0)
             };
             var instanceCreateInfo = new VkSharp.InstanceCreateInfo
             {
@@ -147,45 +147,34 @@ namespace AgroRenderer
                 EnabledLayerNames = instanceLayers.ToArray(),
                 EnabledExtensionNames = instanceExtensions.ToArray()
             };
-            
-                VkSharp.DebugMessengerCreateInfo? debugCreateInfo = null;
-                if (enableVkDebug)
+            VkSharp.DebugMessengerCreateInfo? debugCreateInfo = null;
+            if (enableVkDebug)
+            {
+                debugCreateInfo = new VkSharp.DebugMessengerCreateInfo
                 {
-                    debugCreateInfo = new VkSharp.DebugMessengerCreateInfo
-                    {
-                        MessageSeverity = Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
-                                              .VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                                          Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
-                                              .VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                                          Vk.VkDebugUtilsMessageSeverityFlagBitsEXT
-                                              .VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-                        MessageType =
-                            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                            Vk.VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-                        PfnUserCallback = VkDebugCallback,
-                        PUserData = IntPtr.Zero
-                    };
-                }
+                    PfnUserCallback = VkDebugCallback,
+                };
+            }
 
-                var res = VkSharp.CreateInstance(ref instanceCreateInfo, out var instance, scratch, debugCreateInfo);
-                if (res != Vk.VkResult.VK_SUCCESS)
-                {
-                    Console.WriteLine("Failed to create Vulkan Instance with error: " + res);
-                    return;
-                }
-                Console.WriteLine($"Createed a Vulkan Instance with handle: 0x{instance.handle:X}");
-                var surface = platform.CreateVulkanSurface(instance, scratch);
-                Console.WriteLine($"Created a Vulkan Surface with handle: 0x{surface.handle:X}");
-                //using (var _0 = MemUtils.Defer(VkSharp.DestroySurfaceKHR, instance, surface)) ;
-                var (physicalDevice, queuesToRequest) = VkSharp.FindSuitablePhysicalDevice(instance, surface, scratch);
-                var (loegicalDevice, queueDetails) = VkSharp.CreateLogicalDevice(physicalDevice, queuesToRequest, scratch);
-                var (swapchain, swapchainImages, imageFormat, imageExtent) 
-                    = VkSharp.CreateSwapchain(loegicalDevice, physicalDevice, surface, queueDetails, scratch);
-                var imageViews = VkSharp.CreateSwapchainImageViews(loegicalDevice, swapchainImages, imageFormat, scratch);
-                
+            var res = VkSharp.CreateInstance(ref instanceCreateInfo, out var instance, scratch, debugCreateInfo);
+            if (res != Vk.VkResult.VK_SUCCESS)
+            {
+                Console.WriteLine("Failed to create Vulkan Instance with error: " + res);
+                return;
+            }
 
-                //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
+            Console.WriteLine($"Createed a Vulkan Instance with handle: 0x{instance.handle:X}");
+            var surface = platform.CreateVulkanSurface(instance, scratch);
+            Console.WriteLine($"Created a Vulkan Surface with handle: 0x{surface.handle:X}");
+            //using (var _0 = MemUtils.Defer(VkSharp.DestroySurfaceKHR, instance, surface)) ;
+            var (physicalDevice, queuesToRequest) = VkSharp.FindSuitablePhysicalDevice(instance, surface, scratch);
+            var (loegicalDevice, queueDetails) = VkSharp.CreateLogicalDevice(physicalDevice, queuesToRequest, scratch);
+            var (swapchain, swapchainImages, imageFormat, imageExtent)
+                = VkSharp.CreateSwapchain(loegicalDevice, physicalDevice, surface, queueDetails, scratch);
+            var imageViews = VkSharp.CreateSwapchainImageViews(loegicalDevice, swapchainImages, imageFormat, scratch);
+
+
+            //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
 
             Console.WriteLine("Shutting Down the Vulkan Rendering Test!");
             platform.CloseWindow();
