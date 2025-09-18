@@ -17,11 +17,6 @@ public struct SeedAgent : IAgent
 	[Message]
 	public readonly struct WaterInc : IMessage<SeedAgent>
 	{
-		#if HISTORY_LOG || TICK_LOG
-		public readonly static List<SimpleMsgLog> MessagesHistory = new();
-		public static void ClearHistory() => MessagesHistory.Clear();
-		public readonly ulong ID { get; } = Utils.UID.Next();
-		#endif
 		/// <summary>
 		/// Water volume in m³
 		/// </summary>
@@ -29,14 +24,8 @@ public struct SeedAgent : IAgent
 		public WaterInc(float amount) => Amount = amount;
 		public bool Valid => Amount > 0f;
 		public Transaction Type => Transaction.Increase;
-		public void Receive(ref SeedAgent dstAgent, uint timestep)
-		{
-			dstAgent.IncWater(Amount);
-			#if HISTORY_LOG || TICK_LOG
-			lock(MessagesHistory) MessagesHistory.Add(new(timestep, ID, dstAgent.ID, Amount));
-			#endif
-		}
-	}
+        public void Receive(ref SeedAgent dstAgent, uint timestep) => dstAgent.IncWater(Amount);
+    }
 
 	const float Pi4 = MathF.PI * 4f;
 	const float PiV = 3f * 0.001f * 0.1f / Pi4;
@@ -97,14 +86,14 @@ public struct SeedAgent : IAgent
 				Debug.WriteLine($"GERMINATION at {timestep}");
 				var initialYawAngle = plant.RNG.NextFloat(-MathF.PI, MathF.PI);
 				var initialYaw = Quaternion.CreateFromAxisAngle(Vector3.UnitY, initialYawAngle);
-				plant.UG.Birth(new UnderGroundAgent2(plant, timestep, -1, initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.5f * MathF.PI), Water * 0.4f, initialResources: 1f, initialProduction: 1f));
+				plant.UG.Birth(new UnderGroundAgent(plant, timestep, -1, initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.5f * MathF.PI), Water * 0.4f, initialResources: 1f, initialProduction: 1f));
 
 				var baseStemOrientation = initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.5f * MathF.PI);
-				var meristem = new AboveGroundAgent3(plant, -1, OrganTypes.Meristem, baseStemOrientation, Water * 0.4f, initialResources: 1f, initialProduction: 1f);
+				var meristem = new AboveGroundAgent(plant, -1, OrganTypes.Meristem, baseStemOrientation, Water * 0.4f, initialResources: 1f, initialProduction: 1f);
 				var meristemIndex = plant.AG.Birth(meristem); //base stem
 
 				if (plant.Parameters.LateralsPerNode > 0)
-					AboveGroundAgent3.CreateFirstLeaves(meristem, plant, 0, meristemIndex);
+					AboveGroundAgent.CreateFirstLeaves(meristem, plant, 0, meristemIndex);
 
 				plant.SeedDeath();
 				Water = 0f;
@@ -141,12 +130,4 @@ public struct SeedAgent : IAgent
 		Water += amount * 0.7f; //store most of the energy, 0.2f are losses
 		Radius = MathF.Pow(Radius * Radius * Radius + amount * PiV, Third); //use the rest for growth
 	}
-
-	///////////////////////////
-	#region LOG
-	///////////////////////////
-	#if HISTORY_LOG || TICK_LOG
-	public readonly ulong ID { get; } = Utils.UID.Next();
-	#endif
-	#endregion
 }

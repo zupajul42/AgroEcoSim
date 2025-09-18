@@ -1,10 +1,3 @@
-#if !GODOT
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Numerics;
-using System.Text;
 using System.Text.Json;
 using Agro;
 using CommandLine;
@@ -38,10 +31,7 @@ internal class Program
         world.Run((uint)world.TimestepsTotal());
         var stop = DateTime.UtcNow.Ticks;
         Console.WriteLine($"Simulation time: {(stop - start) / TimeSpan.TicksPerMillisecond} ms");
-#if HISTORY_LOG || HISTORY_TICK
-            //var exported = world.HistoryToJSON();
-            //File.WriteAllText("export.json", exported.Replace("},", "},\n").Replace("],", "],\n"));
-#endif
+
         if (options.ExportFile != null)
         {
             var plantData = new List<string>();
@@ -57,5 +47,3 @@ internal class Program
         Console.WriteLine($"RENDER TIME: {world.Irradiance.ElapsedMilliseconds} ms");
     });
 }
-
-#endif

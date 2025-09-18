@@ -3,12 +3,6 @@ namespace AgentsSystem;
 public interface IAgent
 {
 	void Tick(IFormation formation, int formationID, uint timestep);
-	#if HISTORY_LOG || TICK_LOG
-	/// <summary>
-	/// Unique ID of the agent
-	/// </summary>
-	ulong ID { get; }
-	#endif
 }
 
 public interface ITreeAgent : IAgent
@@ -23,13 +17,3 @@ public interface ITreeAgent : IAgent
 	///</summary>
 	void CensusUpdateParent(int newParent);
 }
-
-// public abstract class Agent : IAgent
-// {
-//     public readonly string ClassName;
-//     public readonly Dictionary<string, AttrValue> Attributes;
-
-//     public Agent(string className) => ClassName = className;
-
-//     public abstract IAgent Tick(World world, IAgent parent, int formationID, uint timestep);
-// }

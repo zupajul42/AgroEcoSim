@@ -38,11 +38,11 @@ public abstract class Formation<T> : IFormation where T : struct, IAgent
 			}
 
 			var diff = Births.Count - Deaths.Count;
-			T[] underGround;
+			T[] result;
 			if (diff != 0)
-				underGround = new T[src.Length + diff];
+				result = new T[src.Length + diff];
 			else
-				underGround = src;
+				result = src;
 
 			int a = 0;
 			if (Deaths.Count > 0)
@@ -54,35 +54,35 @@ public abstract class Formation<T> : IFormation where T : struct, IAgent
 					{
 						if (++d == dc && i + 1 < src.Length)
 						{
-							Array.Copy(src, i + 1, underGround, a, src.Length - i - 1);
+							Array.Copy(src, i + 1, result, a, src.Length - i - 1);
 							break;
 						}
 					}
 					else
-						underGround[a++] = src[i];
+						result[a++] = src[i];
 				}
 				Deaths.Clear();
 			}
 			else
 			{
-				Array.Copy(src, underGround, src.Length);
+				Array.Copy(src, result, src.Length);
 				a = src.Length;
 			}
 
 			for(int i = 0; i < Births.Count; ++i, ++a)
-				underGround[a] = Births[i];
+				result[a] = Births[i];
 
 			Births.Clear();
 
 			if (ReadTMP)
 			{
-				Agents = new T[underGround.Length];
-				AgentsTMP = underGround;
+				Agents = new T[result.Length];
+				AgentsTMP = result;
 			}
 			else
 			{
-				Agents = underGround;
-				AgentsTMP = new T[underGround.Length];
+				Agents = result;
+				AgentsTMP = new T[result.Length];
 			}
 		}
 	}
@@ -95,14 +95,6 @@ public abstract class Formation<T> : IFormation where T : struct, IAgent
 		for(int i = 0; i < dst.Length; ++i)
 			dst[i].Tick(this, i, timestep);
 
-		#if TICK_LOG
-		StatesHistory.Clear();
-		#endif
-		#if HISTORY_LOG || TICK_LOG
-		var states = new T[dst.Length];
-		Array.Copy(dst, states, dst.Length);
-		StatesHistory.Add(states);
-		#endif
 		ReadTMP = !ReadTMP;
 	}
 
@@ -144,23 +136,6 @@ public abstract class Formation<T> : IFormation where T : struct, IAgent
 		ReadTMP = !ReadTMP;
 	}
 
-	public virtual void ProcessTransactions(uint timestep) { }
-
 	public virtual bool HasUndeliveredPost => Postbox.AnyMessages;
-	public virtual bool HasUnprocessedTransactions => false;
 	public virtual int Count => Agents.Length;
-
-	#if HISTORY_LOG || TICK_LOG
-	readonly List<T[]> StatesHistory = new();
-	public string HistoryToJSON(int timestep = -1) => timestep >= 0 ? Export.Json(StatesHistory[timestep]) : Export.Json(StatesHistory);
-
-	public ulong GetID(int index) => ReadTMP
-		? (AgentsTMP.Length > index ? AgentsTMP[index].ID : ulong.MaxValue)
-		: (Agents.Length > index ? Agents[index].ID : ulong.MaxValue);
-	#endif
-
-	#if GODOT
-	public virtual void GodotReady() {}
-	public virtual void GodotProcess() {}
-	#endif
 }

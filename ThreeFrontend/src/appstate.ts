@@ -12,6 +12,8 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
 import { scene } from "./components/viewport/ThreeSceneFn";
 import { VisualMappingOptions } from "./helpers/Plant";
 import { Species } from "./helpers/Species";
+import { FieldItemRegex } from "./components/hud/FieldItemRegex";
+import { IObjImport, Parse } from "./helpers/ObjParser";
 
 interface RetryContext {
     readonly previousRetryCount: number; //The number of consecutive failed tries so far.
@@ -82,7 +84,6 @@ hubConnection.on("preview", (result: ISimPreview) => {
     {
         st.previewRequestAfterSceneUpdate = true;
         const reader = new BinaryReader(binaryScene);
-        if (result.step == 132) debugger;
         const scene = reader.readAgroScene();
         batch(() => {
             st.scene.value = scene;
@@ -223,7 +224,8 @@ class State {
 
     fieldModelPath = signal("");
     fieldItemRegex = signal("");
-    fieldModelData?: Uint8Array = undefined;
+    fieldModelData?: IObjImport = undefined;
+    modelParsingProgress = signal(0);
 
     //METHODS
     private requestBody = () => {
@@ -241,7 +243,11 @@ class State {
         RenderMode: this.renderMode.value,
         SamplesPerPixel: this.samplesPerPixel.value,
         ExactPreview: this.exactPreview.value,
-        DownloadRoots: this.downloadRoots.value
+        DownloadRoots: this.downloadRoots.value,
+
+        FieldItemRegex: this.fieldItemRegex.value,
+        FieldModelPath: this.fieldModelPath.value,
+        FieldModelData: this.fieldModelData
     }};
 
     run = async() => {
@@ -264,13 +270,32 @@ class State {
 
             if (hubConnection.state == SignalR.HubConnectionState.Connected)
             {
-                hubConnection.invoke("run", this.requestBody()).catch(e => {
-                    console.error(e);
-                    batch(() => {
-                        this.computing.value = false;
-                        this.renderer.value = "error";
-                    });
+                //console.log(this.requestBody());
+                const prepared = await fetch(`${BackendURI.startsWith("localhost") ? "https:" : location.protocol}//${BackendURI}/simulation/upload`, {
+                    body: JSON.stringify(this.requestBody()),
+                    method: 'post',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
                 });
+
+                const preparedID = await prepared.json();
+                if (preparedID?.length > 0)
+                    hubConnection.invoke("start", preparedID).catch(e => {
+                        console.error(e);
+                        batch(() => {
+                            this.computing.value = false;
+                            this.renderer.value = "error";
+                        });
+                    });
+                // hubConnection.invoke("run", this.requestBody()).catch(e => {
+                //     console.error(e);
+                //     batch(() => {
+                //         this.computing.value = false;
+                //         this.renderer.value = "error";
+                //     });
+                // });
                 this.previewRequest.value = true;
             }
             else
@@ -373,6 +398,9 @@ class State {
             fieldSizeX: this.fieldSizeX.peek(),
             fieldSizeZ: this.fieldSizeZ.peek(),
             fieldSizeD: this.fieldSizeD.peek(),
+            fieldModelData: this.fieldModelData,
+            fieldModelPath: this.fieldModelPath.peek(),
+            fieldItemRegex: this.fieldItemRegex.peek(),
             initNumber: this.initNumber.peek(),
             randomize: this.randomize.peek(),
             constantLight: this.renderMode.peek(),
@@ -425,6 +453,9 @@ class State {
                     self.fieldSizeX.value = data.fieldSizeX;
                     self.fieldSizeZ.value = data.fieldSizeZ;
                     self.fieldSizeD.value = data.fieldSizeD;
+                    self.fieldModelData = data.fieldModelData;
+                    self.fieldModelPath.value = data.fieldModelPath;
+                    self.fieldItemRegex.value = data.fieldItemRegex;
                     self.initNumber.value = data.initNumber;
                     self.randomize.value = data.randomize;
                     self.renderMode.value = data.constantLight;
@@ -468,8 +499,9 @@ class State {
     }
 
     uploadFieldModel = async (f: File) => {
-        const bytes = await f.arrayBuffer() as Uint8Array;
-        this.fieldModelData = bytes;
+        this.fieldModelData = await Parse(f);
+        // const bytes = new Uint8Array(await f.arrayBuffer());
+        // this.fieldModelData = bytes;
         this.fieldModelPath.value = f.name;
     }
 
