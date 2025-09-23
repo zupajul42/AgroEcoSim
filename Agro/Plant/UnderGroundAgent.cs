@@ -108,7 +108,6 @@ public struct UnderGroundAgent : IPlantAgent
 	/// Index of the parent agent. -1 represents the root of the hierarchy.
 	/// </summary>
 	public int Parent { get; private set; }
-
 	#endregion
 
 	#region Variances
@@ -368,22 +367,22 @@ public struct UnderGroundAgent : IPlantAgent
 				var baseCenter = formation.GetBaseCenter(formationID);
 				var samplePoint = baseCenter + Vector3.Transform(Vector3.UnitX, Orientation) * Length * 0.75f;
 				//find all soild cells that the shpere intersects
-				var source = soil.IntersectPoint(samplePoint); //TODO make a tube intersection
+				var source = soil.IntersectPoint(samplePoint, plant.SoilIndex); //TODO make a tube intersection
 
 				var vegetativeTemp = plant.VegetativeLowTemperature;
 
 				if (source >= 0) //TODO this is a rough approximation taking only the first intersected soil cell
 				{
 					var amount = WaterAbsorbtionPerTick(world);
-					var soilTemperature = soil.GetTemperature(source);
+					var soilTemperature = soil.GetTemperature(source, plant.SoilIndex);
 					if (soilTemperature > vegetativeTemp.X)
 					{
 						if (soilTemperature < vegetativeTemp.Y)
 							amount *= (soilTemperature - vegetativeTemp.X) / (vegetativeTemp.Y - vegetativeTemp.X);
-						soil.RequestWater(source, Math.Min(waterCapacity - Water, amount), formation, formationID); //TODO change to tube surface!
+						soil.RequestWater(source, Math.Min(waterCapacity - Water, amount), formation, formationID, plant.SoilIndex); //TODO change to tube surface!
 					}
 
-					CurrentDayEnvResourcesInv += soil.GetWater(source);
+					CurrentDayEnvResourcesInv += soil.GetWater(source, plant.SoilIndex);
 				}
 				else //growing outside of the world
 					formation.Death(formationID);
