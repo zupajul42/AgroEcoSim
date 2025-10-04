@@ -41,6 +41,10 @@ public static unsafe partial class Vk
         VkPhysicalDeviceProperties* pProperties);
 
     [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkGetPhysicalDeviceProperties2(VkPhysicalDevice physicalDevice,
+        VkPhysicalDeviceProperties2* pProperties);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
     public static extern void vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice physicalDevice,
         UInt32* pQueueFamilyPropertyCount, VkQueueFamilyProperties* pQueueFamilyProperties);
 

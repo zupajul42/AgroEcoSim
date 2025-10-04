@@ -82,7 +82,7 @@ public static unsafe class VkSharp
     public struct PhysicalDevices
     {
         public Vk.VkPhysicalDevice[] Devices;
-        public Vk.VkPhysicalDeviceProperties[] Properties;
+        public Vk.VkPhysicalDeviceProperties2[] Properties;
     }
 
     public struct QueuesToRequest
@@ -282,20 +282,23 @@ public static unsafe class VkSharp
             throw new Exception("Failed to enumerate physical devices.");
         }
 
-        var properties = scratch.Alloc<Vk.VkPhysicalDeviceProperties>((int)deviceCount);
+        var properties = scratch.Alloc<Vk.VkPhysicalDeviceProperties2>((int)deviceCount);
         Console.WriteLine("Fonud the following Physical Devices:");
         for (var i = 0; i < deviceCount; i++)
         {
-            Vk.vkGetPhysicalDeviceProperties(devices[i], &properties[i]);
-            string deviceName = Marshal.PtrToStringAnsi((IntPtr)(&properties[i])->deviceName) ?? "Unknown";
+            properties[i].sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+            properties[i].pNext = IntPtr.Zero;
+            Vk.vkGetPhysicalDeviceProperties2(devices[i], &properties[i]);
+            string deviceName = Marshal.PtrToStringAnsi((IntPtr)(&properties[i])->properties.deviceName) ?? "Unknown";
             Console.WriteLine(
-                $"   Physical Device {i}: {deviceName}, Type: {(&properties[i])->deviceType}, API Version: {ApiVersionToStr((&properties[i])->apiVersion)}");
+                $"   Physical Device {i}: {deviceName}, Type: {(&properties[i])->properties.deviceType}, " +
+                $"API Version: {ApiVersionToStr((&properties[i])->properties.apiVersion)}");
         }
 
         var devicesStruct = new PhysicalDevices
         {
             Devices = new Vk.VkPhysicalDevice[deviceCount],
-            Properties = new Vk.VkPhysicalDeviceProperties[deviceCount]
+            Properties = new Vk.VkPhysicalDeviceProperties2[deviceCount]
         };
         for (var i = 0; i < deviceCount; i++)
         {
@@ -358,7 +361,7 @@ public static unsafe class VkSharp
         for (int i = 0; i < physicalDevices.Devices.Length; i++)
         {
             if (queuesToRequestArr[i].Graphics is not null && queuesToRequestArr[i].Present is not null &&
-                physicalDevices.Properties[i].deviceType ==
+                physicalDevices.Properties[i].properties.deviceType ==
                 Vk.VkPhysicalDeviceType.VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
             {
                 selectedDevice = physicalDevices.Devices[i];

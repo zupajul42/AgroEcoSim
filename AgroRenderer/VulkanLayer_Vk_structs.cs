@@ -313,6 +313,18 @@ public static unsafe partial class Vk
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    public struct VkPhysicalDeviceProperties2
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        public IntPtr pNext = IntPtr.Zero; // void*
+        public VkPhysicalDeviceProperties properties;
+
+        public VkPhysicalDeviceProperties2()
+        {
+        }
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
     public struct VkQueueFamilyProperties
     {
         public VkQueueFlagBits queueFlags;
