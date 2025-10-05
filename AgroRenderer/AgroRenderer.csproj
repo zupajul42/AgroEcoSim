@@ -16,4 +16,33 @@
       <PackageReference Include="Silk.NET.Windowing" Version="2.22.0" />
     </ItemGroup>
 
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <DefineConstants>OS_WINDOWS</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+        <DefineConstants>OS_LINUX</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('FreeBSD'))">
+        <DefineConstants>OS_FREEBSD</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('macOS'))">
+        <DefineConstants>OS_MAC</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Browser'))">
+        <DefineConstants>OS_BROWSER</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Android'))">
+        <DefineConstants>OS_ANDROID</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('iOS'))">
+        <DefineConstants>OS_IOS</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('tvOS'))">
+        <DefineConstants>OS_TV</DefineConstants>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('watchOS'))">
+        <DefineConstants>OS_WATCH</DefineConstants>
+    </PropertyGroup>
+
+
 </Project>

@@ -173,6 +173,12 @@ public static unsafe class VkSharp
         }
     }
 
+    public struct CompiledSPIRV
+    {
+        public uint[] vertex;
+        public uint[] fragment;
+    }
+
     // ----------------------------------------------------------------
     // Public Functions
 
@@ -804,5 +810,82 @@ public static unsafe class VkSharp
         }
 
         return imageViews;
+    }
+
+    public static uint[] CompileGLSLtoSPIRV(string glslSource, GLSLang.glslang_stage_t shaderStage,
+        MemUtils.Arena scratch)
+    {
+        var sourceAnsi = scratch.AllocANSIString(glslSource);
+        var input = scratch.Alloc<GLSLang.glslang_input_t>();
+        input->language = GLSLang.glslang_source_t.GLSLANG_SOURCE_GLSL;
+        input->stage = shaderStage;
+        input->client = GLSLang.glslang_client_t.GLSLANG_CLIENT_VULKAN;
+        input->client_version = GLSLang.glslang_target_client_version_t.GLSLANG_TARGET_VULKAN_1_3;
+        input->target_language = GLSLang.glslang_target_language_t.GLSLANG_TARGET_SPV;
+        input->target_language_version = GLSLang.glslang_target_language_version_t.GLSLANG_TARGET_SPV_1_5;
+        input->code = sourceAnsi;
+        input->default_version = 450;
+        input->default_profile = GLSLang.glslang_profile_t.GLSLANG_CORE_PROFILE;
+        input->force_default_version_and_profile = 0;
+        input->forward_compatible = 0;
+        input->messages = GLSLang.glslang_messages_t.GLSLANG_MSG_DEFAULT_BIT |
+                          GLSLang.glslang_messages_t.GLSLANG_MSG_SPV_RULES_BIT |
+                          GLSLang.glslang_messages_t.GLSLANG_MSG_VULKAN_RULES_BIT;
+        input->resource = (IntPtr)GLSLang.glslang_default_resource();
+
+        var shader = GLSLang.glslang_shader_create(input);
+        if (shader is null) throw new Exception("Failed to create glslang shader.");
+        if (GLSLang.glslang_shader_preprocess(shader, input) == 0)
+        {
+            var log = Marshal.PtrToStringAnsi(GLSLang.glslang_shader_get_info_log(shader)) ?? "Unknown error";
+            var debugLog = Marshal.PtrToStringAnsi(GLSLang.glslang_shader_get_info_debug_log(shader)) ??
+                           "No debug info";
+            GLSLang.glslang_shader_delete(shader);
+            throw new Exception($"GLSL Preprocessing failed: \n{log}\n{debugLog}");
+        }
+
+        if (GLSLang.glslang_shader_parse(shader, input) == 0)
+        {
+            var log = Marshal.PtrToStringAnsi(GLSLang.glslang_shader_get_info_log(shader)) ?? "Unknown error";
+            var debugLog = Marshal.PtrToStringAnsi(GLSLang.glslang_shader_get_info_debug_log(shader)) ??
+                           "No debug info";
+            GLSLang.glslang_shader_delete(shader);
+            throw new Exception($"GLSL Parsing failed: \n{log}\n{debugLog}");
+        }
+
+        var program = GLSLang.glslang_program_create();
+        if (program is null) throw new Exception("Failed to create glslang program.");
+        GLSLang.glslang_program_add_shader(program, shader);
+        if (GLSLang.glslang_program_link(program,
+                GLSLang.glslang_messages_t.GLSLANG_MSG_SPV_RULES_BIT |
+                GLSLang.glslang_messages_t.GLSLANG_MSG_VULKAN_RULES_BIT) == 0)
+        {
+            var log = Marshal.PtrToStringAnsi(GLSLang.glslang_program_get_info_log(program)) ?? "Unknown error";
+            var debugLog = Marshal.PtrToStringAnsi(GLSLang.glslang_program_get_info_debug_log(program)) ??
+                           "No debug info";
+            GLSLang.glslang_program_delete(program);
+            GLSLang.glslang_shader_delete(shader);
+            throw new Exception($"GLSL Linking failed: \n{log}\n{debugLog}");
+        }
+
+        GLSLang.glslang_program_SPIRV_generate(program, shaderStage);
+        var spirvSize = (UInt64)GLSLang.glslang_program_SPIRV_get_size(program);
+        var spirvPtr = GLSLang.glslang_program_SPIRV_get_ptr(program);
+        if (spirvPtr == IntPtr.Zero || spirvSize == 0) throw new Exception("Failed to get SPIR-V code.");
+        var spirvWords = new uint[spirvSize];
+        Marshal.Copy(spirvPtr, (int[])(object)spirvWords, 0, (int)spirvSize);
+        GLSLang.glslang_program_delete(program);
+        GLSLang.glslang_shader_delete(shader);
+        return spirvWords;
+    }
+    public static CompiledSPIRV CompileShaders(string? vertexShaderSource, string? fragmentShaderSource, MemUtils.Arena scratch)
+    {
+        var vertSpirv = vertexShaderSource is not null ? CompileGLSLtoSPIRV(vertexShaderSource, GLSLang.glslang_stage_t.GLSLANG_STAGE_VERTEX, scratch) : [];
+        var fragSpirv = fragmentShaderSource is not null ? CompileGLSLtoSPIRV(fragmentShaderSource, GLSLang.glslang_stage_t.GLSLANG_STAGE_FRAGMENT, scratch) : [];
+        return new CompiledSPIRV
+        {
+            vertex = vertSpirv,
+            fragment = fragSpirv
+        };
     }
 }
