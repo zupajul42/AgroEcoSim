@@ -53,31 +53,17 @@ namespace AgroRenderer
 
     struct Vertex
     {
-        public Vec3F Position = new Vec3F();
+        public Vec2F Position = new Vec2F();
         public Vec3F Color = new Vec3F();
-        public Vec2F TexCoord = new Vec2F();
 
-        public Vertex(Vec3F position, Vec3F color, Vec2F texCoord)
+        public Vertex(Vec2F position, Vec3F color)
         {
             this.Position = position;
             this.Color = color;
-            this.TexCoord = texCoord;
         }
 
         public Vertex()
         {
-        }
-    }
-
-    struct VkQueueFamilyInfo
-    {
-        public int FamilyIdx = -1;
-        public bool GraphicsSupport = false;
-        public bool PresentSupport = false;
-
-        public VkQueueFamilyInfo(int familyIdx, int queueIdx)
-        {
-            this.FamilyIdx = familyIdx;
         }
     }
 
@@ -96,6 +82,18 @@ namespace AgroRenderer
             return Vk.VkBool32.VK_FALSE;
         }
 
+        private static readonly Vertex[] Vertices = new Vertex[]
+        {
+            new Vertex(new Vec2F(0.0f, -0.5f), new Vec3F(1.0f, 0.0f, 0.0f)),
+            new Vertex(new Vec2F(0.5f, 0.5f), new Vec3F(0.0f, 1.0f, 0.0f)),
+            new Vertex(new Vec2F(-0.5f, 0.5f), new Vec3F(0.0f, 0.0f, 1.0f))
+        };
+
+        private static readonly UInt16[] Indices = new UInt16[]
+        {
+            0, 1, 2
+        };
+        
         public static void Main(string[] args)
         {
             Console.WriteLine("Starting Up the Vulkan Rendering Test!");
@@ -106,7 +104,7 @@ namespace AgroRenderer
             Console.WriteLine("Opening a Window...");
             IPlatformLayer platform = new X11PlatformLayer();
             platform.OpenWindow("AgroEcoSim Vulkan Test", 800, 600);
-
+            
             Console.WriteLine("Compiling Shaders...");
             const string vertexShaderCode = """
 
@@ -191,12 +189,23 @@ namespace AgroRenderer
             Console.WriteLine($"Created a Vulkan Surface with handle: 0x{surface.handle:X}");
             //using (var _0 = MemUtils.Defer(VkSharp.DestroySurfaceKHR, instance, surface)) ;
             var (physicalDevice, queuesToRequest) = VkSharp.FindSuitablePhysicalDevice(instance, surface, scratch);
-            var (loegicalDevice, queueDetails) = VkSharp.CreateLogicalDevice(physicalDevice, queuesToRequest, scratch);
+            var (logicalDevice, queueDetails) = VkSharp.CreateLogicalDevice(physicalDevice, queuesToRequest, scratch);
             var (swapchain, swapchainImages, imageFormat, imageExtent)
-                = VkSharp.CreateSwapchain(loegicalDevice, physicalDevice, surface, queueDetails, scratch);
-            var imageViews = VkSharp.CreateSwapchainImageViews(loegicalDevice, swapchainImages, imageFormat, scratch);
+                = VkSharp.CreateSwapchain(logicalDevice, physicalDevice, surface, queueDetails, scratch);
+            var imageViews = VkSharp.CreateSwapchainImageViews(logicalDevice, swapchainImages, imageFormat, scratch);
+            var bufferSize = new Vk.VkDeviceSize((ulong)(Marshal.SizeOf<Vertex>() * Vertices.Length));
+            var bufferUsageBits = Vk.VkBufferUsageFlagBits.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            var memoryPropertyBits = Vk.VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                    Vk.VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            var vertexBuffer =
+                VkSharp.CreateBuffer(logicalDevice, physicalDevice, bufferSize, bufferUsageBits, memoryPropertyBits, scratch);
+            bufferSize = new Vk.VkDeviceSize((ulong)(Marshal.SizeOf<UInt16>() * Indices.Length));
+            bufferUsageBits = Vk.VkBufferUsageFlagBits.VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+            var indexBuffer =
+                VkSharp.CreateBuffer(logicalDevice, physicalDevice, bufferSize, bufferUsageBits, memoryPropertyBits, scratch);
 
-
+            Console.WriteLine($"Created vertex and index buffers with handles: 0x{vertexBuffer.Buffer.handle:X}, 0x{indexBuffer.Buffer.handle:X}");
+            
             //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
 
             Console.WriteLine("Shutting Down the Vulkan Rendering Test!");

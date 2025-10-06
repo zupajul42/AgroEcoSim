@@ -546,4 +546,147 @@ public static unsafe partial class Vk
         {
         }
     }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkDeviceSize
+    {
+        public UInt64 size;
+
+        public VkDeviceSize()
+        {
+        }
+        public VkDeviceSize(UInt64 size)
+        {
+            this.size = size;
+        }
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkBuffer
+    {
+        public UInt64 handle;
+
+        public VkBuffer()
+        {
+        }
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkDeviceMemory
+    {
+        public UInt64 handle;
+
+        public VkDeviceMemory()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkMemoryAllocateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkDeviceSize allocationSize;
+        public UInt32 memoryTypeIndex;
+        public VkMemoryAllocateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkMemoryRequirements
+    {
+        public VkDeviceSize size;
+        public VkDeviceSize alignment;
+        public UInt32 memoryTypeBits;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkBufferCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkBufferCreateFlagBits flags;
+        public VkDeviceSize size;
+        public VkBufferUsageFlagBits usage;
+        public VkSharingMode sharingMode;
+        public UInt32 queueFamilyIndexCount;
+        public UInt32* pQueueFamilyIndices; // const UInt32*
+        public VkBufferCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkMemoryType
+    {
+        public VkMemoryPropertyFlagBits propertyFlags;
+        public UInt32 heapIndex;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkMemoryHeap {
+        public VkDeviceSize size;
+        public VkMemoryHeapFlagBits flags;
+    }
+    
+    private const int VkMemoryTypesSize = (int)VK_MAX_MEMORY_TYPES * 8; // sizeof(VkMemoryType) == 8 bytes
+    private const int VkMemoryHeapsSize = (int)VK_MAX_MEMORY_HEAPS * 12; // sizeof(VkMemoryHeap) == 12 bytes
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPhysicalDeviceMemoryProperties
+    {
+        public UInt32 memoryTypeCount;
+        [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.Struct, SizeConst = VkMemoryTypesSize)]
+        public fixed byte memoryTypes[VkMemoryTypesSize]; // VkMemoryType[VK_MAX_MEMORY_TYPES] as csharp does not allow fixed size arrays of structs
+        public UInt32 memoryHeapCount;
+        [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.Struct, SizeConst = VkMemoryHeapsSize)]
+        public fixed byte memoryHeaps[VkMemoryHeapsSize]; // VkMemoryHeap[VK_MAX_MEMORY_HEAPS] as csharp does not allow fixed size arrays of structs
+
+        public VkPhysicalDeviceMemoryProperties()
+        {
+        }
+        public VkMemoryType GetMemoryType(int index)
+        {
+            if (index < 0 || index >= VK_MAX_MEMORY_TYPES) throw new ArgumentOutOfRangeException(nameof(index));
+            fixed (byte* ptr = memoryTypes)
+            {
+                return ((VkMemoryType*)ptr)[index];
+            }
+        }
+        public VkMemoryHeap GetMemoryHeap(int index)
+        {
+            if (index < 0 || index >= VK_MAX_MEMORY_HEAPS) throw new ArgumentOutOfRangeException(nameof(index));
+            fixed (byte* ptr = memoryHeaps)
+            {
+                return ((VkMemoryHeap*)ptr)[index];
+            }
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkMemoryMapInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_MEMORY_MAP_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkMemoryMapFlagBits flags;
+        public VkDeviceMemory memory;
+        public VkDeviceSize offset;
+        public VkDeviceSize size;
+
+        public VkMemoryMapInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkMemoryUnmapInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_MEMORY_UNMAP_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkMemoryUnmapFlagBits flags;
+        public VkDeviceMemory memory;
+
+        public VkMemoryUnmapInfo()
+        {
+        }
+    }
 }

@@ -12,7 +12,6 @@ public static unsafe partial class Vk
 {
     // ----------------------------------------------------------------
     // Vulkan Functions
-
     [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
     public static extern VkResult vkCreateInstance(VkInstanceCreateInfo* pCreateInfo,
         VkAllocationCallbacks* pAllocator,
@@ -87,4 +86,43 @@ public static unsafe partial class Vk
     [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
     public static extern VkResult vkCreateImageView(VkDevice device, VkImageViewCreateInfo* pCreateInfo,
         VkAllocationCallbacks* pAllocator, VkImageView* pView);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkAllocateMemory(VkDevice device, VkMemoryAllocateInfo* pAllocateInfo,
+        VkAllocationCallbacks* pAllocator, VkDeviceMemory* pMemory);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkCreateBuffer(VkDevice device, VkBufferCreateInfo* pCreateInfo,
+        VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkGetBufferMemoryRequirements(VkDevice device, VkBuffer buffer,
+        VkMemoryRequirements* pMemoryRequirements);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkBindBufferMemory(VkDevice device, VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkGetPhysicalDeviceMemoryProperties(VkPhysicalDevice physicalDevice,
+        VkPhysicalDeviceMemoryProperties* pMemoryProperties);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkMapMemory(VkDevice device, VkDeviceMemory memory, VkDeviceSize offset,
+        VkDeviceSize size, VkMemoryMapFlagBits flags, void* ppData /* void** */);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult VkMapMemory2(VkDevice device, VkMemoryMapInfo* pMemoryMapInfo, void* ppData /* void** */);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkUnmapMemory(VkDevice device, VkDeviceMemory memory);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkUnmapMemory2(VkDevice device, VkMemoryUnmapInfo* pMemoryUnmapInfo);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkDestroyBuffer(VkDevice device, VkBuffer buffer, VkAllocationCallbacks* pAllocator);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkFreeMemory(VkDevice device, VkDeviceMemory memory, VkAllocationCallbacks* pAllocator);
+    
 }

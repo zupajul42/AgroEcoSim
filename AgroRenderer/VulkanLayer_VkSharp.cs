@@ -173,10 +173,17 @@ public static unsafe class VkSharp
         }
     }
 
-    public struct CompiledSPIRV
+    public struct CompiledSpirv
     {
-        public uint[] vertex;
-        public uint[] fragment;
+        public uint[] Vertex;
+        public uint[] Fragment;
+    }
+
+    public struct BufferInfo
+    {
+        public Vk.VkBuffer Buffer;
+        public Vk.VkDeviceMemory Memory;
+        public ulong Size;
     }
 
     // ----------------------------------------------------------------
@@ -878,14 +885,88 @@ public static unsafe class VkSharp
         GLSLang.glslang_shader_delete(shader);
         return spirvWords;
     }
-    public static CompiledSPIRV CompileShaders(string? vertexShaderSource, string? fragmentShaderSource, MemUtils.Arena scratch)
+    public static CompiledSpirv CompileShaders(string? vertexShaderSource, string? fragmentShaderSource, MemUtils.Arena scratch)
     {
         var vertSpirv = vertexShaderSource is not null ? CompileGLSLtoSPIRV(vertexShaderSource, GLSLang.glslang_stage_t.GLSLANG_STAGE_VERTEX, scratch) : [];
         var fragSpirv = fragmentShaderSource is not null ? CompileGLSLtoSPIRV(fragmentShaderSource, GLSLang.glslang_stage_t.GLSLANG_STAGE_FRAGMENT, scratch) : [];
-        return new CompiledSPIRV
+        return new CompiledSpirv
         {
-            vertex = vertSpirv,
-            fragment = fragSpirv
+            Vertex = vertSpirv,
+            Fragment = fragSpirv
         };
+    }
+
+    public static BufferInfo CreateBuffer(Vk.VkDevice device, Vk.VkPhysicalDevice physicalDevice, Vk.VkDeviceSize size,
+        Vk.VkBufferUsageFlagBits usage, Vk.VkMemoryPropertyFlagBits properties, MemUtils.Arena scratch)
+    {
+        var result = new BufferInfo();
+        
+        var bufferCreateInfo = scratch.Alloc<Vk.VkBufferCreateInfo>();
+        bufferCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferCreateInfo->pNext = IntPtr.Zero;
+        bufferCreateInfo->flags = 0;
+        bufferCreateInfo->size = size;
+        bufferCreateInfo->usage = usage;
+        bufferCreateInfo->sharingMode = Vk.VkSharingMode.VK_SHARING_MODE_EXCLUSIVE;
+        bufferCreateInfo->queueFamilyIndexCount = 0;
+        bufferCreateInfo->pQueueFamilyIndices = null;
+        
+        if(Vk.vkCreateBuffer(device, bufferCreateInfo, null, &result.Buffer) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to create buffer.");
+        }
+
+        result.Size = size.size;
+        var memRequirements = scratch.Alloc<Vk.VkMemoryRequirements>();
+        Vk.vkGetBufferMemoryRequirements(device, result.Buffer, memRequirements);
+        var memoryTypeIndex = FindSuitableMemoryTypeIndex(physicalDevice, memRequirements->memoryTypeBits, properties, scratch);
+        var allocInfo = scratch.Alloc<Vk.VkMemoryAllocateInfo>();
+        allocInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo->pNext = IntPtr.Zero;
+        allocInfo->allocationSize = memRequirements->size;
+        allocInfo->memoryTypeIndex = memoryTypeIndex;
+        if(Vk.vkAllocateMemory(device, allocInfo, null, &result.Memory) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to allocate buffer memory.");
+        }
+        if(Vk.vkBindBufferMemory(device, result.Buffer, result.Memory, new Vk.VkDeviceSize(0)) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to bind buffer memory.");
+        }
+        return result;
+    }
+    
+    public static uint FindSuitableMemoryTypeIndex(Vk.VkPhysicalDevice physicalDevice, uint typeFilter, Vk.VkMemoryPropertyFlagBits properties, MemUtils.Arena scratch)
+    {
+        var memProperties = scratch.Alloc<Vk.VkPhysicalDeviceMemoryProperties>();
+        Vk.vkGetPhysicalDeviceMemoryProperties(physicalDevice, memProperties);
+        Console.WriteLine("Searching for suitable Memory Type Index...");
+        for(uint i = 0; i < memProperties->memoryTypeCount; i++)
+        {
+            var memoryType = memProperties->GetMemoryType((int)i);
+            Console.WriteLine($"   Memory Type {i}: HeapIndex: 0x{memoryType.heapIndex:X}, PropertyFlags: 0x{memoryType.propertyFlags:X}");
+            if((typeFilter & (1 << (int)i)) != 0 && (memoryType.propertyFlags & properties) == properties)
+            {
+                return i;
+            }
+        }
+        throw new Exception("Failed to find suitable memory type.");
+    }
+    
+    public static void LoadDataToBuffer(Vk.VkDevice device, BufferInfo bufferInfo, void* data, Vk.VkDeviceSize size)
+    {
+        void* mappedData = null;
+        if(Vk.vkMapMemory(device, bufferInfo.Memory, new Vk.VkDeviceSize(0), size, 0, &mappedData) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to map buffer memory.");
+        }
+        Buffer.MemoryCopy(data, mappedData, bufferInfo.Size, size.size);
+        Vk.vkUnmapMemory(device, bufferInfo.Memory);
+    }
+    
+    public static void DestroyBuffer(Vk.VkDevice device, BufferInfo bufferInfo)
+    {
+        Vk.vkDestroyBuffer(device, bufferInfo.Buffer, null);
+        Vk.vkFreeMemory(device, bufferInfo.Memory, null);
     }
 }

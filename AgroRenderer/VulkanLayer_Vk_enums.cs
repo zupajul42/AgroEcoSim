@@ -5235,4 +5235,140 @@ public static partial class Vk
         // Provided by VK_KHR_maintenance4
         VK_IMAGE_ASPECT_NONE_KHR = VK_IMAGE_ASPECT_NONE,
     }
+
+    [Flags]
+    public enum VkBufferUsageFlagBits
+    {
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT = 0x00000001,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT = 0x00000002,
+        VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT = 0x00000004,
+        VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT = 0x00000008,
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT = 0x00000010,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT = 0x00000020,
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT = 0x00000040,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT = 0x00000080,
+        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT = 0x00000100,
+
+        // Provided by VK_VERSION_1_2
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT = 0x00020000,
+
+        // Provided by VK_KHR_video_decode_queue
+        VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR = 0x00002000,
+
+        // Provided by VK_KHR_video_decode_queue
+        VK_BUFFER_USAGE_VIDEO_DECODE_DST_BIT_KHR = 0x00004000,
+
+        // Provided by VK_EXT_transform_feedback
+        VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT = 0x00000800,
+
+        // Provided by VK_EXT_transform_feedback
+        VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT = 0x00001000,
+
+        // Provided by VK_EXT_conditional_rendering
+        VK_BUFFER_USAGE_CONDITIONAL_RENDERING_BIT_EXT = 0x00000200,
+        
+        // Provided by VK_AMDX_shader_enqueue
+        VK_BUFFER_USAGE_EXECUTION_GRAPH_SCRATCH_BIT_AMDX = 0x02000000,
+
+        // Provided by VK_KHR_acceleration_structure
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR = 0x00080000,
+
+        // Provided by VK_KHR_acceleration_structure
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR = 0x00100000,
+
+        // Provided by VK_KHR_ray_tracing_pipeline
+        VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR = 0x00000400,
+
+        // Provided by VK_KHR_video_encode_queue
+        VK_BUFFER_USAGE_VIDEO_ENCODE_DST_BIT_KHR = 0x00008000,
+
+        // Provided by VK_KHR_video_encode_queue
+        VK_BUFFER_USAGE_VIDEO_ENCODE_SRC_BIT_KHR = 0x00010000,
+
+        // Provided by VK_EXT_descriptor_buffer
+        VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT = 0x00200000,
+
+        // Provided by VK_EXT_descriptor_buffer
+        VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT = 0x00400000,
+
+        // Provided by VK_EXT_descriptor_buffer
+        VK_BUFFER_USAGE_PUSH_DESCRIPTORS_DESCRIPTOR_BUFFER_BIT_EXT = 0x04000000,
+
+        // Provided by VK_EXT_opacity_micromap
+        VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT = 0x00800000,
+
+        // Provided by VK_EXT_opacity_micromap
+        VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT = 0x01000000,
+
+        // Provided by VK_QCOM_tile_memory_heap
+        VK_BUFFER_USAGE_TILE_MEMORY_BIT_QCOM = 0x08000000,
+
+        // Provided by VK_NV_ray_tracing
+        VK_BUFFER_USAGE_RAY_TRACING_BIT_NV = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
+
+        // Provided by VK_EXT_buffer_device_address
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_EXT = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+
+        // Provided by VK_KHR_buffer_device_address
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+    }
+    
+    [Flags]
+    public enum VkMemoryPropertyFlagBits {
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT = 0x00000001,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT = 0x00000002,
+        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT = 0x00000004,
+        VK_MEMORY_PROPERTY_HOST_CACHED_BIT = 0x00000008,
+        VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000010,
+        // Provided by VK_VERSION_1_1
+        VK_MEMORY_PROPERTY_PROTECTED_BIT = 0x00000020,
+        // Provided by VK_AMD_device_coherent_memory
+        VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD = 0x00000040,
+        // Provided by VK_AMD_device_coherent_memory
+        VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD = 0x00000080,
+        // Provided by VK_NV_external_memory_rdma
+        VK_MEMORY_PROPERTY_RDMA_CAPABLE_BIT_NV = 0x00000100,
+    }
+    
+    [Flags]
+    public enum VkBufferCreateFlagBits {
+        VK_BUFFER_CREATE_SPARSE_BINDING_BIT = 0x00000001,
+        VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT = 0x00000002,
+        VK_BUFFER_CREATE_SPARSE_ALIASED_BIT = 0x00000004,
+        // Provided by VK_VERSION_1_1
+        VK_BUFFER_CREATE_PROTECTED_BIT = 0x00000008,
+        // Provided by VK_VERSION_1_2
+        VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT = 0x00000010,
+        // Provided by VK_EXT_descriptor_buffer
+        VK_BUFFER_CREATE_DESCRIPTOR_BUFFER_CAPTURE_REPLAY_BIT_EXT = 0x00000020,
+        // Provided by VK_KHR_video_maintenance1
+        VK_BUFFER_CREATE_VIDEO_PROFILE_INDEPENDENT_BIT_KHR = 0x00000040,
+        // Provided by VK_EXT_buffer_device_address
+        VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_EXT = VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT,
+        // Provided by VK_KHR_buffer_device_address
+        VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR = VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT,
+    }
+    
+    [Flags]
+    public enum VkMemoryHeapFlagBits {
+        VK_MEMORY_HEAP_DEVICE_LOCAL_BIT = 0x00000001,
+        // Provided by VK_VERSION_1_1
+        VK_MEMORY_HEAP_MULTI_INSTANCE_BIT = 0x00000002,
+        // Provided by VK_QCOM_tile_memory_heap
+        VK_MEMORY_HEAP_TILE_MEMORY_BIT_QCOM = 0x00000008,
+        // Provided by VK_KHR_device_group_creation
+        VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR = VK_MEMORY_HEAP_MULTI_INSTANCE_BIT,
+    }
+    
+    [Flags]
+    public enum VkMemoryMapFlagBits {
+        // Provided by VK_EXT_map_memory_placed
+        VK_MEMORY_MAP_PLACED_BIT_EXT = 0x00000001,
+    }
+    
+    [Flags]
+    public enum VkMemoryUnmapFlagBits {
+        // Provided by VK_EXT_map_memory_placed
+        VK_MEMORY_UNMAP_RESERVE_BIT_EXT = 0x00000001,
+    }
 }
