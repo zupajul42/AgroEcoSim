@@ -160,4 +160,11 @@ public static unsafe partial class Vk
     [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
     public static extern VkResult vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool, UInt32 commandBufferCount,
         VkCommandBuffer* pCommandBuffers);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkCreateShaderModule(VkDevice device, VkShaderModuleCreateInfo* pCreateInfo,
+        VkAllocationCallbacks* pAllocator, VkShaderModule* pShaderModule);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModule, VkAllocationCallbacks* pAllocator);
 }

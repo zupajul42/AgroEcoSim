@@ -194,6 +194,8 @@ namespace AgroRenderer
             var (swapchain, swapchainImages, imageFormat, imageExtent)
                 = VkSharp.CreateSwapchain(logicalDevice, physicalDevice, surface, queueDetails, scratch);
             var imageViews = VkSharp.CreateSwapchainImageViews(logicalDevice, swapchainImages, imageFormat, scratch);
+            var vertexShaderModule = VkSharp.CreateShaderModule(logicalDevice, spirvCode.Vertex, scratch);
+            var fragmentShaderModule = VkSharp.CreateShaderModule(logicalDevice, spirvCode.Fragment, scratch);
             var vertexBuffer =
                 VkSharp.CreateVertexBufferForArray(logicalDevice, physicalDevice, Vertices, scratch);
             var indexBuffer =
@@ -206,6 +208,7 @@ namespace AgroRenderer
             var inFlightFences = VkSharp.CreateFences(logicalDevice, numFramesInFlight, true, scratch);
             var commandPool = VkSharp.CreateCommandPool(logicalDevice, (uint)queueDetails.GraphicsQueueFamilyIndex, scratch);
             var commandBuffers = VkSharp.CreateCommandBuffers(logicalDevice, commandPool, numFramesInFlight, scratch);
+            
             //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
 
             Console.WriteLine("Shutting Down the Vulkan Rendering Test!");

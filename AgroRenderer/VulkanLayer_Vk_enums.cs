@@ -5397,4 +5397,9 @@ public static partial class Vk
         VK_COMMAND_BUFFER_LEVEL_PRIMARY = 0,
         VK_COMMAND_BUFFER_LEVEL_SECONDARY = 1,
     }
+
+    [Flags]
+    public enum VkShaderModuleCreateFlagBits
+    {
+    }
 }

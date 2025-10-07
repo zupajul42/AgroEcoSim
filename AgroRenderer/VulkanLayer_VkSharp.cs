@@ -1117,4 +1117,24 @@ public static unsafe class VkSharp
         Console.WriteLine($"Allocated Command Buffers with handles from 0x{commandBuffersManaged[0].handle:X} to 0x{commandBuffersManaged[^1].handle:X}");
         return commandBuffersManaged;
     }
+    
+    public static Vk.VkShaderModule CreateShaderModule(Vk.VkDevice device, uint[] spirvCode, MemUtils.Arena scratch)
+    {
+        var createInfo = scratch.Alloc<Vk.VkShaderModuleCreateInfo>();
+        createInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo->pNext = IntPtr.Zero;
+        createInfo->flags = 0;
+        createInfo->codeSize = (UIntPtr)(spirvCode.Length * sizeof(uint));
+        fixed(uint* codePtr = &spirvCode[0])
+        {
+            createInfo->pCode = codePtr;
+            var shaderModule = scratch.Alloc<Vk.VkShaderModule>();
+            if(Vk.vkCreateShaderModule(device, createInfo, null, shaderModule) != Vk.VkResult.VK_SUCCESS)
+            {
+                throw new Exception("Failed to create shader module.");
+            }
+            Console.WriteLine($"Created Shader Module with handle: 0x{shaderModule->handle:X}");
+            return new Vk.VkShaderModule { handle = shaderModule->handle };
+        }
+    }
 }

@@ -764,4 +764,24 @@ public static unsafe partial class Vk
         {
         }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkShaderModule
+    {
+        public UInt64 handle;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkShaderModuleCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkShaderModuleCreateFlagBits flags;
+        public UIntPtr codeSize; // size_t
+        public UInt32* pCode; // const UInt32*
+
+        public VkShaderModuleCreateInfo()
+        {
+        }
+    }
 }
