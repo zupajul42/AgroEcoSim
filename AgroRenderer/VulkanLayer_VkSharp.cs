@@ -109,18 +109,18 @@ public static unsafe class VkSharp
 
     public struct QueueDetails
     {
-        public int GraphicsQueueIndex;
+        public int GraphicsQueueFamilyIndex;
         public Vk.VkQueue GraphicsQueue;
-        public int PresentQueueIndex;
+        public int PresentQueueFamilyIndex;
         public Vk.VkQueue PresentQueue;
     }
 
     public struct LogicalDeviceWithQueues
     {
         public Vk.VkDevice Device;
-        public int GraphicsQueueIndex;
+        public int GraphicsQueueFamilyIndex;
         public Vk.VkQueue GraphicsQueue;
-        public int PresentQueueIndex;
+        public int PresentQueueFamilyIndex;
         public Vk.VkQueue PresentQueue;
 
         public void Deconstruct(out Vk.VkDevice device, out QueueDetails queueDetails)
@@ -128,9 +128,9 @@ public static unsafe class VkSharp
             device = Device;
             queueDetails = new QueueDetails
             {
-                GraphicsQueueIndex = GraphicsQueueIndex,
+                GraphicsQueueFamilyIndex = GraphicsQueueFamilyIndex,
                 GraphicsQueue = GraphicsQueue,
-                PresentQueueIndex = PresentQueueIndex,
+                PresentQueueFamilyIndex = PresentQueueFamilyIndex,
                 PresentQueue = PresentQueue
             };
         }
@@ -501,8 +501,8 @@ public static unsafe class VkSharp
         var logicalDeviceWithQueues = new LogicalDeviceWithQueues
         {
             Device = logicalDeviceManaged,
-            GraphicsQueueIndex = queuesToRequest.Graphics ?? -1,
-            PresentQueueIndex = queuesToRequest.Present ?? -1
+            GraphicsQueueFamilyIndex = queuesToRequest.Graphics ?? -1,
+            PresentQueueFamilyIndex = queuesToRequest.Present ?? -1
         };
         if (queuesToRequest.Graphics is not null)
         {
@@ -644,13 +644,13 @@ public static unsafe class VkSharp
         swapchainCreateInfo->presentMode = desiredPresentMode ?? throw new UnreachableException();
         swapchainCreateInfo->clipped = Vk.VkBool32.VK_TRUE;
         swapchainCreateInfo->oldSwapchain = new Vk.VkSwapchainKHR { handle = 0 };
-        if (queueDetails.GraphicsQueueIndex != queueDetails.PresentQueueIndex)
+        if (queueDetails.GraphicsQueueFamilyIndex != queueDetails.PresentQueueFamilyIndex)
         {
             swapchainCreateInfo->imageSharingMode = Vk.VkSharingMode.VK_SHARING_MODE_CONCURRENT;
             swapchainCreateInfo->queueFamilyIndexCount = 2;
             var queueFamilyIndices = scratch.Alloc<uint>(2);
-            queueFamilyIndices[0] = (uint)queueDetails.GraphicsQueueIndex;
-            queueFamilyIndices[1] = (uint)queueDetails.PresentQueueIndex;
+            queueFamilyIndices[0] = (uint)queueDetails.GraphicsQueueFamilyIndex;
+            queueFamilyIndices[1] = (uint)queueDetails.PresentQueueFamilyIndex;
             swapchainCreateInfo->pQueueFamilyIndices = queueFamilyIndices;
         }
         else
@@ -936,6 +936,33 @@ public static unsafe class VkSharp
         return result;
     }
     
+    public static BufferInfo CreateBufferForArray<T>(Vk.VkDevice device, Vk.VkPhysicalDevice physicalDevice, T[] data,
+        Vk.VkBufferUsageFlagBits usage, Vk.VkMemoryPropertyFlagBits properties, MemUtils.Arena scratch) where T : unmanaged
+    {
+        var size = new Vk.VkDeviceSize((ulong)(data.Length * sizeof(T)));
+        return CreateBuffer(device, physicalDevice, size, usage, properties, scratch);
+    }
+    
+    public static BufferInfo CreateVertexBufferForArray<T>(Vk.VkDevice device, Vk.VkPhysicalDevice physicalDevice, T[] data,
+        MemUtils.Arena scratch) where T : unmanaged
+    {
+        
+        var bufferUsageBits = Vk.VkBufferUsageFlagBits.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        var memoryPropertyBits = Vk.VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                 Vk.VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        return CreateBufferForArray(device, physicalDevice, data, bufferUsageBits, memoryPropertyBits, scratch);
+    }
+    
+    public static BufferInfo CreateIndexBufferForArray<T>(Vk.VkDevice device, Vk.VkPhysicalDevice physicalDevice, T[] data,
+        MemUtils.Arena scratch) where T : unmanaged
+    {
+        
+        var bufferUsageBits = Vk.VkBufferUsageFlagBits.VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        var memoryPropertyBits = Vk.VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                 Vk.VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        return CreateBufferForArray(device, physicalDevice, data, bufferUsageBits, memoryPropertyBits, scratch);
+    }
+    
     public static uint FindSuitableMemoryTypeIndex(Vk.VkPhysicalDevice physicalDevice, uint typeFilter, Vk.VkMemoryPropertyFlagBits properties, MemUtils.Arena scratch)
     {
         var memProperties = scratch.Alloc<Vk.VkPhysicalDeviceMemoryProperties>();
@@ -953,7 +980,7 @@ public static unsafe class VkSharp
         throw new Exception("Failed to find suitable memory type.");
     }
     
-    public static void LoadDataToBuffer(Vk.VkDevice device, BufferInfo bufferInfo, void* data, Vk.VkDeviceSize size)
+    private static void LoadDataToBufferUnsafe(Vk.VkDevice device, BufferInfo bufferInfo, void* data, Vk.VkDeviceSize size)
     {
         void* mappedData = null;
         if(Vk.vkMapMemory(device, bufferInfo.Memory, new Vk.VkDeviceSize(0), size, 0, &mappedData) != Vk.VkResult.VK_SUCCESS)
@@ -964,9 +991,130 @@ public static unsafe class VkSharp
         Vk.vkUnmapMemory(device, bufferInfo.Memory);
     }
     
+    public static void LoadDataToBuffer<T>(Vk.VkDevice device, BufferInfo bufferInfo, T[] data) where T : unmanaged
+    {
+        var size = new Vk.VkDeviceSize((ulong)(data.Length * sizeof(T)));
+        if(size.size > bufferInfo.Size)
+        {
+            throw new Exception("Data size exceeds buffer size.");
+        }
+        unsafe
+        {
+            fixed(T* dataPtr = &data[0])
+            {
+                LoadDataToBufferUnsafe(device, bufferInfo, dataPtr, size);
+            }
+        }
+    }
+    
     public static void DestroyBuffer(Vk.VkDevice device, BufferInfo bufferInfo)
     {
         Vk.vkDestroyBuffer(device, bufferInfo.Buffer, null);
         Vk.vkFreeMemory(device, bufferInfo.Memory, null);
+    }
+    
+    public static Vk.VkSemaphore CreateSemaphore(Vk.VkDevice device, MemUtils.Arena scratch)
+    {
+        var semaphoreCreateInfo = scratch.Alloc<Vk.VkSemaphoreCreateInfo>();
+        semaphoreCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        semaphoreCreateInfo->pNext = IntPtr.Zero;
+        semaphoreCreateInfo->flags = 0;
+        var semaphore = scratch.Alloc<Vk.VkSemaphore>();
+        if(Vk.vkCreateSemaphore(device, semaphoreCreateInfo, null, semaphore) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to create semaphore.");
+        }
+        Console.WriteLine($"Created Semaphore with handle: 0x{semaphore->handle:X}");
+        return new Vk.VkSemaphore { handle = semaphore->handle };
+    }
+    
+    public static Vk.VkSemaphore[] CreateSemaphores(Vk.VkDevice device, int count, MemUtils.Arena scratch)
+    {
+        var semaphores = new Vk.VkSemaphore[count];
+        for(var i = 0; i < count; i++)
+        {
+            semaphores[i] = CreateSemaphore(device, scratch);
+        }
+        return semaphores;
+    }
+    
+    public static Vk.VkFence CreateFence(Vk.VkDevice device, bool signaled, MemUtils.Arena scratch)
+    {
+        var fenceCreateInfo = scratch.Alloc<Vk.VkFenceCreateInfo>();
+        fenceCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceCreateInfo->pNext = IntPtr.Zero;
+        fenceCreateInfo->flags = signaled ? Vk.VkFenceCreateFlagBits.VK_FENCE_CREATE_SIGNALED_BIT : 0;
+        var fence = scratch.Alloc<Vk.VkFence>();
+        if(Vk.vkCreateFence(device, fenceCreateInfo, null, fence) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to create fence.");
+        }
+        Console.WriteLine($"Created Fence with handle: 0x{fence->handle:X}");
+        return new Vk.VkFence { handle = fence->handle };
+    }
+
+    public static Vk.VkFence[] CreateFences(Vk.VkDevice device, int count, bool signaled, MemUtils.Arena scratch)
+    {
+        var fences = new Vk.VkFence[count];
+        for(var i = 0; i < count; i++)
+        {
+            fences[i] = CreateFence(device, signaled, scratch);
+        }
+        return fences;
+    }
+    
+    public static Vk.VkCommandPool CreateCommandPool(Vk.VkDevice device, uint queueFamilyIndex, MemUtils.Arena scratch)
+    {
+        var poolCreateInfo = scratch.Alloc<Vk.VkCommandPoolCreateInfo>();
+        poolCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolCreateInfo->pNext = IntPtr.Zero;
+        poolCreateInfo->flags = Vk.VkCommandPoolCreateFlagBits.VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolCreateInfo->queueFamilyIndex = queueFamilyIndex;
+        var commandPool = scratch.Alloc<Vk.VkCommandPool>();
+        if(Vk.vkCreateCommandPool(device, poolCreateInfo, null, commandPool) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to create command pool.");
+        }
+        Console.WriteLine($"Created Command Pool with handle: 0x{commandPool->handle:X}");
+        return new Vk.VkCommandPool { handle = commandPool->handle };
+    }
+    
+    public static Vk.VkCommandBuffer CreateCommandBuffer(Vk.VkDevice device, Vk.VkCommandPool commandPool, MemUtils.Arena scratch)
+    {
+        var allocInfo = scratch.Alloc<Vk.VkCommandBufferAllocateInfo>();
+        allocInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo->pNext = IntPtr.Zero;
+        allocInfo->commandPool = commandPool;
+        allocInfo->level = Vk.VkCommandBufferLevel.VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo->commandBufferCount = 1;
+        var commandBuffer = scratch.Alloc<Vk.VkCommandBuffer>();
+        if(Vk.vkAllocateCommandBuffers(device, allocInfo, commandBuffer) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to allocate command buffer.");
+        }
+        Console.WriteLine($"Allocated Command Buffer with handle: 0x{commandBuffer->handle:X}");
+        return new Vk.VkCommandBuffer { handle = commandBuffer->handle };
+    }
+    
+    public static Vk.VkCommandBuffer[] CreateCommandBuffers(Vk.VkDevice device, Vk.VkCommandPool commandPool, int count, MemUtils.Arena scratch)
+    {
+        var allocInfo = scratch.Alloc<Vk.VkCommandBufferAllocateInfo>(count);
+        allocInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo->pNext = IntPtr.Zero;
+        allocInfo->commandPool = commandPool;
+        allocInfo->level = Vk.VkCommandBufferLevel.VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo->commandBufferCount = (uint)count;
+        var commandBuffers = scratch.Alloc<Vk.VkCommandBuffer>(count);
+        if(Vk.vkAllocateCommandBuffers(device, allocInfo, commandBuffers) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to allocate command buffer.");
+        }
+        var commandBuffersManaged = new Vk.VkCommandBuffer[count];
+        for(var i = 0; i < count; i++)
+        {
+            commandBuffersManaged[i] = new Vk.VkCommandBuffer { handle = commandBuffers[i].handle };
+        }
+        Console.WriteLine($"Allocated Command Buffers with handles from 0x{commandBuffersManaged[0].handle:X} to 0x{commandBuffersManaged[^1].handle:X}");
+        return commandBuffersManaged;
     }
 }

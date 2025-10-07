@@ -125,4 +125,39 @@ public static unsafe partial class Vk
     [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
     public static extern void vkFreeMemory(VkDevice device, VkDeviceMemory memory, VkAllocationCallbacks* pAllocator);
     
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkCreateSemaphore(VkDevice device, VkSemaphoreCreateInfo* pCreateInfo,
+        VkAllocationCallbacks* pAllocator, VkSemaphore* pSemaphore);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkCreateFence(VkDevice device, VkFenceCreateInfo* pCreateInfo,
+        VkAllocationCallbacks* pAllocator, VkFence* pFence);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkWaitForFences(VkDevice device, UInt32 fenceCount, VkFence* pFences,
+        VkBool32 waitAll, UInt64 timeout);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkResetFences(VkDevice device, UInt32 fenceCount, VkFence* pFences);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkDestroySemaphore(VkDevice device, VkSemaphore semaphore, VkAllocationCallbacks* pAllocator);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkDestroyFence(VkDevice device, VkFence fence, VkAllocationCallbacks* pAllocator);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkCreateCommandPool(VkDevice device, VkCommandPoolCreateInfo* pCreateInfo,
+        VkAllocationCallbacks* pAllocator, VkCommandPool* pCommandPool);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkDestroyCommandPool(VkDevice device, VkCommandPool commandPool, VkAllocationCallbacks* pAllocator);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkAllocateCommandBuffers(VkDevice device, VkCommandBufferAllocateInfo* pAllocateInfo,
+        VkCommandBuffer* pCommandBuffers);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkFreeCommandBuffers(VkDevice device, VkCommandPool commandPool, UInt32 commandBufferCount,
+        VkCommandBuffer* pCommandBuffers);
 }

@@ -5371,4 +5371,30 @@ public static partial class Vk
         // Provided by VK_EXT_map_memory_placed
         VK_MEMORY_UNMAP_RESERVE_BIT_EXT = 0x00000001,
     }
+
+    [Flags]
+    public enum VkSemaphoreCreateFlagBits
+    {
+    }
+
+    [Flags]
+    public enum VkFenceCreateFlagBits
+    {
+        VK_FENCE_CREATE_SIGNALED_BIT = 0x00000001,
+    }
+
+    [Flags]
+    public enum VkCommandPoolCreateFlagBits
+    {
+        VK_COMMAND_POOL_CREATE_TRANSIENT_BIT = 0x00000001,
+        VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT = 0x00000002,
+        // Provided by VK_VERSION_1_1
+        VK_COMMAND_POOL_CREATE_PROTECTED_BIT = 0x00000004,
+    }
+    
+    [Flags]
+    public enum VkCommandBufferLevel {
+        VK_COMMAND_BUFFER_LEVEL_PRIMARY = 0,
+        VK_COMMAND_BUFFER_LEVEL_SECONDARY = 1,
+    }
 }

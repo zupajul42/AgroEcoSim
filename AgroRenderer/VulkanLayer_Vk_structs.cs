@@ -689,4 +689,79 @@ public static unsafe partial class Vk
         {
         }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkSemaphore
+    {
+        public UInt64 handle;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkFence
+    {
+        public UInt64 handle;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkSemaphoreCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkSemaphoreCreateFlagBits flags;
+
+        public VkSemaphoreCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkFenceCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkFenceCreateFlagBits flags;
+
+        public VkFenceCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout((LayoutKind.Sequential))]
+    public struct VkCommandPool
+    {
+        public UInt64 handle;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkCommandPoolCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkCommandPoolCreateFlagBits flags;
+        public UInt32 queueFamilyIndex;
+
+        public VkCommandPoolCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkCommandBuffer
+    {
+        public UInt64 handle;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkCommandBufferAllocateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkCommandPool commandPool;
+        public VkCommandBufferLevel level;
+        public UInt32 commandBufferCount;
+
+        public VkCommandBufferAllocateInfo()
+        {
+        }
+    }
 }

@@ -100,6 +100,7 @@ namespace AgroRenderer
             var scratch = new MemUtils.Arena(1024 * 1024); // 1 MB scratch space
             var systemIsLinux = true;
             var windowManager = "X11";
+            const int numFramesInFlight = 2;
 
             Console.WriteLine("Opening a Window...");
             IPlatformLayer platform = new X11PlatformLayer();
@@ -193,19 +194,18 @@ namespace AgroRenderer
             var (swapchain, swapchainImages, imageFormat, imageExtent)
                 = VkSharp.CreateSwapchain(logicalDevice, physicalDevice, surface, queueDetails, scratch);
             var imageViews = VkSharp.CreateSwapchainImageViews(logicalDevice, swapchainImages, imageFormat, scratch);
-            var bufferSize = new Vk.VkDeviceSize((ulong)(Marshal.SizeOf<Vertex>() * Vertices.Length));
-            var bufferUsageBits = Vk.VkBufferUsageFlagBits.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-            var memoryPropertyBits = Vk.VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                    Vk.VkMemoryPropertyFlagBits.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             var vertexBuffer =
-                VkSharp.CreateBuffer(logicalDevice, physicalDevice, bufferSize, bufferUsageBits, memoryPropertyBits, scratch);
-            bufferSize = new Vk.VkDeviceSize((ulong)(Marshal.SizeOf<UInt16>() * Indices.Length));
-            bufferUsageBits = Vk.VkBufferUsageFlagBits.VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+                VkSharp.CreateVertexBufferForArray(logicalDevice, physicalDevice, Vertices, scratch);
             var indexBuffer =
-                VkSharp.CreateBuffer(logicalDevice, physicalDevice, bufferSize, bufferUsageBits, memoryPropertyBits, scratch);
-
+                VkSharp.CreateIndexBufferForArray(logicalDevice, physicalDevice, Indices, scratch);
             Console.WriteLine($"Created vertex and index buffers with handles: 0x{vertexBuffer.Buffer.handle:X}, 0x{indexBuffer.Buffer.handle:X}");
-            
+            VkSharp.LoadDataToBuffer(logicalDevice, vertexBuffer, Vertices);
+            VkSharp.LoadDataToBuffer(logicalDevice, indexBuffer, Indices);
+            var imageAvailableSemaphores = VkSharp.CreateSemaphores(logicalDevice, numFramesInFlight, scratch);
+            var renderFinishedSemaphores = VkSharp.CreateSemaphores(logicalDevice, numFramesInFlight, scratch);
+            var inFlightFences = VkSharp.CreateFences(logicalDevice, numFramesInFlight, true, scratch);
+            var commandPool = VkSharp.CreateCommandPool(logicalDevice, (uint)queueDetails.GraphicsQueueFamilyIndex, scratch);
+            var commandBuffers = VkSharp.CreateCommandBuffers(logicalDevice, commandPool, numFramesInFlight, scratch);
             //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
 
             Console.WriteLine("Shutting Down the Vulkan Rendering Test!");
