@@ -208,6 +208,7 @@ namespace AgroRenderer
             var inFlightFences = VkSharp.CreateFences(logicalDevice, numFramesInFlight, true, scratch);
             var commandPool = VkSharp.CreateCommandPool(logicalDevice, (uint)queueDetails.GraphicsQueueFamilyIndex, scratch);
             var commandBuffers = VkSharp.CreateCommandBuffers(logicalDevice, commandPool, numFramesInFlight, scratch);
+            var pipeline = VkSharp.CreatePipeline(logicalDevice, vertexShaderModule, fragmentShaderModule, [imageFormat], scratch);
             
             //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
 

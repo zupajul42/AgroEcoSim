@@ -784,4 +784,500 @@ public static unsafe partial class Vk
         {
         }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipeline
+    {
+        public UInt64 handle;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineLayout
+    {
+        public UInt64 handle;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineLayoutCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineLayoutCreateFlagBits flags;
+        public UInt32 setLayoutCount;
+        public IntPtr* pSetLayouts; // const VkDescriptorSetLayout*
+        public UInt32 pushConstantRangeCount;
+        public IntPtr* pPushConstantRanges; // const VkPushConstantRange*
+
+        public VkPipelineLayoutCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkSpecializationMapEntry
+    {
+        public UInt32 constantID;
+        public UInt32 offset;
+        public UIntPtr size; // size_t
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkSpecializationInfo
+    {
+        public UInt32 mapEntryCount;
+        public VkSpecializationMapEntry* pMapEntries; // const VkSpecializationMapEntry*
+        public UIntPtr dataSize; // size_t
+        public void* pData; // const void*
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineShaderStageCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineShaderStageCreateFlagBits flags;
+        public VkShaderStageFlagBits stage;
+        public VkShaderModule module;
+        public IntPtr pName; // const char*
+        public VkSpecializationInfo* pSpecializationInfo; // const VkSpecializationInfo*
+
+        public VkPipelineShaderStageCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkVertexInputBindingDescription
+    {
+        public UInt32 binding;
+        public UInt32 stride;
+        public VkVertexInputRate inputRate;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkVertexInputAttributeDescription
+    {
+        public UInt32 location;
+        public UInt32 binding;
+        public VkFormat format;
+        public UInt32 offset;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineVertexInputStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineVertexInputStateCreateFlagBits flags;
+        public UInt32 vertexBindingDescriptionCount;
+        public VkVertexInputBindingDescription* pVertexBindingDescriptions;
+        public UInt32 vertexAttributeDescriptionCount;
+        public VkVertexInputAttributeDescription* pVertexAttributeDescriptions;
+
+        public VkPipelineVertexInputStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineInputAssemblyStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineInputAssemblyStateCreateFlagBits flags;
+        public VkPrimitiveTopology topology;
+        public VkBool32 primitiveRestartEnable;
+
+        public VkPipelineInputAssemblyStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineViewportStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineViewportStateCreateFlagBits flags;
+        public UInt32 viewportCount;
+        public VkViewport* pViewports; // const VkViewport*
+        public UInt32 scissorCount;
+        public VkRect2D* pScissors; // const VkRect2D*
+
+        public VkPipelineViewportStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkViewport
+    {
+        public float x;
+        public float y;
+        public float width;
+        public float height;
+        public float minDepth;
+        public float maxDepth;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkOffset2D
+    {
+        public Int32 x;
+        public Int32 y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkOffset3D
+    {
+        public Int32 x;
+        public Int32 y;
+        public Int32 z;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkRect2D
+    {
+        public VkOffset2D offset;
+        public VkExtent2D extent;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkRect3D
+    {
+        public VkOffset3D offset;
+        public VkExtent3D extent;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineDynamicStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineDynamicStateCreateFlagBits flags;
+        public UInt32 dynamicStateCount;
+        public VkDynamicState* pDynamicStates; // const VkDynamicState*
+
+        public VkPipelineDynamicStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineRasterizationStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineRasterizationStateCreateFlagBits flags;
+        public VkBool32 depthClampEnable;
+        public VkBool32 rasterizerDiscardEnable;
+        public VkPolygonMode polygonMode;
+        public VkCullModeFlagBits cullMode;
+        public VkFrontFace frontFace;
+        public VkBool32 depthBiasEnable;
+        public float depthBiasConstantFactor;
+        public float depthBiasClamp;
+        public float depthBiasSlopeFactor;
+        public float lineWidth;
+
+        public VkPipelineRasterizationStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineMultisampleStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineMultisampleStateCreateFlagBits flags;
+        public VkSampleCountFlagBits rasterizationSamples;
+        public VkBool32 sampleShadingEnable;
+        public float minSampleShading;
+        public UInt32* pSampleMask; // const VkSampleMask*
+        public VkBool32 alphaToCoverageEnable;
+        public VkBool32 alphaToOneEnable;
+
+        public VkPipelineMultisampleStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineColorBlendStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineColorBlendStateCreateFlagBits flags;
+        public VkBool32 logicOpEnable;
+        public VkLogicOp logicOp;
+        public UInt32 attachmentCount;
+        public VkPipelineColorBlendAttachmentState* pAttachments; // const VkPipelineColorBlendAttachmentState*
+        public float blendConstants0;
+        public float blendConstants1;
+        public float blendConstants2;
+        public float blendConstants3;
+
+        public VkPipelineColorBlendStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineColorBlendAttachmentState
+    {
+        public VkBool32 blendEnable;
+        public VkBlendFactor srcColorBlendFactor;
+        public VkBlendFactor dstColorBlendFactor;
+        public VkBlendOp colorBlendOp;
+        public VkBlendFactor srcAlphaBlendFactor;
+        public VkBlendFactor dstAlphaBlendFactor;
+        public VkBlendOp alphaBlendOp;
+        public VkColorComponentFlagBits colorWriteMask;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineRenderingCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public UInt32 viewMask;
+        public UInt32 colorAttachmentCount;
+        public VkFormat* pColorAttachmentFormats; // const VkFormat*
+        public VkFormat depthAttachmentFormat;
+        public VkFormat stencilAttachmentFormat;
+
+        public VkPipelineRenderingCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineTessellationStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineTessellationStateCreateFlagBits flags;
+        public UInt32 patchControlPoints;
+
+        public VkPipelineTessellationStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkStencilOpState
+    {
+        public VkStencilOp failOp;
+        public VkStencilOp passOp;
+        public VkStencilOp depthFailOp;
+        public VkCompareOp compareOp;
+        public UInt32 compareMask;
+        public UInt32 writeMask;
+        public UInt32 reference;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineDepthStencilStateCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineDepthStencilStateCreateFlagBits flags;
+        public VkBool32 depthTestEnable;
+        public VkBool32 depthWriteEnable;
+        public VkCompareOp depthCompareOp;
+        public VkBool32 depthBoundsTestEnable;
+        public VkBool32 stencilTestEnable;
+        public VkStencilOpState front;
+        public VkStencilOpState back;
+        public float minDepthBounds;
+        public float maxDepthBounds;
+
+        public VkPipelineDepthStencilStateCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkRenderPass
+    {
+        public UInt64 handle;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkGraphicsPipelineCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineCreateFlagBits flags;
+        public UInt32 stageCount;
+        public VkPipelineShaderStageCreateInfo* pStages; // const VkPipelineShaderStageCreateInfo*
+        public VkPipelineVertexInputStateCreateInfo* pVertexInputState; // const VkPipelineVertexInputStateCreateInfo*
+        public VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState; // const VkPipelineInputAssemblyStateCreateInfo*
+        public VkPipelineTessellationStateCreateInfo* pTessellationState; // const VkPipelineTessellationStateCreateInfo*
+        public VkPipelineViewportStateCreateInfo* pViewportState; // const VkPipelineViewportStateCreateInfo*
+        public VkPipelineRasterizationStateCreateInfo* pRasterizationState; // const VkPipelineRasterizationStateCreateInfo*
+        public VkPipelineMultisampleStateCreateInfo* pMultisampleState; // const VkPipelineMultisampleStateCreateInfo*
+        public VkPipelineDepthStencilStateCreateInfo* pDepthStencilState; // const VkPipelineDepthStencilStateCreateInfo*
+        public VkPipelineColorBlendStateCreateInfo* pColorBlendState; // const VkPipelineColorBlendStateCreateInfo*
+        public VkPipelineDynamicStateCreateInfo* pDynamicState; // const VkPipelineDynamicStateCreateInfo*
+        public VkPipelineLayout layout;
+        public VkRenderPass renderPass;
+        public UInt32 subpass;
+        public VkPipeline basePipelineHandle;
+        public Int32 basePipelineIndex;
+
+        public VkGraphicsPipelineCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineCache
+    {
+        public UInt64 handle;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPipelineCacheCreateInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+        public IntPtr pNext = IntPtr.Zero; // const void*
+        public VkPipelineCacheCreateFlagBits flags;
+        public UIntPtr initialDataSize; // size_t
+        public IntPtr pInitialData; // const void*
+
+        public VkPipelineCacheCreateInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPhysicalDeviceFeatures2
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        public IntPtr pNext = IntPtr.Zero; // void*
+        public VkPhysicalDeviceFeatures features;
+
+        public VkPhysicalDeviceFeatures2()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPhysicalDeviceVulkan13Features
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        public IntPtr pNext = IntPtr.Zero; // void*
+        public VkBool32 robustImageAccess;
+        public VkBool32 inlineUniformBlock;
+        public VkBool32 descriptorBindingInlineUniformBlockUpdateAfterBind;
+        public VkBool32 pipelineCreationCacheControl;
+        public VkBool32 privateData;
+        public VkBool32 shaderDemoteToHelperInvocation;
+        public VkBool32 shaderTerminateInvocation;
+        public VkBool32 subgroupSizeControl;
+        public VkBool32 computeFullSubgroups;
+        public VkBool32 synchronization2;
+        public VkBool32 textureCompressionASTC_HDR;
+        public VkBool32 shaderZeroInitializeWorkgroupMemory;
+        public VkBool32 dynamicRendering;
+        public VkBool32 shaderIntegerDotProduct;
+        public VkBool32 maintenance4;
+
+        public VkPhysicalDeviceVulkan13Features()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkPhysicalDeviceExtendedDynamicStateFeaturesEXT
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
+        public IntPtr pNext = IntPtr.Zero; // void*
+        public VkBool32 extendedDynamicState;
+        public VkBool32 extendedDynamicState2;
+        public VkBool32 extendedDynamicState3ColorBlendState;
+        public VkBool32 extendedDynamicState3DepthStencilState;
+        public VkBool32 extendedDynamicState3RasterizationState;
+        public VkBool32 extendedDynamicState3ViewportWScaling;
+        public VkBool32 extendedDynamicState3LineStipple;
+
+        public VkPhysicalDeviceExtendedDynamicStateFeaturesEXT()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkLayerProperties
+    {
+        public fixed byte layerName[(int)VK_MAX_DESCRIPTION_SIZE];
+        public UInt32 specVersion;
+        public UInt32 implementationVersion;
+        public fixed byte description[(int)VK_MAX_DESCRIPTION_SIZE];
+
+        public string GetLayerName()
+        {
+            fixed (byte* ptr = layerName)
+            {
+                return Marshal.PtrToStringAnsi((IntPtr)ptr);
+            }
+        }
+
+        public string GetDescription()
+        {
+            fixed (byte* ptr = description)
+            {
+                return Marshal.PtrToStringAnsi((IntPtr)ptr);
+            }
+        }
+        
+        public void SetLayerName(string name)
+        {
+            var bytes = System.Text.Encoding.ASCII.GetBytes(name);
+            int len = Math.Min(bytes.Length, (int)VK_MAX_DESCRIPTION_SIZE - 1);
+            for (int i = 0; i < len; i++)
+            {
+                layerName[i] = bytes[i];
+            }
+            layerName[len] = 0; // Null-terminate
+        }
+        
+        public void SetDescription(string desc)
+        {
+            var bytes = System.Text.Encoding.ASCII.GetBytes(desc);
+            int len = Math.Min(bytes.Length, (int)VK_MAX_DESCRIPTION_SIZE - 1);
+            for (int i = 0; i < len; i++)
+            {
+                description[i] = bytes[i];
+            }
+            description[len] = 0; // Null-terminate
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkExtensionProperties
+    {
+        public fixed byte extensionName[(int)VK_MAX_EXTENSION_NAME_SIZE];
+        public UInt32 specVersion;
+
+        public string GetExtensionName()
+        {
+            fixed (byte* ptr = extensionName)
+            {
+                return Marshal.PtrToStringAnsi((IntPtr)ptr);
+            }
+        }
+
+        public void SetExtensionName(string name)
+        {
+            var bytes = System.Text.Encoding.ASCII.GetBytes(name);
+            int len = Math.Min(bytes.Length, (int)VK_MAX_EXTENSION_NAME_SIZE - 1);
+            for (int i = 0; i < len; i++)
+            {
+                extensionName[i] = bytes[i];
+            }
+            extensionName[len] = 0; // Null-terminate
+        }
+    }
 }

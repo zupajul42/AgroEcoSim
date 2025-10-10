@@ -167,4 +167,29 @@ public static unsafe partial class Vk
     
     [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
     public static extern void vkDestroyShaderModule(VkDevice device, VkShaderModule shaderModule, VkAllocationCallbacks* pAllocator);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkCreateGraphicsPipelines(VkDevice device, VkPipelineCache pipelineCache,
+        UInt32 createInfoCount, VkGraphicsPipelineCreateInfo* pCreateInfos, VkAllocationCallbacks* pAllocator,
+        VkPipeline* pPipelines);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkCreatePipelineCache(VkDevice device, VkPipelineCacheCreateInfo* pCreateInfo,
+        VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkCreatePipelineLayout(VkDevice device, VkPipelineLayoutCreateInfo* pCreateInfo,
+        VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void vkGetPhysicalDeviceFeatures2(VkPhysicalDevice physicalDevice,
+        VkPhysicalDeviceFeatures2* pFeatures);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkEnumerateDeviceLayerProperties(VkPhysicalDevice physicalDevice,
+        UInt32* pPropertyCount, VkLayerProperties* pProperties);
+    
+    [DllImport("libvulkan.so", CallingConvention = CallingConvention.Cdecl)]
+    public static extern VkResult vkEnumerateDeviceExtensionProperties(VkPhysicalDevice physicalDevice,
+        IntPtr pLayerName /* const char* */, UInt32* pPropertyCount, VkExtensionProperties* pProperties);
 }

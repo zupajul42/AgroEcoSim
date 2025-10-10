@@ -404,6 +404,17 @@ public static unsafe class VkSharp
     {
         enabledLayerNames ??= [];
         enabledExtensionNames ??= ["VK_KHR_swapchain"];
+        // Test if the requested layers are available
+        var availableLayers = GetAvailableDeviceLayers(physicalDevice, scratch);
+        if(!CheckIfLayersAvailable(enabledLayerNames, availableLayers))
+        {
+            throw new Exception("Not all requested device layers are available.");
+        }
+        var availableExtensions = GetAvailableDeviceExtensions(physicalDevice, scratch);
+        if(!CheckIfExtensionsAvailable(enabledExtensionNames, availableExtensions))
+        {
+            throw new Exception("Not all requested device extensions are available.");
+        }
         // Prepare Queue Create Infos
         int queueCreateInfoCount = 0;
         if (queuesToRequest.Graphics is not null) queueCreateInfoCount++;
@@ -426,7 +437,6 @@ public static unsafe class VkSharp
             queuePriorities[index] = 1.0f; // Highest priority
             index++;
         }
-
         if (queuesToRequest.Present is not null && queuesToRequest.Present != queuesToRequest.Graphics)
         {
             queueCreateInfos[index] = new Vk.VkDeviceQueueCreateInfo
@@ -440,11 +450,58 @@ public static unsafe class VkSharp
             };
             queuePriorities[index] = 1.0f; // Highest priority
         }
-
+        // Test for Supported Features
+        var supportedDeviceFeatures2 = scratch.Alloc<Vk.VkPhysicalDeviceFeatures2>();
+        supportedDeviceFeatures2->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        var supportedVulkan13Features = scratch.Alloc<Vk.VkPhysicalDeviceVulkan13Features>();
+        supportedVulkan13Features->sType =
+            Vk.VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        supportedDeviceFeatures2->pNext = (IntPtr) supportedVulkan13Features;
+        var supportedExtendedDynamicStateFeatures =
+            scratch.Alloc<Vk.VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+        supportedExtendedDynamicStateFeatures->sType =
+            Vk.VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
+        supportedVulkan13Features->pNext = (IntPtr) supportedExtendedDynamicStateFeatures;
+        Vk.vkGetPhysicalDeviceFeatures2(physicalDevice, supportedDeviceFeatures2);
+        if (supportedDeviceFeatures2->features.fillModeNonSolid != Vk.VkBool32.VK_TRUE)
+        {
+            Console.WriteLine("Warning: fillModeNonSolid feature not supported.");
+            throw new Exception("fillModeNonSolid feature not supported.");
+        }
+        if (supportedVulkan13Features->dynamicRendering != Vk.VkBool32.VK_TRUE)
+        {
+            Console.WriteLine("Warning: dynamicRendering feature not supported.");
+            throw new Exception("dynamicRendering feature not supported.");
+        }
+        if (supportedVulkan13Features->synchronization2 != Vk.VkBool32.VK_TRUE)
+        {
+            Console.WriteLine("Warning: synchronization2 feature not supported.");
+            throw new Exception("synchronization2 feature not supported.");
+        }
+        if (supportedExtendedDynamicStateFeatures->extendedDynamicState != Vk.VkBool32.VK_TRUE)
+        {
+            Console.WriteLine("Warning: extendedDynamicState feature not supported.");
+            throw new Exception("extendedDynamicState feature not supported.");
+        }
+        var requestDeviceFeatures2 = scratch.Alloc<Vk.VkPhysicalDeviceFeatures2>();
+        requestDeviceFeatures2->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        requestDeviceFeatures2->features.fillModeNonSolid = Vk.VkBool32.VK_TRUE;
+        var requestVulkan13Features = scratch.Alloc<Vk.VkPhysicalDeviceVulkan13Features>();
+        requestVulkan13Features->sType =
+            Vk.VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        requestDeviceFeatures2->pNext = (IntPtr) requestVulkan13Features;
+        requestVulkan13Features->dynamicRendering = Vk.VkBool32.VK_TRUE;
+        requestVulkan13Features->synchronization2 = Vk.VkBool32.VK_TRUE;
+        var requestExtendedDynamicStateFeatures =
+            scratch.Alloc<Vk.VkPhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+        requestExtendedDynamicStateFeatures->sType =
+            Vk.VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
+        requestVulkan13Features->pNext = (IntPtr) requestExtendedDynamicStateFeatures;
+        requestExtendedDynamicStateFeatures->extendedDynamicState = Vk.VkBool32.VK_TRUE;
         // Prepare Device Create Info
         var deviceCreateInfo = scratch.Alloc<Vk.VkDeviceCreateInfo>();
         deviceCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        deviceCreateInfo->pNext = IntPtr.Zero;
+        deviceCreateInfo->pNext = (IntPtr) requestDeviceFeatures2;
         deviceCreateInfo->flags = 0;
         deviceCreateInfo->queueCreateInfoCount = (UInt32)queueCreateInfoCount;
         deviceCreateInfo->pQueueCreateInfos = queueCreateInfos;
@@ -530,6 +587,82 @@ public static unsafe class VkSharp
         }
 
         return logicalDeviceWithQueues;
+    }
+
+    private static Vk.VkLayerProperties[] GetAvailableDeviceLayers(Vk.VkPhysicalDevice physicalDevice, MemUtils.Arena scratch)
+    {
+        UInt32 availableLayerCount = 0;
+        var result = Vk.vkEnumerateDeviceLayerProperties(physicalDevice, &availableLayerCount, null);
+        if (result != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to enumerate device layer properties.");
+        }
+        var availableLayers = scratch.Alloc<Vk.VkLayerProperties>((int)availableLayerCount);
+        result = Vk.vkEnumerateDeviceLayerProperties(physicalDevice, &availableLayerCount, availableLayers);
+        if (result != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to enumerate device layer properties.");
+        }
+        var availableLayersArray = new Vk.VkLayerProperties[availableLayerCount];
+        for (int i = 0; i < availableLayerCount; i++)
+        {
+            availableLayersArray[i] = availableLayers[i];
+        }
+        return availableLayersArray;
+    }
+
+    public static bool CheckIfLayersAvailable(string[] requestedLayers, Vk.VkLayerProperties[] availableLayers)
+    {
+        var allFound = true;
+        var availableLayersStrings = availableLayers
+            .Select(availableLayer => Marshal.PtrToStringAnsi((IntPtr)availableLayer.layerName) ?? "").ToArray();
+        foreach (var requestedLayer in requestedLayers)
+        {
+            var found = availableLayersStrings.Any(availableLayerName => requestedLayer == availableLayerName);
+            if (!found)
+            {
+                allFound = false;
+                Console.WriteLine($"Requested Layer {requestedLayer} not supported.");
+            }
+        }
+        return allFound;
+    }
+    public static Vk.VkExtensionProperties[] GetAvailableDeviceExtensions(Vk.VkPhysicalDevice physicalDevice, MemUtils.Arena scratch)
+    {
+        UInt32 availableExtensionCount = 0;
+        var result = Vk.vkEnumerateDeviceExtensionProperties(physicalDevice, IntPtr.Zero, &availableExtensionCount, null);
+        if (result != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to enumerate device extension properties.");
+        }
+        var availableExtensions = scratch.Alloc<Vk.VkExtensionProperties>((int)availableExtensionCount);
+        result = Vk.vkEnumerateDeviceExtensionProperties(physicalDevice, IntPtr.Zero, &availableExtensionCount, availableExtensions);
+        if (result != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to enumerate device extension properties.");
+        }
+        var availableExtensionsArray = new Vk.VkExtensionProperties[availableExtensionCount];
+        for (int i = 0; i < availableExtensionCount; i++)
+        {
+            availableExtensionsArray[i] = availableExtensions[i];
+        }
+        return availableExtensionsArray;
+    }
+    public static bool CheckIfExtensionsAvailable(string[] requestedExtensions, Vk.VkExtensionProperties[] availableExtensions)
+    {
+        var allFound = true;
+        var availableExtensionsStrings = availableExtensions
+            .Select(availableExtension => Marshal.PtrToStringAnsi((IntPtr)availableExtension.extensionName) ?? "").ToArray();
+        foreach (var requestedExtension in requestedExtensions)
+        {
+            var found = availableExtensionsStrings.Any(availableExtensionName => requestedExtension == availableExtensionName);
+            if (!found)
+            {
+                allFound = false;
+                Console.WriteLine($"Requested Extension {requestedExtension} not supported.");
+            }
+        }
+        return allFound;
     }
 
     public static SwapchainWithImages CreateSwapchain(Vk.VkDevice device, Vk.VkPhysicalDevice physicalDevice,
@@ -1136,5 +1269,200 @@ public static unsafe class VkSharp
             Console.WriteLine($"Created Shader Module with handle: 0x{shaderModule->handle:X}");
             return new Vk.VkShaderModule { handle = shaderModule->handle };
         }
+    }
+    
+    public static void DestroyShaderModule(Vk.VkDevice device, Vk.VkShaderModule shaderModule)
+    {
+        Vk.vkDestroyShaderModule(device, shaderModule, null);
+    }
+
+    public static Vk.VkPipeline CreatePipeline(Vk.VkDevice device, Vk.VkShaderModule vertexShader,
+        Vk.VkShaderModule fragmentShader, Vk.VkFormat[] colourAttachmentFormats, MemUtils.Arena scratch)
+    {
+        // Pipeline Layout
+        var pipelineCreateInfo = scratch.Alloc<Vk.VkPipelineLayoutCreateInfo>();
+        pipelineCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineCreateInfo->pNext = IntPtr.Zero;
+        pipelineCreateInfo->flags = 0;
+        pipelineCreateInfo->setLayoutCount = 0;
+        pipelineCreateInfo->pSetLayouts = null;
+        pipelineCreateInfo->pushConstantRangeCount = 0;
+        pipelineCreateInfo->pPushConstantRanges = null;
+        var pipelineLayout = scratch.Alloc<Vk.VkPipelineLayout>();
+        if(Vk.vkCreatePipelineLayout(device, pipelineCreateInfo, null, pipelineLayout) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to create pipeline layout.");
+        }
+        Console.WriteLine($"Created Pipeline Layout with handle: 0x{pipelineLayout->handle:X}");
+        // Shader Stages
+        var shaderStages = scratch.Alloc<Vk.VkPipelineShaderStageCreateInfo>(2);
+        // Vertex Shader Stage
+        shaderStages[0].sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStages[0].pNext = IntPtr.Zero;
+        shaderStages[0].flags = 0;
+        shaderStages[0].stage = Vk.VkShaderStageFlagBits.VK_SHADER_STAGE_VERTEX_BIT;
+        shaderStages[0].module = vertexShader;
+        shaderStages[0].pName = scratch.AllocANSIString("main");
+        shaderStages[0].pSpecializationInfo = null;
+        // Fragment Shader Stage
+        shaderStages[1].sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStages[1].pNext = IntPtr.Zero;
+        shaderStages[1].flags = 0;
+        shaderStages[1].stage = Vk.VkShaderStageFlagBits.VK_SHADER_STAGE_FRAGMENT_BIT;
+        shaderStages[1].module = fragmentShader;
+        shaderStages[1].pName = scratch.AllocANSIString("main");
+        shaderStages[1].pSpecializationInfo = null;
+        // Vertex Input State
+        var vertexBindingDescription = scratch.Alloc<Vk.VkVertexInputBindingDescription>();
+        vertexBindingDescription->binding = 0;
+        vertexBindingDescription->stride = (uint)Marshal.SizeOf<Vertex>();
+        vertexBindingDescription->inputRate = Vk.VkVertexInputRate.VK_VERTEX_INPUT_RATE_VERTEX;
+        var vertexAttributeDescriptions = scratch.Alloc<Vk.VkVertexInputAttributeDescription>(2);
+        vertexAttributeDescriptions[0].location = 0;
+        vertexAttributeDescriptions[0].binding = 0;
+        vertexAttributeDescriptions[0].format = Vk.VkFormat.VK_FORMAT_R32G32_SFLOAT; // To be set based on vertex structure
+        vertexAttributeDescriptions[0].offset = (uint)Marshal.OffsetOf<Vertex>("Position").ToInt32(); // To be set based on vertex structure
+        vertexAttributeDescriptions[1].location = 1;
+        vertexAttributeDescriptions[1].binding = 0;
+        vertexAttributeDescriptions[1].format = Vk.VkFormat.VK_FORMAT_R32G32B32_SFLOAT; // To be set based on vertex structure
+        vertexAttributeDescriptions[1].offset = (uint)Marshal.OffsetOf<Vertex>("Color").ToInt32(); // To be set based on vertex structure
+        var vertexInputInfo = scratch.Alloc<Vk.VkPipelineVertexInputStateCreateInfo>();
+        vertexInputInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo->pNext = IntPtr.Zero;
+        vertexInputInfo->flags = 0;
+        vertexInputInfo->vertexBindingDescriptionCount = 1;
+        vertexInputInfo->pVertexBindingDescriptions = vertexBindingDescription;
+        vertexInputInfo->vertexAttributeDescriptionCount = 2;
+        vertexInputInfo->pVertexAttributeDescriptions = vertexAttributeDescriptions;
+        // Input Assembly State
+        var inputAssembly = scratch.Alloc<Vk.VkPipelineInputAssemblyStateCreateInfo>();
+        inputAssembly->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssembly->pNext = IntPtr.Zero;
+        inputAssembly->flags = 0;
+        inputAssembly->topology = Vk.VkPrimitiveTopology.VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        inputAssembly->primitiveRestartEnable = Vk.VkBool32.VK_FALSE;
+        // Viewport and Scissor
+        var viewportState = scratch.Alloc<Vk.VkPipelineViewportStateCreateInfo>();
+        viewportState->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState->pNext = IntPtr.Zero;
+        viewportState->flags = 0;
+        viewportState->viewportCount = 1;
+        viewportState->pViewports = null; // We use dynimic viewport state
+        viewportState->scissorCount = 1;
+        viewportState->pScissors = null; // We use dynimic scissors state
+        // Rasterization State
+        var rasterizationState = scratch.Alloc<Vk.VkPipelineRasterizationStateCreateInfo>();
+        rasterizationState->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizationState->pNext = IntPtr.Zero;
+        rasterizationState->flags = 0;
+        rasterizationState->depthClampEnable = Vk.VkBool32.VK_FALSE;
+        rasterizationState->rasterizerDiscardEnable = Vk.VkBool32.VK_FALSE;
+        rasterizationState->polygonMode = Vk.VkPolygonMode.VK_POLYGON_MODE_FILL;
+        rasterizationState->cullMode = Vk.VkCullModeFlagBits.VK_CULL_MODE_BACK_BIT;
+        rasterizationState->frontFace = Vk.VkFrontFace.VK_FRONT_FACE_CLOCKWISE;
+        rasterizationState->depthBiasEnable = Vk.VkBool32.VK_FALSE;
+        rasterizationState->depthBiasConstantFactor = 0.0f;
+        rasterizationState->depthBiasClamp = 0.0f;
+        rasterizationState->depthBiasSlopeFactor = 0.0f;
+        rasterizationState->lineWidth = 1.0f;
+        // Multisample State
+        var multisampleState = scratch.Alloc<Vk.VkPipelineMultisampleStateCreateInfo>();
+        multisampleState->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisampleState->pNext = IntPtr.Zero;
+        multisampleState->flags = 0;
+        multisampleState->rasterizationSamples = Vk.VkSampleCountFlagBits.VK_SAMPLE_COUNT_1_BIT;
+        multisampleState->sampleShadingEnable = Vk.VkBool32.VK_FALSE;
+        multisampleState->minSampleShading = 1.0f;
+        multisampleState->pSampleMask = null;
+        multisampleState->alphaToCoverageEnable = Vk.VkBool32.VK_FALSE;
+        multisampleState->alphaToOneEnable = Vk.VkBool32.VK_FALSE;
+        // Color Blend State
+        var colorBlendAttachment = scratch.Alloc<Vk.VkPipelineColorBlendAttachmentState>();
+        colorBlendAttachment->blendEnable = Vk.VkBool32.VK_FALSE;
+        colorBlendAttachment->srcColorBlendFactor = Vk.VkBlendFactor.VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment->dstColorBlendFactor = Vk.VkBlendFactor.VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment->colorBlendOp = Vk.VkBlendOp.VK_BLEND_OP_ADD;
+        colorBlendAttachment->srcAlphaBlendFactor = Vk.VkBlendFactor.VK_BLEND_FACTOR_ONE;
+        colorBlendAttachment->dstAlphaBlendFactor = Vk.VkBlendFactor.VK_BLEND_FACTOR_ZERO;
+        colorBlendAttachment->alphaBlendOp = Vk.VkBlendOp.VK_BLEND_OP_ADD;
+        colorBlendAttachment->colorWriteMask = Vk.VkColorComponentFlagBits.VK_COLOR_COMPONENT_R_BIT |
+                                              Vk.VkColorComponentFlagBits.VK_COLOR_COMPONENT_G_BIT |
+                                              Vk.VkColorComponentFlagBits.VK_COLOR_COMPONENT_B_BIT |
+                                              Vk.VkColorComponentFlagBits.VK_COLOR_COMPONENT_A_BIT;
+        var colorBlendState = scratch.Alloc<Vk.VkPipelineColorBlendStateCreateInfo>();
+        colorBlendState->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlendState->pNext = IntPtr.Zero;
+        colorBlendState->flags = 0;
+        colorBlendState->logicOpEnable = Vk.VkBool32.VK_FALSE;
+        colorBlendState->logicOp = Vk.VkLogicOp.VK_LOGIC_OP_COPY;
+        colorBlendState->attachmentCount = 1;
+        colorBlendState->pAttachments = colorBlendAttachment;
+        colorBlendState->blendConstants0 = 0.0f;
+        colorBlendState->blendConstants1 = 0.0f;
+        colorBlendState->blendConstants2 = 0.0f;
+        colorBlendState->blendConstants3 = 0.0f;
+        // Dynamic State
+        Vk.VkDynamicState[] dynamicStatesToEnable = { 
+            Vk.VkDynamicState.VK_DYNAMIC_STATE_VIEWPORT, 
+            Vk.VkDynamicState.VK_DYNAMIC_STATE_SCISSOR,
+            Vk.VkDynamicState.VK_DYNAMIC_STATE_CULL_MODE,
+            Vk.VkDynamicState.VK_DYNAMIC_STATE_FRONT_FACE,
+            Vk.VkDynamicState.VK_DYNAMIC_STATE_PRIMITIVE_TOPOLOGY,
+        };
+        var dynamicStates = scratch.Alloc<Vk.VkDynamicState>(dynamicStatesToEnable.Length);
+        for(var i = 0; i < dynamicStatesToEnable.Length; i++)
+        {
+            dynamicStates[i] = dynamicStatesToEnable[i];
+        }
+        var dynamicState = scratch.Alloc<Vk.VkPipelineDynamicStateCreateInfo>();
+        dynamicState->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState->pNext = IntPtr.Zero;
+        dynamicState->flags = 0;
+        dynamicState->dynamicStateCount = (uint) dynamicStatesToEnable.Length;
+        dynamicState->pDynamicStates = dynamicStates;
+        // Rendering Info
+        var renderingCreateInfo = scratch.Alloc<Vk.VkPipelineRenderingCreateInfo>();
+        renderingCreateInfo->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+        renderingCreateInfo->pNext = IntPtr.Zero;
+        renderingCreateInfo->viewMask = 0;
+        renderingCreateInfo->colorAttachmentCount = (uint)colourAttachmentFormats.Length;
+        var colorFormats = scratch.Alloc<Vk.VkFormat>(colourAttachmentFormats.Length);
+        for(var i = 0; i < colourAttachmentFormats.Length; i++)
+        {
+            colorFormats[i] = colourAttachmentFormats[i];
+        }
+        renderingCreateInfo->pColorAttachmentFormats = colorFormats;
+        renderingCreateInfo->depthAttachmentFormat = Vk.VkFormat.VK_FORMAT_UNDEFINED;
+        renderingCreateInfo->stencilAttachmentFormat = Vk.VkFormat.VK_FORMAT_UNDEFINED;
+        // Pipeline Create Info
+        var pipelineCreateInfoMain = scratch.Alloc<Vk.VkGraphicsPipelineCreateInfo>();
+        pipelineCreateInfoMain->sType = Vk.VkStructureType.VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineCreateInfoMain->pNext = (IntPtr)renderingCreateInfo;
+        pipelineCreateInfoMain->flags = 0;
+        pipelineCreateInfoMain->stageCount = 2;
+        pipelineCreateInfoMain->pStages = shaderStages;
+        pipelineCreateInfoMain->pVertexInputState = vertexInputInfo;
+        pipelineCreateInfoMain->pInputAssemblyState = inputAssembly;
+        pipelineCreateInfoMain->pTessellationState = null;
+        pipelineCreateInfoMain->pViewportState = viewportState;
+        pipelineCreateInfoMain->pRasterizationState = rasterizationState;
+        pipelineCreateInfoMain->pMultisampleState = multisampleState;
+        pipelineCreateInfoMain->pDepthStencilState = null;
+        pipelineCreateInfoMain->pColorBlendState = colorBlendState;
+        pipelineCreateInfoMain->pDynamicState = dynamicState;
+        pipelineCreateInfoMain->layout = *pipelineLayout;
+        pipelineCreateInfoMain->renderPass = new Vk.VkRenderPass { handle = 0 }; // Not used with dynamic rendering
+        pipelineCreateInfoMain->subpass = 0;
+        pipelineCreateInfoMain->basePipelineHandle = new Vk.VkPipeline { handle = 0 };
+        pipelineCreateInfoMain->basePipelineIndex = -1;
+        // Pileline Creation
+        var pipeline = scratch.Alloc<Vk.VkPipeline>();
+        if(Vk.vkCreateGraphicsPipelines(device, new Vk.VkPipelineCache { handle = 0 }, 1, pipelineCreateInfoMain, null, pipeline) != Vk.VkResult.VK_SUCCESS)
+        {
+            throw new Exception("Failed to create graphics pipeline.");
+        }
+        Console.WriteLine($"Created Graphics Pipeline with handle: 0x{pipeline->handle:X}");
+        return new Vk.VkPipeline { handle = pipeline->handle };
+        
     }
 }
