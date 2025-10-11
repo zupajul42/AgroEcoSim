@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace AgroRenderer;
 
@@ -8,6 +9,10 @@ namespace AgroRenderer;
 [SuppressMessage("ReSharper", "UnusedType.Global")]
 public static unsafe partial class Vk
 {
+    private const int VkMemoryTypesSize = (int)VK_MAX_MEMORY_TYPES * 8; // sizeof(VkMemoryType) == 8 bytes
+
+    private const int VkMemoryHeapsSize = (int)VK_MAX_MEMORY_HEAPS * 12; // sizeof(VkMemoryHeap) == 12 bytes
+
     // ----------------------------------------------------------------
     // Vulkan Structures
     [StructLayout(LayoutKind.Sequential)]
@@ -27,7 +32,7 @@ public static unsafe partial class Vk
         }
     }
 
-    [StructLayout((LayoutKind.Sequential))]
+    [StructLayout(LayoutKind.Sequential)]
     public struct VkApplicationInfo
     {
         public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -48,20 +53,20 @@ public static unsafe partial class Vk
     {
         public IntPtr pUserData; // void*
 
-        public delegate* unmanaged<IntPtr, UInt64, UInt64, VkSystemAllocationScope, void> pfnAllocation;
+        public delegate* unmanaged<IntPtr, ulong, ulong, VkSystemAllocationScope, void> pfnAllocation;
 
         // void (*PFN_vkAllocationFunction)(IntPtr userData, UInt64 size, UInt64 alignment, VkSystemAllocationScope allocationScope);
-        public delegate* unmanaged<IntPtr, IntPtr, UInt64, UInt64, VkSystemAllocationScope, void> pfnReallocation;
+        public delegate* unmanaged<IntPtr, IntPtr, ulong, ulong, VkSystemAllocationScope, void> pfnReallocation;
 
         // void (*PFN_vkReallocationFunction) (void* userData, void* original, size_t size, size_t alignment, VkSystemAllocationScope allocationScope);
         public delegate* unmanaged<IntPtr, IntPtr, void> pfnFree;
 
         // void (*PFN_vkFreeFunction)(void* userData, void* memory);
-        public delegate* unmanaged<IntPtr, UInt64, VkInternalAllocationType, VkSystemAllocationScope, void>
+        public delegate* unmanaged<IntPtr, ulong, VkInternalAllocationType, VkSystemAllocationScope, void>
             pfnInternalAllocation;
 
         // void (*PFN_vkInternalAllocationNotification)(void* userData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope);
-        public delegate* unmanaged<IntPtr, UInt64, VkInternalAllocationType, VkSystemAllocationScope, void>
+        public delegate* unmanaged<IntPtr, ulong, VkInternalAllocationType, VkSystemAllocationScope, void>
             pfnInternalFree;
         // void (*PFN_vkInternalFreeNotification)(void* userData, size_t size, VkInternalAllocationType allocationType, VkSystemAllocationScope allocationScope);
     }
@@ -323,7 +328,7 @@ public static unsafe partial class Vk
         {
         }
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkQueueFamilyProperties
     {
@@ -546,6 +551,7 @@ public static unsafe partial class Vk
         {
         }
     }
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkDeviceSize
     {
@@ -554,12 +560,13 @@ public static unsafe partial class Vk
         public VkDeviceSize()
         {
         }
-        public VkDeviceSize(UInt64 size)
+
+        public VkDeviceSize(ulong size)
         {
             this.size = size;
         }
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkBuffer
     {
@@ -569,7 +576,7 @@ public static unsafe partial class Vk
         {
         }
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkDeviceMemory
     {
@@ -587,6 +594,7 @@ public static unsafe partial class Vk
         public IntPtr pNext = IntPtr.Zero; // const void*
         public VkDeviceSize allocationSize;
         public UInt32 memoryTypeIndex;
+
         public VkMemoryAllocateInfo()
         {
         }
@@ -611,6 +619,7 @@ public static unsafe partial class Vk
         public VkSharingMode sharingMode;
         public UInt32 queueFamilyIndexCount;
         public UInt32* pQueueFamilyIndices; // const UInt32*
+
         public VkBufferCreateInfo()
         {
         }
@@ -622,28 +631,33 @@ public static unsafe partial class Vk
         public VkMemoryPropertyFlagBits propertyFlags;
         public UInt32 heapIndex;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
-    public struct VkMemoryHeap {
+    public struct VkMemoryHeap
+    {
         public VkDeviceSize size;
         public VkMemoryHeapFlagBits flags;
     }
-    
-    private const int VkMemoryTypesSize = (int)VK_MAX_MEMORY_TYPES * 8; // sizeof(VkMemoryType) == 8 bytes
-    private const int VkMemoryHeapsSize = (int)VK_MAX_MEMORY_HEAPS * 12; // sizeof(VkMemoryHeap) == 12 bytes
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkPhysicalDeviceMemoryProperties
     {
         public UInt32 memoryTypeCount;
+
         [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.Struct, SizeConst = VkMemoryTypesSize)]
-        public fixed byte memoryTypes[VkMemoryTypesSize]; // VkMemoryType[VK_MAX_MEMORY_TYPES] as csharp does not allow fixed size arrays of structs
+        public fixed byte
+            memoryTypes[VkMemoryTypesSize]; // VkMemoryType[VK_MAX_MEMORY_TYPES] as csharp does not allow fixed size arrays of structs
+
         public UInt32 memoryHeapCount;
+
         [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.Struct, SizeConst = VkMemoryHeapsSize)]
-        public fixed byte memoryHeaps[VkMemoryHeapsSize]; // VkMemoryHeap[VK_MAX_MEMORY_HEAPS] as csharp does not allow fixed size arrays of structs
+        public fixed byte
+            memoryHeaps[VkMemoryHeapsSize]; // VkMemoryHeap[VK_MAX_MEMORY_HEAPS] as csharp does not allow fixed size arrays of structs
 
         public VkPhysicalDeviceMemoryProperties()
         {
         }
+
         public VkMemoryType GetMemoryType(int index)
         {
             if (index < 0 || index >= VK_MAX_MEMORY_TYPES) throw new ArgumentOutOfRangeException(nameof(index));
@@ -652,6 +666,7 @@ public static unsafe partial class Vk
                 return ((VkMemoryType*)ptr)[index];
             }
         }
+
         public VkMemoryHeap GetMemoryHeap(int index)
         {
             if (index < 0 || index >= VK_MAX_MEMORY_HEAPS) throw new ArgumentOutOfRangeException(nameof(index));
@@ -726,7 +741,7 @@ public static unsafe partial class Vk
         }
     }
 
-    [StructLayout((LayoutKind.Sequential))]
+    [StructLayout(LayoutKind.Sequential)]
     public struct VkCommandPool
     {
         public UInt64 handle;
@@ -750,7 +765,7 @@ public static unsafe partial class Vk
     {
         public UInt64 handle;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkCommandBufferAllocateInfo
     {
@@ -820,7 +835,7 @@ public static unsafe partial class Vk
         public UInt32 offset;
         public UIntPtr size; // size_t
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkSpecializationInfo
     {
@@ -829,7 +844,7 @@ public static unsafe partial class Vk
         public UIntPtr dataSize; // size_t
         public void* pData; // const void*
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkPipelineShaderStageCreateInfo
     {
@@ -934,14 +949,14 @@ public static unsafe partial class Vk
         public Int32 y;
         public Int32 z;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkRect2D
     {
         public VkOffset2D offset;
         public VkExtent2D extent;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkRect3D
     {
@@ -1076,7 +1091,7 @@ public static unsafe partial class Vk
         public UInt32 writeMask;
         public UInt32 reference;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkPipelineDepthStencilStateCreateInfo
     {
@@ -1103,7 +1118,7 @@ public static unsafe partial class Vk
     {
         public UInt64 handle;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkGraphicsPipelineCreateInfo
     {
@@ -1113,12 +1128,23 @@ public static unsafe partial class Vk
         public UInt32 stageCount;
         public VkPipelineShaderStageCreateInfo* pStages; // const VkPipelineShaderStageCreateInfo*
         public VkPipelineVertexInputStateCreateInfo* pVertexInputState; // const VkPipelineVertexInputStateCreateInfo*
-        public VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState; // const VkPipelineInputAssemblyStateCreateInfo*
-        public VkPipelineTessellationStateCreateInfo* pTessellationState; // const VkPipelineTessellationStateCreateInfo*
+
+        public VkPipelineInputAssemblyStateCreateInfo*
+            pInputAssemblyState; // const VkPipelineInputAssemblyStateCreateInfo*
+
+        public VkPipelineTessellationStateCreateInfo*
+            pTessellationState; // const VkPipelineTessellationStateCreateInfo*
+
         public VkPipelineViewportStateCreateInfo* pViewportState; // const VkPipelineViewportStateCreateInfo*
-        public VkPipelineRasterizationStateCreateInfo* pRasterizationState; // const VkPipelineRasterizationStateCreateInfo*
+
+        public VkPipelineRasterizationStateCreateInfo*
+            pRasterizationState; // const VkPipelineRasterizationStateCreateInfo*
+
         public VkPipelineMultisampleStateCreateInfo* pMultisampleState; // const VkPipelineMultisampleStateCreateInfo*
-        public VkPipelineDepthStencilStateCreateInfo* pDepthStencilState; // const VkPipelineDepthStencilStateCreateInfo*
+
+        public VkPipelineDepthStencilStateCreateInfo*
+            pDepthStencilState; // const VkPipelineDepthStencilStateCreateInfo*
+
         public VkPipelineColorBlendStateCreateInfo* pColorBlendState; // const VkPipelineColorBlendStateCreateInfo*
         public VkPipelineDynamicStateCreateInfo* pDynamicState; // const VkPipelineDynamicStateCreateInfo*
         public VkPipelineLayout layout;
@@ -1137,7 +1163,7 @@ public static unsafe partial class Vk
     {
         public UInt64 handle;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct VkPipelineCacheCreateInfo
     {
@@ -1193,7 +1219,9 @@ public static unsafe partial class Vk
     [StructLayout(LayoutKind.Sequential)]
     public struct VkPhysicalDeviceExtendedDynamicStateFeaturesEXT
     {
-        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
+        public VkStructureType sType =
+            VkStructureType.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
+
         public IntPtr pNext = IntPtr.Zero; // void*
         public VkBool32 extendedDynamicState;
         public VkBool32 extendedDynamicState2;
@@ -1231,26 +1259,20 @@ public static unsafe partial class Vk
                 return Marshal.PtrToStringAnsi((IntPtr)ptr);
             }
         }
-        
+
         public void SetLayerName(string name)
         {
-            var bytes = System.Text.Encoding.ASCII.GetBytes(name);
-            int len = Math.Min(bytes.Length, (int)VK_MAX_DESCRIPTION_SIZE - 1);
-            for (int i = 0; i < len; i++)
-            {
-                layerName[i] = bytes[i];
-            }
+            var bytes = Encoding.ASCII.GetBytes(name);
+            var len = Math.Min(bytes.Length, (int)VK_MAX_DESCRIPTION_SIZE - 1);
+            for (var i = 0; i < len; i++) layerName[i] = bytes[i];
             layerName[len] = 0; // Null-terminate
         }
-        
+
         public void SetDescription(string desc)
         {
-            var bytes = System.Text.Encoding.ASCII.GetBytes(desc);
-            int len = Math.Min(bytes.Length, (int)VK_MAX_DESCRIPTION_SIZE - 1);
-            for (int i = 0; i < len; i++)
-            {
-                description[i] = bytes[i];
-            }
+            var bytes = Encoding.ASCII.GetBytes(desc);
+            var len = Math.Min(bytes.Length, (int)VK_MAX_DESCRIPTION_SIZE - 1);
+            for (var i = 0; i < len; i++) description[i] = bytes[i];
             description[len] = 0; // Null-terminate
         }
     }
@@ -1271,13 +1293,185 @@ public static unsafe partial class Vk
 
         public void SetExtensionName(string name)
         {
-            var bytes = System.Text.Encoding.ASCII.GetBytes(name);
-            int len = Math.Min(bytes.Length, (int)VK_MAX_EXTENSION_NAME_SIZE - 1);
-            for (int i = 0; i < len; i++)
-            {
-                extensionName[i] = bytes[i];
-            }
+            var bytes = Encoding.ASCII.GetBytes(name);
+            var len = Math.Min(bytes.Length, (int)VK_MAX_EXTENSION_NAME_SIZE - 1);
+            for (var i = 0; i < len; i++) extensionName[i] = bytes[i];
             extensionName[len] = 0; // Null-terminate
+        }
+    }
+
+    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi)]
+    public struct VkClearColorValue
+    {
+        [FieldOffset(0)] public fixed float float32[4];
+        [FieldOffset(0)] public fixed int int32[4];
+        [FieldOffset(0)] public fixed uint uint32[4];
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkClearDepthStencilValue
+    {
+        public float depth;
+        public UInt32 stencil;
+    }
+
+    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Ansi)]
+    public struct VkClearValue
+    {
+        [FieldOffset(0)] public VkClearColorValue color;
+        [FieldOffset(0)] public VkClearDepthStencilValue depthStencil;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkRenderingAttachmentInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        public void* pNext = null;
+        public VkImageView imageView;
+        public VkImageLayout imageLayout;
+        public VkResolveModeFlagBits resolveMode;
+        public VkImageView resolveImageView;
+        public VkImageLayout resolveImageLayout;
+        public VkAttachmentLoadOp loadOp;
+        public VkAttachmentStoreOp storeOp;
+        public VkClearValue clearValue;
+
+        public VkRenderingAttachmentInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkRenderingInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_RENDERING_INFO;
+        public void* pNext = null;
+        public VkRenderingFlagBits flags;
+        public VkRect2D renderArea;
+        public UInt32 layerCount;
+        public UInt32 viewMask;
+        public UInt32 colorAttachmentCount;
+        public VkRenderingAttachmentInfo* pColorAttachments;
+        public VkRenderingAttachmentInfo* pDepthAttachment;
+        public VkRenderingAttachmentInfo* pStencilAttachment;
+
+        public VkRenderingInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkCommandBufferInheritanceInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+        public void* pNext = null;
+        public VkRenderPass renderPass;
+        public UInt32 subpass;
+        public VkFramebuffer framebuffer;
+        public VkBool32 occlusionQueryEnable;
+        public VkQueryControlFlagBits queryFlags;
+        public VkQueryPipelineStatisticFlagBits pipelineStatistics;
+
+        public VkCommandBufferInheritanceInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkCommandBufferBeginInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        public void* pNext = null;
+        public VkCommandBufferUsageFlagBits flags;
+        public VkCommandBufferInheritanceInfo* pInheritanceInfo; // const VkCommandBufferInheritanceInfo*
+
+        public VkCommandBufferBeginInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkImageMemoryBarrier
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        public void* pNext = null;
+        public VkAccessFlagBits srcAccessMask;
+        public VkAccessFlagBits dstAccessMask;
+        public VkImageLayout oldLayout;
+        public VkImageLayout newLayout;
+        public UInt32 srcQueueFamilyIndex;
+        public UInt32 dstQueueFamilyIndex;
+        public VkImage image;
+        public VkImageSubresourceRange subresourceRange;
+
+        public VkImageMemoryBarrier()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkMemoryBarrier
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        public void* pNext = null;
+        public VkAccessFlagBits srcAccessMask;
+        public VkAccessFlagBits dstAccessMask;
+
+        public VkMemoryBarrier()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkBufferMemoryBarrier
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        public void* pNext = null;
+        public VkAccessFlagBits srcAccessMask;
+        public VkAccessFlagBits dstAccessMask;
+        public UInt32 srcQueueFamilyIndex;
+        public UInt32 dstQueueFamilyIndex;
+        public VkBuffer buffer;
+        public VkDeviceSize offset;
+        public VkDeviceSize size;
+
+        public VkBufferMemoryBarrier()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkSubmitInfo
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        public void* pNext = null;
+        public UInt32 waitSemaphoreCount;
+        public VkSemaphore* pWaitSemaphores; // const VkSemaphore*
+        public VkPipelineStageFlagBits* pWaitDstStageMask; // const VkPipelineStageFlagBits*
+        public UInt32 commandBufferCount;
+        public VkCommandBuffer* pCommandBuffers; // const VkCommandBuffer*
+        public UInt32 signalSemaphoreCount;
+        public VkSemaphore* pSignalSemaphores; // const VkSemaphore*
+
+        public VkSubmitInfo()
+        {
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public struct VkPresentInfoKHR
+    {
+        public VkStructureType sType = VkStructureType.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        public void* pNext = null;
+        public UInt32 waitSemaphoreCount;
+        public VkSemaphore* pWaitSemaphores; // const VkSemaphore*
+        public UInt32 swapchainCount;
+        public VkSwapchainKHR* pSwapchains; // const VkSwapchainKHR*
+        public UInt32* pImageIndices; // const UInt32*
+        public VkResult* pResults; // VkResult*
+
+        public VkPresentInfoKHR()
+        {
         }
     }
 }

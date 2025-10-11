@@ -52,4 +52,10 @@ public static partial class Vk
     {
         public IntPtr handle;
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct VkFramebuffer
+    {
+        public IntPtr handle;
+    }
 }

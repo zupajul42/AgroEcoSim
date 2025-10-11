@@ -2,102 +2,17 @@ using System.Runtime.InteropServices;
 
 namespace AgroRenderer;
 
-using xcb_keycode_t = Byte;
-using xcb_window_t = UInt32;
-using xcb_colormap_t = UInt32;
-using xcb_visualid_t = UInt32;
-using xcb_timestamp_t = UInt32;
-using xcb_drawable_t = UInt32;
-using xcb_atom_t = UInt32;
+using xcb_keycode_t = byte;
+using xcb_window_t = uint;
+using xcb_colormap_t = uint;
+using xcb_visualid_t = uint;
+using xcb_timestamp_t = uint;
+using xcb_drawable_t = uint;
+using xcb_atom_t = uint;
 
 public static unsafe class XCB
 {
-    private const string LIBC_DLL = "libc";
-    private const string LIBXCB_DLL = "libxcb";
-    
-    // ----------------------------------------------------------------
-    // XCB Definitions
-    public const Int32 XCB_NONE = 0;
-    public const Int32 XCB_COPY_FROM_PARENT = 0;
-    public const Int32 XCB_CURRENT_TIME = 0;
-    public const Int32 XCB_NO_SYMBOL = 0;
-
-    // ----------------------------------------------------------------
-    // PThreadStructures
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct pthread_mutex_t
-    {
-        fixed Byte __size[40];
-    }
-
-    // ----------------------------------------------------------------
-    // XCB Enums
-
-    public enum xcb_window_class_t : UInt16
-    {
-        XCB_WINDOW_CLASS_COPY_FROM_PARENT = 0,
-        XCB_WINDOW_CLASS_INPUT_OUTPUT = 1,
-        XCB_WINDOW_CLASS_INPUT_ONLY = 2
-    }
-
-    [Flags]
-    public enum xcb_event_mask_t : UInt32
-    {
-        XCB_EVENT_MASK_NO_EVENT = 0,
-        XCB_EVENT_MASK_KEY_PRESS = 1 << 0,
-        XCB_EVENT_MASK_KEY_RELEASE = 1 << 1,
-        XCB_EVENT_MASK_BUTTON_PRESS = 1 << 2,
-        XCB_EVENT_MASK_BUTTON_RELEASE = 1 << 3,
-        XCB_EVENT_MASK_ENTER_WINDOW = 1 << 4,
-        XCB_EVENT_MASK_LEAVE_WINDOW = 1 << 5,
-        XCB_EVENT_MASK_POINTER_MOTION = 1 << 6,
-        XCB_EVENT_MASK_POINTER_MOTION_HINT = 1 << 7,
-        XCB_EVENT_MASK_BUTTON_1_MOTION = 1 << 8,
-        XCB_EVENT_MASK_BUTTON_2_MOTION = 1 << 9,
-        XCB_EVENT_MASK_BUTTON_3_MOTION = 1 << 10,
-        XCB_EVENT_MASK_BUTTON_4_MOTION = 1 << 11,
-        XCB_EVENT_MASK_BUTTON_5_MOTION = 1 << 12,
-        XCB_EVENT_MASK_BUTTON_MOTION = 1 << 13,
-        XCB_EVENT_MASK_KEYMAP_STATE = 1 << 14,
-        XCB_EVENT_MASK_EXPOSURE = 1 << 15,
-        XCB_EVENT_MASK_VISIBILITY_CHANGE = 1 << 16,
-        XCB_EVENT_MASK_STRUCTURE_NOTIFY = 1 << 17,
-        XCB_EVENT_MASK_RESIZE_REDIRECT = 1 << 18,
-        XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY = 1 << 19,
-        XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT = 1 << 20,
-        XCB_EVENT_MASK_FOCUS_CHANGE = 1 << 21,
-        XCB_EVENT_MASK_PROPERTY_CHANGE = 1 << 22,
-        XCB_EVENT_MASK_COLOR_MAP_CHANGE = 1 << 23,
-        XCB_EVENT_MASK_OWNER_GRAB_BUTTON = 1 << 24
-    }
-
-    [Flags]
-    public enum xcb_cw_t : UInt32
-    {
-        XCB_CW_BACK_PIXMAP = 1 << 0,
-        XCB_CW_BACK_PIXEL = 1 << 1,
-        XCB_CW_BORDER_PIXMAP = 1 << 2,
-        XCB_CW_BORDER_PIXEL = 1 << 3,
-        XCB_CW_BIT_GRAVITY = 1 << 4,
-        XCB_CW_WIN_GRAVITY = 1 << 5,
-        XCB_CW_BACKING_STORE = 1 << 6,
-        XCB_CW_BACKING_PLANES = 1 << 7,
-        XCB_CW_BACKING_PIXEL = 1 << 8,
-        XCB_CW_OVERRIDE_REDIRECT = 1 << 9,
-        XCB_CW_SAVE_UNDER = 1 << 10,
-        XCB_CW_EVENT_MASK = 1 << 11,
-        XCB_CW_DONT_PROPAGATE = 1 << 12,
-        XCB_CW_COLORMAP = 1 << 13,
-        XCB_CW_CURSOR = 1 << 14
-    }
-
-    public enum xcb_window_enum_t
-    {
-        XCB_WINDOW_NONE = 0
-    }
-
-    public enum EventOpCodes : UInt32
+    public enum EventOpCodes : uint
     {
         XCB_KEY_PRESS = 2,
         XCB_KEY_RELEASE = 3,
@@ -132,102 +47,7 @@ public static unsafe class XCB
         XCB_COLORMAP_NOTIFY = 32,
         XCB_CLIENT_MESSAGE = 33,
         XCB_MAPPING_NOTIFY = 34,
-        XCB_GE_GENERIC = 35,
-    }
-
-    [Flags]
-    public enum xcb_mod_mask_t
-    {
-        XCB_MOD_MASK_SHIFT = 1 << 0,
-        XCB_MOD_MASK_LOCK = 1 << 1,
-        XCB_MOD_MASK_CONTROL = 1 << 2,
-        XCB_MOD_MASK_1 = 1 << 3,
-        XCB_MOD_MASK_2 = 1 << 4,
-        XCB_MOD_MASK_3 = 1 << 5,
-        XCB_MOD_MASK_4 = 1 << 6,
-        XCB_MOD_MASK_5 = 1 << 7,
-        XCB_MOD_MASK_ANY = 1 << 15
-    }
-
-    [Flags]
-    public enum xcb_key_but_mask_t
-    {
-        XCB_KEY_BUT_MASK_NONE = 0,
-        XCB_KEY_BUT_MASK_SHIFT = 1 << 0,
-        XCB_KEY_BUT_MASK_LOCK = 1 << 1,
-        XCB_KEY_BUT_MASK_CONTROL = 1 << 2,
-        XCB_KEY_BUT_MASK_MOD1 = 1 << 3,
-        XCB_KEY_BUT_MASK_MOD2 = 1 << 4,
-        XCB_KEY_BUT_MASK_MOD3 = 1 << 5,
-        XCB_KEY_BUT_MASK_MOD4 = 1 << 6,
-        XCB_KEY_BUT_MASK_MOD5 = 1 << 7,
-        XCB_KEY_BUT_MASK_BUTTON1 = 1 << 8,
-        XCB_KEY_BUT_MASK_BUTTON2 = 1 << 9,
-        XCB_KEY_BUT_MASK_BUTTON3 = 1 << 10,
-        XCB_KEY_BUT_MASK_BUTTON4 = 1 << 11,
-        XCB_KEY_BUT_MASK_BUTTON5 = 1 << 12,
-    }
-
-    [Flags]
-    public enum xcb_button_mask_t
-    {
-        XCB_BUTTON_MASK_NONE = 0,
-        XCB_BUTTON_MASK_1 = 1 << 8,
-        XCB_BUTTON_MASK_2 = 1 << 9,
-        XCB_BUTTON_MASK_3 = 1 << 10,
-        XCB_BUTTON_MASK_4 = 1 << 11,
-        XCB_BUTTON_MASK_5 = 1 << 12,
-        XCB_BUTTON_MASK_ANY = 1 << 15
-    }
-
-    public enum xcb_motion_t
-    {
-        XCB_MOTION_NORMAL = 0,
-        XCB_MOTION_HINT = 1,
-    }
-
-    public enum xcb_notify_detail_t
-    {
-        XCB_NOTIFY_DETAIL_ANCESTOR = 0,
-        XCB_NOTIFY_DETAIL_VIRTUAL = 1,
-        XCB_NOTIFY_DETAIL_INFERIOR = 2,
-        XCB_NOTIFY_DETAIL_NONLINEAR = 3,
-        XCB_NOTIFY_DETAIL_NONLINEAR_VIRTUAL = 4,
-        XCB_NOTIFY_DETAIL_POINTER = 5,
-        XCB_NOTIFY_DETAIL_POINTER_ROOT = 6,
-        XCB_NOTIFY_DETAIL_NONE = 7,
-    }
-
-    public enum xcb_notify_mode_t
-    {
-        XCB_NOTIFY_MODE_NORMAL = 0,
-        XCB_NOTIFY_MODE_GRAB = 1,
-        XCB_NOTIFY_MODE_UNGRAB = 2,
-        XCB_NOTIFY_MODE_WHILE_GRABBED = 3,
-    }
-
-    public enum xcb_visibility_t
-    {
-        XCB_VISIBILITY_UNOBSCURED = 0,
-        XCB_VISIBILITY_PARTIALLY_OBSCURED = 1,
-        XCB_VISIBILITY_FULLY_OBSCURED = 2,
-    }
-
-    public enum xcb_place_t
-    {
-        XCB_PLACE_ON_TOP = 0,
-        XCB_PLACE_ON_BOTTOM = 1,
-    }
-
-    public enum xcb_property_t
-    {
-        XCB_PROPERTY_NEW_VALUE = 0,
-        XCB_PROPERTY_DELETE = 1,
-    }
-
-    public enum xcb_time_t
-    {
-        XCB_TIME_CURRENT_TIME = 0,
+        XCB_GE_GENERIC = 35
     }
 
     public enum xcb_atom_enum_t
@@ -301,42 +121,324 @@ public static unsafe class XCB
         XCB_ATOM_FULL_NAME = 65,
         XCB_ATOM_CAP_HEIGHT = 66,
         XCB_ATOM_WM_CLASS = 67,
-        XCB_ATOM_WM_TRANSIENT_FOR = 68,
+        XCB_ATOM_WM_TRANSIENT_FOR = 68
+    }
+
+    [Flags]
+    public enum xcb_button_mask_t
+    {
+        XCB_BUTTON_MASK_NONE = 0,
+        XCB_BUTTON_MASK_1 = 1 << 8,
+        XCB_BUTTON_MASK_2 = 1 << 9,
+        XCB_BUTTON_MASK_3 = 1 << 10,
+        XCB_BUTTON_MASK_4 = 1 << 11,
+        XCB_BUTTON_MASK_5 = 1 << 12,
+        XCB_BUTTON_MASK_ANY = 1 << 15
+    }
+
+    public enum xcb_colormap_enum_t
+    {
+        XCB_COLORMAP_NONE = 0
     }
 
     public enum xcb_colormap_state_t
     {
         XCB_COLORMAP_STATE_UNINSTALLED = 0,
-        /** The colormap was uninstalled. */
 
+        /**
+         * The colormap was uninstalled.
+         */
         XCB_COLORMAP_STATE_INSTALLED = 1
         /** The colormap was installed. */
     }
 
-    public enum xcb_colormap_enum_t
+    [Flags]
+    public enum xcb_cw_t : uint
     {
-        XCB_COLORMAP_NONE = 0,
+        XCB_CW_BACK_PIXMAP = 1 << 0,
+        XCB_CW_BACK_PIXEL = 1 << 1,
+        XCB_CW_BORDER_PIXMAP = 1 << 2,
+        XCB_CW_BORDER_PIXEL = 1 << 3,
+        XCB_CW_BIT_GRAVITY = 1 << 4,
+        XCB_CW_WIN_GRAVITY = 1 << 5,
+        XCB_CW_BACKING_STORE = 1 << 6,
+        XCB_CW_BACKING_PLANES = 1 << 7,
+        XCB_CW_BACKING_PIXEL = 1 << 8,
+        XCB_CW_OVERRIDE_REDIRECT = 1 << 9,
+        XCB_CW_SAVE_UNDER = 1 << 10,
+        XCB_CW_EVENT_MASK = 1 << 11,
+        XCB_CW_DONT_PROPAGATE = 1 << 12,
+        XCB_CW_COLORMAP = 1 << 13,
+        XCB_CW_CURSOR = 1 << 14
     }
-    
-    public enum xcb_prop_mode_t : Byte
+
+    [Flags]
+    public enum xcb_event_mask_t : uint
+    {
+        XCB_EVENT_MASK_NO_EVENT = 0,
+        XCB_EVENT_MASK_KEY_PRESS = 1 << 0,
+        XCB_EVENT_MASK_KEY_RELEASE = 1 << 1,
+        XCB_EVENT_MASK_BUTTON_PRESS = 1 << 2,
+        XCB_EVENT_MASK_BUTTON_RELEASE = 1 << 3,
+        XCB_EVENT_MASK_ENTER_WINDOW = 1 << 4,
+        XCB_EVENT_MASK_LEAVE_WINDOW = 1 << 5,
+        XCB_EVENT_MASK_POINTER_MOTION = 1 << 6,
+        XCB_EVENT_MASK_POINTER_MOTION_HINT = 1 << 7,
+        XCB_EVENT_MASK_BUTTON_1_MOTION = 1 << 8,
+        XCB_EVENT_MASK_BUTTON_2_MOTION = 1 << 9,
+        XCB_EVENT_MASK_BUTTON_3_MOTION = 1 << 10,
+        XCB_EVENT_MASK_BUTTON_4_MOTION = 1 << 11,
+        XCB_EVENT_MASK_BUTTON_5_MOTION = 1 << 12,
+        XCB_EVENT_MASK_BUTTON_MOTION = 1 << 13,
+        XCB_EVENT_MASK_KEYMAP_STATE = 1 << 14,
+        XCB_EVENT_MASK_EXPOSURE = 1 << 15,
+        XCB_EVENT_MASK_VISIBILITY_CHANGE = 1 << 16,
+        XCB_EVENT_MASK_STRUCTURE_NOTIFY = 1 << 17,
+        XCB_EVENT_MASK_RESIZE_REDIRECT = 1 << 18,
+        XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY = 1 << 19,
+        XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT = 1 << 20,
+        XCB_EVENT_MASK_FOCUS_CHANGE = 1 << 21,
+        XCB_EVENT_MASK_PROPERTY_CHANGE = 1 << 22,
+        XCB_EVENT_MASK_COLOR_MAP_CHANGE = 1 << 23,
+        XCB_EVENT_MASK_OWNER_GRAB_BUTTON = 1 << 24
+    }
+
+    [Flags]
+    public enum xcb_key_but_mask_t
+    {
+        XCB_KEY_BUT_MASK_NONE = 0,
+        XCB_KEY_BUT_MASK_SHIFT = 1 << 0,
+        XCB_KEY_BUT_MASK_LOCK = 1 << 1,
+        XCB_KEY_BUT_MASK_CONTROL = 1 << 2,
+        XCB_KEY_BUT_MASK_MOD1 = 1 << 3,
+        XCB_KEY_BUT_MASK_MOD2 = 1 << 4,
+        XCB_KEY_BUT_MASK_MOD3 = 1 << 5,
+        XCB_KEY_BUT_MASK_MOD4 = 1 << 6,
+        XCB_KEY_BUT_MASK_MOD5 = 1 << 7,
+        XCB_KEY_BUT_MASK_BUTTON1 = 1 << 8,
+        XCB_KEY_BUT_MASK_BUTTON2 = 1 << 9,
+        XCB_KEY_BUT_MASK_BUTTON3 = 1 << 10,
+        XCB_KEY_BUT_MASK_BUTTON4 = 1 << 11,
+        XCB_KEY_BUT_MASK_BUTTON5 = 1 << 12
+    }
+
+    [Flags]
+    public enum xcb_mod_mask_t
+    {
+        XCB_MOD_MASK_SHIFT = 1 << 0,
+        XCB_MOD_MASK_LOCK = 1 << 1,
+        XCB_MOD_MASK_CONTROL = 1 << 2,
+        XCB_MOD_MASK_1 = 1 << 3,
+        XCB_MOD_MASK_2 = 1 << 4,
+        XCB_MOD_MASK_3 = 1 << 5,
+        XCB_MOD_MASK_4 = 1 << 6,
+        XCB_MOD_MASK_5 = 1 << 7,
+        XCB_MOD_MASK_ANY = 1 << 15
+    }
+
+    public enum xcb_motion_t
+    {
+        XCB_MOTION_NORMAL = 0,
+        XCB_MOTION_HINT = 1
+    }
+
+    public enum xcb_notify_detail_t
+    {
+        XCB_NOTIFY_DETAIL_ANCESTOR = 0,
+        XCB_NOTIFY_DETAIL_VIRTUAL = 1,
+        XCB_NOTIFY_DETAIL_INFERIOR = 2,
+        XCB_NOTIFY_DETAIL_NONLINEAR = 3,
+        XCB_NOTIFY_DETAIL_NONLINEAR_VIRTUAL = 4,
+        XCB_NOTIFY_DETAIL_POINTER = 5,
+        XCB_NOTIFY_DETAIL_POINTER_ROOT = 6,
+        XCB_NOTIFY_DETAIL_NONE = 7
+    }
+
+    public enum xcb_notify_mode_t
+    {
+        XCB_NOTIFY_MODE_NORMAL = 0,
+        XCB_NOTIFY_MODE_GRAB = 1,
+        XCB_NOTIFY_MODE_UNGRAB = 2,
+        XCB_NOTIFY_MODE_WHILE_GRABBED = 3
+    }
+
+    public enum xcb_place_t
+    {
+        XCB_PLACE_ON_TOP = 0,
+        XCB_PLACE_ON_BOTTOM = 1
+    }
+
+    public enum xcb_prop_mode_t : byte
     {
         XCB_PROP_MODE_REPLACE = 0,
-        /** Discard the previous property value and store the new data. */
+
+        /**
+         * Discard the previous property value and store the new data.
+         */
         XCB_PROP_MODE_PREPEND = 1,
-        /** Insert the new data before the beginning of existing data. The `format` must
-            match existing property value. If the property is undefined, it is treated as
-            defined with the correct type and format with zero-length data. */
-        CB_PROP_MODE_APPEND = 2,
+
+        /**
+         * Insert the new data before the beginning of existing data. The `format` must
+         * match existing property value. If the property is undefined, it is treated as
+         * defined with the correct type and format with zero-length data.
+         */
+        CB_PROP_MODE_APPEND = 2
         /** Insert the new data after the beginning of existing data. The `format` must
             match existing property value. If the property is undefined, it is treated as
-            defined with the correct type and format with zero-length data. */        
+            defined with the correct type and format with zero-length data. */
     }
-    
+
+    public enum xcb_property_t
+    {
+        XCB_PROPERTY_NEW_VALUE = 0,
+        XCB_PROPERTY_DELETE = 1
+    }
+
+    public enum xcb_time_t
+    {
+        XCB_TIME_CURRENT_TIME = 0
+    }
+
+    public enum xcb_visibility_t
+    {
+        XCB_VISIBILITY_UNOBSCURED = 0,
+        XCB_VISIBILITY_PARTIALLY_OBSCURED = 1,
+        XCB_VISIBILITY_FULLY_OBSCURED = 2
+    }
+
+    // ----------------------------------------------------------------
+    // XCB Enums
+
+    public enum xcb_window_class_t : ushort
+    {
+        XCB_WINDOW_CLASS_COPY_FROM_PARENT = 0,
+        XCB_WINDOW_CLASS_INPUT_OUTPUT = 1,
+        XCB_WINDOW_CLASS_INPUT_ONLY = 2
+    }
+
+    public enum xcb_window_enum_t
+    {
+        XCB_WINDOW_NONE = 0
+    }
+
+    private const string LIBC_DLL = "libc";
+    private const string LIBXCB_DLL = "libxcb";
+
+    // ----------------------------------------------------------------
+    // XCB Definitions
+    public const int XCB_NONE = 0;
+    public const int XCB_COPY_FROM_PARENT = 0;
+    public const int XCB_CURRENT_TIME = 0;
+
+    public const int XCB_NO_SYMBOL = 0;
+    // ----------------------------------------------------------------
+    // XCB Function Imports
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_connection_t* xcb_connect(
+        [MarshalAs(UnmanagedType.LPStr)] string displayname,
+        int* screenp);
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void xcb_disconnect(xcb_connection_t* c);
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_setup_t* xcb_get_setup(xcb_connection_t* c);
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_screen_iterator_t xcb_setup_roots_iterator(xcb_setup_t* R);
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint xcb_generate_id(xcb_connection_t* c);
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int xcb_flush(xcb_connection_t* c);
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_void_cookie_t xcb_create_window(
+        xcb_connection_t* c,
+        byte depth,
+        xcb_window_t wid,
+        xcb_window_t parent,
+        short x,
+        short y,
+        ushort width,
+        ushort height,
+        ushort border_width,
+        ushort _class,
+        xcb_visualid_t visual,
+        uint value_mask,
+        void* value_list
+    );
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_void_cookie_t xcb_map_window(
+        xcb_connection_t* c,
+        xcb_window_t window
+    );
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void xcb_screen_next(xcb_screen_iterator_t* i);
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_void_cookie_t xcb_change_window_attributes(
+        xcb_connection_t* c,
+        xcb_window_t window,
+        uint value_mask,
+        void* value_list
+    );
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_void_cookie_t xcb_change_property(
+        xcb_connection_t* c,
+        byte mode,
+        xcb_window_t window,
+        xcb_atom_t property,
+        xcb_atom_t type,
+        byte format,
+        uint data_len,
+        void* data // const void* data
+    );
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_generic_event_t* xcb_poll_for_event(xcb_connection_t* c);
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_intern_atom_cookie_t xcb_intern_atom(
+        xcb_connection_t* c,
+        byte only_if_exists,
+        ushort name_len,
+        IntPtr name // const char* name
+    );
+
+    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern xcb_intern_atom_reply_t* xcb_intern_atom_reply(
+        xcb_connection_t* c,
+        xcb_intern_atom_cookie_t cookie,
+        xcb_generic_error_t** e // xcb_generic_error_t **e
+    );
+
+    // ----------------------------------------------------------------   
+    // Functions from the C stardard library
+    [DllImport(LIBC_DLL, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void free(void* ptr);
+
+    // ----------------------------------------------------------------
+    // PThreadStructures
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct pthread_mutex_t
+    {
+        private fixed Byte __size[40];
+    }
+
     // ----------------------------------------------------------------
     // XCB Structures
-    
+
     [StructLayout(LayoutKind.Sequential)]
-    public struct xcb_connection_t  {} // Apparently this is designed as an opaque struct
+    public struct xcb_connection_t
+    {
+    } // Apparently this is designed as an opaque struct
 
     [StructLayout(LayoutKind.Sequential)]
     public struct xcb_setup_t
@@ -435,7 +537,7 @@ public static unsafe class XCB
     {
         public UInt32 sequence;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct xcb_generic_event_t
     {
@@ -484,7 +586,7 @@ public static unsafe class XCB
         public Int32 rem;
         public Int32 index;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct xcb_key_press_event_t
     {
@@ -943,7 +1045,7 @@ public static unsafe class XCB
         public Byte count;
         public Byte pad1;
     }
-    
+
     [StructLayout(LayoutKind.Sequential)]
     public struct xcb_ge_generic_event_t
     {
@@ -955,93 +1057,4 @@ public static unsafe class XCB
         public fixed Byte pad0[22];
         public UInt32 full_sequence;
     }
-    // ----------------------------------------------------------------
-    // XCB Function Imports
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_connection_t* xcb_connect( 
-        [MarshalAs(UnmanagedType.LPStr)] string displayname,
-        Int32* screenp);
-
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void xcb_disconnect(xcb_connection_t* c);
-
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_setup_t* xcb_get_setup(xcb_connection_t* c);
-
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_screen_iterator_t xcb_setup_roots_iterator(xcb_setup_t* R);
-
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern UInt32 xcb_generate_id(xcb_connection_t* c);
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern Int32 xcb_flush(xcb_connection_t* c);
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_void_cookie_t xcb_create_window (
-        xcb_connection_t *c,
-        Byte           depth,
-        xcb_window_t      wid,
-        xcb_window_t      parent,
-        Int16           x,
-        Int16           y,
-        UInt16          width,
-        UInt16          height,
-        UInt16          border_width,
-        UInt16          _class,
-        xcb_visualid_t    visual,
-        UInt32          value_mask,
-        void* value_list 
-        );
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_void_cookie_t xcb_map_window (
-        xcb_connection_t *c,
-        xcb_window_t      window
-        );
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void xcb_screen_next (xcb_screen_iterator_t *i);
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_void_cookie_t xcb_change_window_attributes(
-        xcb_connection_t *c,
-        xcb_window_t      window,
-        UInt32          value_mask,
-        void* value_list 
-        );
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_void_cookie_t xcb_change_property(
-        xcb_connection_t *c,
-        Byte           mode,
-        xcb_window_t      window,
-        xcb_atom_t       property,
-        xcb_atom_t       type,
-        Byte           format,
-        UInt32          data_len,
-        void* data // const void* data
-        );
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_generic_event_t* xcb_poll_for_event(xcb_connection_t* c);
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_intern_atom_cookie_t xcb_intern_atom(
-        xcb_connection_t *c,
-        Byte           only_if_exists,
-        UInt16          name_len,
-        IntPtr name // const char* name
-        );
-    
-    [DllImport(LIBXCB_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern xcb_intern_atom_reply_t* xcb_intern_atom_reply(
-        xcb_connection_t *c,
-        xcb_intern_atom_cookie_t cookie,
-        xcb_generic_error_t** e // xcb_generic_error_t **e
-        );
-    // ----------------------------------------------------------------   
-    // Functions from the C stardard library
-    [DllImport(LIBC_DLL, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void free(void* ptr);
 }

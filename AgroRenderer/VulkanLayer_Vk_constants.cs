@@ -10,7 +10,7 @@ public static partial class Vk
 {
     // ----------------------------------------------------------------
     // Vulkan Constants
-    
+
     public const uint VK_ATTACHMENT_UNUSED = ~0U;
     public const uint VK_FALSE = 0U;
     public const float VK_LOD_CLAMP_NONE = 1000.0F;

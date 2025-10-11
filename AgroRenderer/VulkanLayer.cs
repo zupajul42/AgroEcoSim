@@ -1,47 +1,36 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace AgroRenderer
+namespace AgroRenderer;
+
+// ----------------------------------------------------------------
+// Vulkan Handles that are actually just typedefs to uint64_t
+
+[SuppressMessage("ReSharper", "InconsistentNaming")]
+public static partial class Vk
 {
+    private static PFN_vkCreateDebugUtilsMessengerEXT? _vkCreateDebugUtilsMessengerEXT;
+
+
     // ----------------------------------------------------------------
-    // Vulkan Handles that are actually just typedefs to uint64_t
-    using VkDebugUtilsMessengerEXT = UInt64;
-    using VkDeviceAddress = UInt64;
-    using VkDeviceSize = UInt64;
-    using VkFlags = UInt32;
-    using VkSampleMask = UInt32;
+    // Non Vulkan Helper Functions
 
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public static unsafe partial class Vk
+    // Return Type: VkResult (*PFN_vkCreateDebugUtilsMessengerEXT)(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger)
+    // In Delegaet Speak: delegate* unmanaged<VkInstance, IntPtr, IntPtr, IntPtr, VkResult>
+    public static PFN_vkCreateDebugUtilsMessengerEXT? Get_vkCreateDebugUtilsMessengerEXT(VkInstance instance)
     {
-        private static Vk.PFN_vkCreateDebugUtilsMessengerEXT? _vkCreateDebugUtilsMessengerEXT = null;
-        
-
-        // ----------------------------------------------------------------
-        // Non Vulkan Helper Functions
-
-        // Return Type: VkResult (*PFN_vkCreateDebugUtilsMessengerEXT)(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger)
-        // In Delegaet Speak: delegate* unmanaged<VkInstance, IntPtr, IntPtr, IntPtr, VkResult>
-        public static PFN_vkCreateDebugUtilsMessengerEXT? Get_vkCreateDebugUtilsMessengerEXT(VkInstance instance)
+        if (_vkCreateDebugUtilsMessengerEXT is null)
         {
-            if (_vkCreateDebugUtilsMessengerEXT is null)
-            {
-                var name = Marshal.StringToHGlobalAnsi("vkCreateDebugUtilsMessengerEXT");
-                var funcPtr = vkGetInstanceProcAddr(instance, name);
-                Marshal.FreeHGlobal(name);
-                if (funcPtr == IntPtr.Zero)
-                {
-                    Console.WriteLine("Failed to get function pointer for vkCreateDebugUtilsMessengerEXT");
-                }
-                else
-                {
-                    _vkCreateDebugUtilsMessengerEXT =
-                        Marshal.GetDelegateForFunctionPointer<PFN_vkCreateDebugUtilsMessengerEXT>(funcPtr);
-                }
-            }
-
-            return _vkCreateDebugUtilsMessengerEXT;
+            var name = Marshal.StringToHGlobalAnsi("vkCreateDebugUtilsMessengerEXT");
+            var funcPtr = vkGetInstanceProcAddr(instance, name);
+            Marshal.FreeHGlobal(name);
+            if (funcPtr == IntPtr.Zero)
+                Console.WriteLine("Failed to get function pointer for vkCreateDebugUtilsMessengerEXT");
+            else
+                _vkCreateDebugUtilsMessengerEXT =
+                    Marshal.GetDelegateForFunctionPointer<PFN_vkCreateDebugUtilsMessengerEXT>(funcPtr);
         }
+
+        return _vkCreateDebugUtilsMessengerEXT;
     }
 }
