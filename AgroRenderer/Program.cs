@@ -69,6 +69,7 @@ namespace AgroRenderer
 
     class Program
     {
+        private static bool running = true;
         private static Vk.VkBool32 VkDebugCallback(
             Vk.VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
             Vk.VkDebugUtilsMessageTypeFlagBitsEXT messageTypes,
@@ -209,6 +210,39 @@ namespace AgroRenderer
             var commandPool = VkSharp.CreateCommandPool(logicalDevice, (uint)queueDetails.GraphicsQueueFamilyIndex, scratch);
             var commandBuffers = VkSharp.CreateCommandBuffers(logicalDevice, commandPool, numFramesInFlight, scratch);
             var pipeline = VkSharp.CreatePipeline(logicalDevice, vertexShaderModule, fragmentShaderModule, [imageFormat], scratch);
+
+            while (running)
+            {
+                var events = platform.GetPendingEvents();
+                foreach (var e in events)
+                {
+                    switch (e.Type)
+                    {
+                        case WindowEventType.Close:
+                            Console.WriteLine("Window Close Event Received");
+                            running = false;
+                            break;
+                        case WindowEventType.Resized:
+                            Console.WriteLine($"Window resized to {e.ResizedData.Width}x{e.ResizedData.Height}");
+                            break;
+                        case WindowEventType.RedrawRegion:
+                            Console.WriteLine($"Redraw region requested: x={e.RedrawRegionData.X},y={e.RedrawRegionData.Y} size={e.RedrawRegionData.Width}x{e.RedrawRegionData.Height}");
+                            break;
+                        case WindowEventType.KeyPressed:
+                            Console.WriteLine("Key Pressed");
+                            break;
+                        case WindowEventType.KeyReleased:
+                            Console.WriteLine("Key Released");
+                            break;
+                        case WindowEventType.MouseButtonPressed:
+                            Console.WriteLine("Mouse Button Pressed");
+                            break;
+                        case WindowEventType.MouseButtonReleased:
+                            Console.WriteLine("Mouse Button Released");
+                            break;
+                    }
+                }
+            }
             
             //using var _ = MemUtils.Defer(VkSharp.DestroyInstance, instance);
 

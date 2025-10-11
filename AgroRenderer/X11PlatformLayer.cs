@@ -5,10 +5,13 @@ namespace AgroRenderer;
 public class X11PlatformLayer : IPlatformLayer
 {
     private X11Data data;
+    private MemUtils.Arena scratch;
+    private unsafe XCB.xcb_intern_atom_reply_t* wm_delete_window_reply = null;
     
     public X11PlatformLayer()
     {
         data = new X11Data();
+        scratch = new MemUtils.Arena(1024 * 512); // 512 KB scratch space
     }
     
     public void OpenWindow(string title, int width, int height)
@@ -20,8 +23,21 @@ public class X11PlatformLayer : IPlatformLayer
             var iter = XCB.xcb_setup_roots_iterator(data.setup);
             // Just select the first screen
             var screen = iter.data;
-            Console.WriteLine($"Connected to X11 server. Screen {screen->root} size: {screen->width_in_pixels}x{screen->height_in_pixels}");
+            Console.WriteLine(
+                $"Connected to X11 server. Screen {screen->root} size: {screen->width_in_pixels}x{screen->height_in_pixels}");
+            // Create the window
             data.window = XCB.xcb_generate_id(data.connection);
+            XCB.xcb_cw_t value_mask = XCB.xcb_cw_t.XCB_CW_BACK_PIXEL | XCB.xcb_cw_t.XCB_CW_EVENT_MASK;
+            var value_list = scratch.Alloc<UInt32>(2);
+            value_list[0] = screen->black_pixel;
+            value_list[1] = (UInt32)(
+                XCB.xcb_event_mask_t.XCB_EVENT_MASK_EXPOSURE |
+                XCB.xcb_event_mask_t.XCB_EVENT_MASK_KEY_PRESS |
+                XCB.xcb_event_mask_t.XCB_EVENT_MASK_KEY_RELEASE |
+                XCB.xcb_event_mask_t.XCB_EVENT_MASK_STRUCTURE_NOTIFY |
+                XCB.xcb_event_mask_t.XCB_EVENT_MASK_BUTTON_PRESS |
+                XCB.xcb_event_mask_t.XCB_EVENT_MASK_BUTTON_RELEASE
+            );
             XCB.xcb_create_window(
                 c: data.connection,
                 depth: XCB.XCB_COPY_FROM_PARENT,
@@ -34,12 +50,105 @@ public class X11PlatformLayer : IPlatformLayer
                 border_width: 0,
                 _class: (UInt16) XCB.xcb_window_class_t.XCB_WINDOW_CLASS_COPY_FROM_PARENT,
                 visual: screen->root_visual,
-                value_mask: 0,
-                value_list: null // const void*
+                value_mask: (UInt32) value_mask,
+                value_list: value_list
                 );
+            // Setup close event handling
+            var wm_protocols_string = scratch.AllocANSIString("WM_PROTOCOLS");
+            var wm_delete_window_string = scratch.AllocANSIString("WM_DELETE_WINDOW");
+            var wm_protocols_atom = XCB.xcb_intern_atom(data.connection, 1, (UInt16) "WM_PROTOCOLS".Length, wm_protocols_string);
+            var wm_protocols_reply = XCB.xcb_intern_atom_reply(data.connection, wm_protocols_atom, null);
+            var wm_delete_window_atom = XCB.xcb_intern_atom(data.connection, 0, (UInt16) "WM_DELETE_WINDOW".Length, wm_delete_window_string);
+            wm_delete_window_reply = XCB.xcb_intern_atom_reply(data.connection, wm_delete_window_atom, null);
+            XCB.xcb_change_property(
+                c: data.connection, 
+                mode: (Byte) XCB.xcb_prop_mode_t.XCB_PROP_MODE_REPLACE,
+                window: data.window,
+                property: wm_protocols_reply->atom,
+                type: (uint)XCB.xcb_atom_enum_t.XCB_ATOM_ATOM, // XA_ATOM
+                format: 32,
+                data_len: 1,
+                data: &(wm_delete_window_reply->atom));
+            XCB.free(wm_protocols_reply);
+            // Show the window
             XCB.xcb_map_window(data.connection, data.window);
             XCB.xcb_flush(data.connection);
             Console.WriteLine("Window created and mapped.");
+        }
+    }
+
+    public WindowEvent[] GetPendingEvents()
+    {
+        WindowEvent[] events = new WindowEvent[IPlatformLayer.MAX_EVENTS_IN_QUEUE];
+        Array.Fill(events, new WindowEvent { Type = WindowEventType.None });
+        int eventCount = 0;
+        unsafe
+        {
+            var genericEvent = XCB.xcb_poll_for_event(data.connection);
+            while (genericEvent != null)
+            {
+                if (eventCount > IPlatformLayer.MAX_EVENTS_IN_QUEUE)
+                {
+                    Console.WriteLine("Error: Received more events than the maximum queue size.");
+                    break;
+                }
+                var eventType = (XCB.EventOpCodes) (genericEvent->response_type & ~0x80); // Mask out the highest bit
+                switch (eventType)
+                {
+                    case XCB.EventOpCodes.XCB_EXPOSE:
+                        var exposeEvent = (XCB.xcb_expose_event_t*) genericEvent;
+                        events[eventCount].Type = WindowEventType.RedrawRegion;
+                        events[eventCount].RedrawRegionData.X = exposeEvent->x;
+                        events[eventCount].RedrawRegionData.Y = exposeEvent->y;
+                        events[eventCount].RedrawRegionData.Width = exposeEvent->width;
+                        events[eventCount].RedrawRegionData.Height = exposeEvent->height;
+                        break;
+                    case XCB.EventOpCodes.XCB_KEY_PRESS:
+                        events[eventCount].Type = WindowEventType.KeyPressed;
+                        break;
+                    case XCB.EventOpCodes.XCB_KEY_RELEASE:
+                        events[eventCount].Type = WindowEventType.KeyReleased;
+                        break;
+                    case XCB.EventOpCodes.XCB_BUTTON_PRESS:
+                        events[eventCount].Type = WindowEventType.MouseButtonPressed;
+                        break;
+                    case XCB.EventOpCodes.XCB_BUTTON_RELEASE:
+                        events[eventCount].Type = WindowEventType.MouseButtonReleased;
+                        break;
+                    case XCB.EventOpCodes.XCB_CONFIGURE_NOTIFY:
+                        var configureEvent = (XCB.xcb_configure_notify_event_t*) genericEvent;
+                        if (configureEvent->width == 0 || configureEvent->height == 0)
+                        {
+                            events[eventCount].Type = WindowEventType.Minimized;
+                        }
+                        else
+                        {
+                            events[eventCount].Type = WindowEventType.Resized;
+                            // Store width and height in Data
+                            events[eventCount].ResizedData.Width = configureEvent->width;
+                            events[eventCount].ResizedData.Height = configureEvent->height;
+                        }
+                        break;
+                    case XCB.EventOpCodes.XCB_CLIENT_MESSAGE:
+                        var clientMessageEvent = (XCB.xcb_client_message_event_t*) genericEvent;
+                        if(clientMessageEvent->data.data32[0] == wm_delete_window_reply->atom)
+                        {
+                            events[eventCount].Type = WindowEventType.Close;
+                        }
+                        else
+                        {
+                            eventCount--; // Ignore unhandled client messages
+                        }
+                        break;
+                    default:
+                        eventCount--; // Ignore unhandled events
+                        break;
+                }
+                eventCount++;
+                XCB.free(genericEvent);
+                genericEvent = XCB.xcb_poll_for_event(data.connection);
+            }
+            return events;
         }
     }
 
