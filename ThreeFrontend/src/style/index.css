@@ -111,4 +111,13 @@ body .dropdown-area.active {
 	border: 1px solid yellow;
 	line-height: 200%;
 }
-/**/
+
+ul.plants-listing {
+	list-style-type: none;
+	padding-left: 0;
+	margin: 0;
+	overflow-y: auto;
+	max-height: 90vh;
+	padding-right: 8px;
+}
+

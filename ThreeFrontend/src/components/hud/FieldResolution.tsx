@@ -14,7 +14,7 @@ export class FieldResolution extends Component
 {
     render() {
         return <div>
-            <input min={min} max={max} type="number" name="fieldresolution" value={appstate.fieldResolution} onChange={e => {
+            <input min={min} max={max} type="number" name="fieldresolution" value={appstate.fieldResolution.value} onChange={e => {
                 if (parseFloat(e.currentTarget.value) > appstate.fieldResolution.value){
                     let step = 1;
                     if (appstate.fieldResolution.value >= 5) step = 1;

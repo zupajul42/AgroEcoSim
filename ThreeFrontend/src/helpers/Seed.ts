@@ -26,8 +26,8 @@ const seedMaterials : ReqObjMaterials = {
 export class Seed extends BaseRequestObject
 {
     species: Signal<string>;
-    constructor(spec: string, x: number, y: number, z: number) {
-        super(x, y, z, seedMaterials);
+    constructor(spec: string, x: number, y: number, z: number, fieldIndex: number) {
+        super(x, y, z, seedMaterials, fieldIndex);
         this.species = signal(spec);
 
         this.mesh = new THREE.Mesh(dodecahedron, defaultMaterial);
@@ -39,7 +39,13 @@ export class Seed extends BaseRequestObject
         appstate.needsRender.value = true;
 
         effect(() => {
-            this.mesh.position.set(this.px.value, this.py.value, this.pz.value);
+            const offset = new THREE.Vector3();
+            if (appstate.terrainList?.length > 0)
+            {
+                const terrain = appstate.terrainList[this.fieldIndex.value];
+                offset.set(terrain.px(), terrain.py(), terrain.pz());
+            }
+            this.mesh.position.set(this.px.value + offset.x, this.py.value + offset.y, this.pz.value + offset.z);
             appstate.needsRender.value = true;
         });
     }
@@ -49,15 +55,60 @@ export class Seed extends BaseRequestObject
             species: this.species.peek(),
             px: this.px.peek(),
             py: this.py.peek(),
-            pz: this.pz.peek()
+            pz: this.pz.peek(),
+            fi: this.fieldIndex.peek()
         };
     }
 
-    static rndItem() {
-        return new Seed(
-            appstate.species.peek()[Math.floor(Math.random() * appstate.species.value.length)].name.peek(),
-            Math.random() * appstate.fieldSizeX.peek(),
-            -Math.random() * 0.1,
-            Math.random() * appstate.fieldSizeZ.peek());
+    static rndItem(minDist?: number, fieldIndex?: number) {
+        let fieldSize : THREE.Vector3;
+        console.log(fieldIndex, minDist, appstate.terrainList?.length);
+        if (appstate.terrainList?.length > 1)
+        {
+            if (!fieldIndex || fieldIndex < 0 || fieldIndex >= appstate.terrainList?.length) //select a random index if none or a negative or a too large one was specified
+                fieldIndex = Math.floor(Math.random() * appstate.terrainList.length);
+
+            fieldSize = new THREE.Vector3(appstate.terrainList[fieldIndex].sx(), appstate.terrainList[fieldIndex].sy(), appstate.terrainList[fieldIndex].sz());
+        }
+        else
+            fieldSize = new THREE.Vector3(appstate.fieldSizeX.value, appstate.fieldSizeD.value, appstate.fieldSizeZ.value);
+        console.log(fieldIndex, minDist, appstate.terrainList?.length);
+
+        let pos = new THREE.Vector3(Math.random() * fieldSize.x, -Math.random() * Math.min(0.1, fieldSize.y), Math.random() * fieldSize.z);
+        let [bestPos, bestIsolation] = [pos, 0];
+        if (minDist > 0)
+        {
+            let i = 0;
+            let dist = Seed.checkDist(fieldSize, pos, fieldIndex);
+            while (dist < minDist && i < 10)
+            {
+                ++i;
+                if (dist > bestIsolation)
+                {
+                    bestPos = pos;
+                    bestIsolation = dist;
+                }
+                pos = new THREE.Vector3(Math.random() * fieldSize.x, -Math.random() * Math.min(0.1, fieldSize.y), Math.random() * fieldSize.z);
+                dist = Seed.checkDist(fieldSize, pos, fieldIndex);
+            }
+
+            if (dist < minDist)
+                pos = bestPos;
+        }
+
+        return new Seed(appstate.species.peek()[Math.floor(Math.random() * appstate.species.value.length)].name.peek(), pos.x, pos.y, pos.z, fieldIndex ?? 0);
+    }
+
+    static checkDist(fieldSize: THREE.Vector3, pos: THREE.Vector3, fieldIndex: number) {
+        let min = fieldSize.lengthSq();
+        const seeds = appstate.seeds.value;
+        for(let i = 0; i < seeds.length; ++i)
+            if (seeds[i].fieldIndex.peek() === fieldIndex)
+            {
+                const d = new THREE.Vector3(seeds[i].px.peek(), seeds[i].py.peek(), seeds[i].pz.peek()).distanceToSquared(pos);
+                if (d < min)
+                    min = d;
+            }
+        return min;
     }
 }

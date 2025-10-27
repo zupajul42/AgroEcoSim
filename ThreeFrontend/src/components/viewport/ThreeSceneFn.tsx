@@ -299,18 +299,37 @@ export default function ThreeSceneFn () {
 
     const buildTerrain = () => {
         appstate.objTerrain.clear();
-        const w = appstate.fieldSizeX.value;
-        const d = appstate.fieldSizeD.value;
-        const l = appstate.fieldSizeZ.value;
+        appstate.objTerrain.userData = {...appstate.objTerrain.userData, ts: appstate.terrainTimestamp.value};
+        if (appstate.terrainList === undefined)
+        {
+            const w = appstate.fieldSizeX.value;
+            const d = appstate.fieldSizeD.value;
+            const l = appstate.fieldSizeZ.value;
 
-        //const box = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(w * 0.5, -d*0.5, l * 0.5), new THREE.Vector3(w, d, l) );
-        //const terrainMesh = new THREE.Box3Helper( box, new THREE.Color("#cc9900") );
-        const terrainMesh = new THREE.Mesh(terrainBoxPrimitive, new THREE.MeshLambertMaterial({ color: 0x593700, name: "terrainMesh" }));
-        terrainMesh.scale.set(w, d, l);
-        terrainMesh.position.set(0, -d, 0);
-        terrainMesh.userData = { type: "terrain" };
-        //terrainMesh.layers.set(TerrainLayer);
-        appstate.objTerrain.add(terrainMesh);
+            //const box = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(w * 0.5, -d*0.5, l * 0.5), new THREE.Vector3(w, d, l) );
+            //const terrainMesh = new THREE.Box3Helper( box, new THREE.Color("#cc9900") );
+            const terrainMesh = new THREE.Mesh(terrainBoxPrimitive, new THREE.MeshLambertMaterial({ color: 0x593700, name: "terrainMesh" }));
+            terrainMesh.scale.set(w, d, l);
+            terrainMesh.position.set(0, -d, 0);
+            terrainMesh.userData = { type: "terrain" };
+            //terrainMesh.layers.set(TerrainLayer);
+            appstate.objTerrain.add(terrainMesh);
+        }
+        else
+        {
+            for(let i = 0; i < appstate.terrainList.length; ++i)
+            {
+                const t = appstate.terrainList[i];
+                const terrainMesh = new THREE.Mesh(terrainBoxPrimitive, new THREE.MeshLambertMaterial({ color: 0x573600, name: "terrainMesh" }));
+                terrainMesh.scale.set(t.sx(), t.sy(), t.sz());
+                console.log("P:", t.px(), t.py(), t.pz(), "S:", t.sx(), t.sy(), t.sz());
+                //terrainMesh.scale.set(0.1, t.py(), 0.1);
+                terrainMesh.position.set(t.px(), t.py() - t.sy(), t.pz());
+                terrainMesh.userData = { type: "terrain", index: i };
+                appstate.objTerrain.add(terrainMesh);
+            }
+        }
+        console.log(appstate.objTerrain.children.length);
         renderOnce();
     }
 

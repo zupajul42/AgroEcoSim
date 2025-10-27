@@ -344,7 +344,7 @@ public class IrradianceClient
 				for (int i = 0; i < count; ++i)
 				{
 					var organ = ag.GetOrgan(i);
-					var center = ag.GetBaseCenter(i);
+					var center = ag.GetBaseCenterWorld(i);
 					var scale = ag.GetScale(i);
 					var halfRadiusX = new Vector3(0f, 0f, scale.Z * 0.5f);
 					var orientation = ag.GetDirection(i);
@@ -453,7 +453,7 @@ public class IrradianceClient
 				for (int i = 0; i < count; ++i)
 				{
 					var organ = ag.GetOrgan(i);
-					var center = ag.GetBaseCenter(i);
+					var center = ag.GetBaseCenterWorld(i);
 					var scale = ag.GetScale(i);
 					var halfRadiusX = new Vector3(0f, 0f, scale.Z * 0.5f);
 					var orientation = ag.GetDirection(i);
@@ -593,7 +593,7 @@ public class IrradianceClient
 				for (int i = 0; i < count; ++i)
 				{
 					var organ = ag.GetOrgan(i);
-					var center = ag.GetBaseCenter(i);
+					var center = ag.GetBaseCenterWorld(i);
 					var scale = ag.GetScale(i);
 					var orientation = ag.GetDirection(i);
 
@@ -675,7 +675,7 @@ public class IrradianceClient
 				for (int i = 0; i < count; ++i)
 				{
 					var organ = ag.GetOrgan(i);
-					var center = ag.GetBaseCenter(i);
+					var center = ag.GetBaseCenterWorld(i);
 					var scale = ag.GetScale(i);
 					var orientation = ag.GetDirection(i);
 
@@ -757,7 +757,7 @@ public class IrradianceClient
 				for (int i = 0; i < count; ++i)
 				{
 					var organ = ag.GetOrgan(i);
-					var center = ag.GetBaseCenter(i);
+					var center = ag.GetBaseCenterWorld(i);
 					var scale = ag.GetScale(i);
 					var orientation = ag.GetDirection(i);
 
@@ -843,7 +843,7 @@ public class IrradianceClient
 					for (int i = 0; i < count; ++i)
 					{
 						var organ = ug.GetOrgan(i);
-						var center = ug.GetBaseCenter(i);
+						var center = ug.GetBaseCenterWorld(i);
 						var scale = ug.GetScale(i);
 						var orientation = ug.GetDirection(i);
 

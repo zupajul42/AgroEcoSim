@@ -602,6 +602,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 		: (Agents.Length > index ? Agents[index].WoodRatio() : 0f);
 
 	public Vector3 GetBaseCenter(int index) => TreeCache.GetBaseCenter(index);
+	public Vector3 GetBaseCenterWorld(int index) => TreeCache.GetBaseCenter(index) + Plant.Soil.GetFieldOrigin(Plant.SoilIndex);
 
 	public byte GetDominance(int index) => ReadTMP
 		? (AgentsTMP.Length > index ? AgentsTMP[index].DominanceLevel : (byte)0)
@@ -847,8 +848,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 		var nodes = new List<Node>(src.Length);
 		for(int i = 0; i < src.Length; ++i)
 		{
-			var baseCenter = GetBaseCenter(i);
-
+			var baseCenter = GetBaseCenterWorld(i);
 			nodes[i] = new()
 			{
 				Name = $"{GetOrgan(i)}_{i}",

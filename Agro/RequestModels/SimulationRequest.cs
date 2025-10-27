@@ -5,6 +5,7 @@ public class ImportedObjData
     public string[] Vertices { get; set; }
     //public string[] Normals { get; set; }
     public Dictionary<string, string[]> Faces { get; set; }
+    public Dictionary<string, string> Materials { get; set; }
 }
 
 public class SimulationRequest
@@ -86,4 +87,8 @@ public class SimulationRequest
     /// Regex that matches the names of all pots in the scene where plants can be seeded
     /// </summary>
     public string? FieldItemRegex { get; init; }
+    /// <summary>
+    /// Deciedes whether the regex matches object names or materials
+    /// </summary>
+    public bool? FieldItemRegexMaterial { get; init; }
 }

@@ -138,7 +138,7 @@ public class SoilFormationsList : ISoilFormation
 	readonly AgroWorld World;
 	List<SoilFormationRegularVoxels> Items;
 
-	public SoilFormationsList(AgroWorld world, ImportedObjData objData, float scale, string? soilItemRegex, float fieldResolution)
+	public SoilFormationsList(AgroWorld world, ushort hoursPerTick, ImportedObjData objData, float scale, string? soilItemRegex, bool regexForMaterials, float fieldResolution)
 	{
 		World = world;
 
@@ -151,21 +151,26 @@ public class SoilFormationsList : ISoilFormation
 				throw new Exception($"Invalid count of vertex coordinates. Expected: 3. Provided: {vertex.Count}.");
 			vertices[i] = new Vector3(float.Parse(vertex[0]), float.Parse(vertex[1]), float.Parse(vertex[2])) * scale;
 		}
-		var regex = soilItemRegex != null ? new Regex(soilItemRegex) : null;
+		var regex = soilItemRegex != null ? new Regex(soilItemRegex, RegexOptions.IgnoreCase) : null;
 		var faces = new List<List<int>>();
 
+		Items = [];
 		foreach (var (group, faceLines) in objData.Faces)
-			if (regex?.IsMatch(group) ?? true) //for FAV use *Natur_Erde*
+		{
+			var nameToMatch = regexForMaterials && (objData.Materials?.TryGetValue(group, out var mat) ?? false) ? mat : group;
+			if (regex?.IsMatch(nameToMatch) ?? true) //for FAV use *Natur_Erde*
 			{
 				var components = new List<Component>();
 				var verts = new List<int>();
 				var edges = new List<Edge>();
 				var remove = new List<int>();
+				faces.Clear();
 				for (int i = 0; i < faceLines.Length; ++i)
 				{
 					var face = faceLines[i].Split(' ');
 					verts.Clear();
 					verts.AddRange(face.Select(ParseFaceIndex));
+					Debug.Assert(verts.All(x => x < vertices.Length));
 					faces.Add([.. verts]);
 
 					edges.Clear();
@@ -194,7 +199,6 @@ public class SoilFormationsList : ISoilFormation
 							components.RemoveAt(remove[c]);
 				}
 
-				Items = new(components.Count);
 				foreach (var item in components)
 				{
 					var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
@@ -204,17 +208,21 @@ public class SoilFormationsList : ISoilFormation
 						var face = faces[fi];
 						for (int fv = 0; fv < face.Count; ++fv)
 						{
+							Debug.Assert(face[fv] < vertices.Length);
 							min = Vector3.Min(min, vertices[face[fv]]);
 							max = Vector3.Max(max, vertices[face[fv]]);
 						}
 					}
 
 					var metricSize = max - min;
-					var celularSize = new Vector3i(metricSize / fieldResolution);
-
-					Items.Add(new(world, celularSize, metricSize, min));
+					if (metricSize.X > 0.01f && metricSize.Y > 0.01f && metricSize.Z > 0.01f)
+					{
+						var celularSize = Vector3i.Max(new Vector3i(metricSize / fieldResolution), new Vector3i(1, 1, 1));
+						Items.Add(new(world, hoursPerTick, celularSize, metricSize, min));
+					}
 				}
 			}
+		}
 	}
 
 	public bool HasUndeliveredPost => false;
@@ -235,7 +243,7 @@ public class SoilFormationsList : ISoilFormation
 	public int IntersectPoint(Vector3 center, int soilIndex) => Items[soilIndex].IntersectPoint(center);
 
 	[M(AI)]
-	public int ParseFaceIndex(string input)
+	public static int ParseFaceIndex(string input)
 	{
 		input = input.TrimStart();
 		var digits = 0;
@@ -266,5 +274,28 @@ public class SoilFormationsList : ISoilFormation
 	}
 
 	public Vector3 GetRandomSeedPosition(Pcg rnd, int soilIndex) => Items[soilIndex].GetRandomSeedPosition(rnd);
+	public void SetWorld(AgroWorld world)
+	{
+		for (int i = 0; i < Items.Count; ++i)
+			Items[i].SetWorld(world);
+	}
+
+	[M(AI)] public Vector3 GetFieldOrigin(int soilIndex) => Items[soilIndex].GetFieldOrigin(0);
+
+	public byte[] Serialize()
+	{
+		using var stream = new MemoryStream();
+		using var writer = new BinaryWriter(stream);
+
+		writer.Write((byte)0); //version
+		var count = FieldsCount;
+		writer.Write(count);
+		for (int i = 0; i < count; ++i)
+			Write(writer, i);
+
+		return stream.ToArray();
+	}
+
+	public void Write(BinaryWriter writer, int i) => Items[i].Write(writer, 0);
 }
 

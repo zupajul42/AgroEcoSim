@@ -15,6 +15,7 @@ public interface IEditorHub
     Task Progress(uint step, uint length);
     Task Result(SimulationResponse response);
     Task Preview(PreviewResponse response);
+    Task Terrain(byte[] response);
 }
 
 public class SimRequests
@@ -28,13 +29,16 @@ public class SimulationHub : Hub<IEditorHub>
 {
     readonly IConfiguration Config;
     readonly ISimulationUploadService UploadService;
-    public SimulationHub(IConfiguration configuration, ISimulationUploadService uploadService)
+    readonly ITerrainBuffer TerrainBuffer;
+    public SimulationHub(IConfiguration configuration, ISimulationUploadService uploadService, ITerrainBuffer terrainBuffer)
     {
         Config = configuration;
         UploadService = uploadService;
+        TerrainBuffer = terrainBuffer;
     }
 
     static readonly Dictionary<string, SimRequests> ClientSimulations = [];
+    static readonly Dictionary<string, ISoilFormation> ClientTerrains = [];
 
     public async Task Abort()
     {
@@ -65,6 +69,19 @@ public class SimulationHub : Hub<IEditorHub>
         });
     }
 
+    public async Task Terrain(string terrainId, ushort hoursPerTick, string pattern, bool patternForMaterial, float resolution)
+    {
+        if (TerrainBuffer.TryGet(terrainId, out var objData))
+        {
+            var terrain = new SoilFormationsList(null, hoursPerTick, objData, 1f, pattern, patternForMaterial, resolution);
+            lock (ClientTerrains)
+            {
+                ClientTerrains[Context.ConnectionId] = terrain;
+                Clients.Caller.Terrain(terrain.Serialize());
+            }
+        }
+    }
+
     public async Task Run(SimulationRequest request)
     {
         var requests = new SimRequests();
@@ -82,7 +99,9 @@ public class SimulationHub : Hub<IEditorHub>
         var lazyPreviews = !(request.ExactPreview ?? false);
         var exportVersion = (byte)(5 + (request.DownloadRoots ?? false ? 1 : 0));
 
-        var world = Initialize.World(request);
+        ClientTerrains.TryGetValue(Context.ConnectionId, out var terrain);
+        var world = Initialize.World(request, terrain);
+        _ = Clients.Caller.Terrain(world.SerializeTerrain());
         await Task.Run(() =>
         {
             world.Irradiance.SetAddress(Config["RendererIPMitsuba"], Config["RendererPortMitsuba"], Config["RendererIPTamashii"], Config["RendererPortTamashii"], request?.RenderMode ?? 0);

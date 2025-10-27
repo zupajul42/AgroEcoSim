@@ -5,23 +5,25 @@ export interface IObjImport
     vertices: string[];
     //normals: string[];
     faces: any;
+    materials: any;
 }
 
 export async function Parse(f: File) : Promise<IObjImport> {
     const scale = 0.001;
     const vertices: string[] = [];
-    const verticesSet = new Set<string>();
+    const verticesSet = new Map<string, number>();
     const vertexMap: number[] = [];
     const normals: string[] = [];
     const normalMap: number[] = [];
     const faces = new Map<string, string[]>();
-    let currentGroupFaces : string[] = undefined;
+    const materials = new Map<string, string>();
+    let currentObjectFaces : string[] = undefined;
 
     const decoder = new TextDecoder("utf-8");
     const reader = f.stream().getReader();
     let buffer = "";
 
-    let currentGroupName = "";
+    let currentObjectName = "";
     let { value: chunk, done} = await reader.read();
     var remaining = f.size;
     while (!done) {
@@ -46,18 +48,20 @@ export async function Parse(f: File) : Promise<IObjImport> {
     appstate.modelParsingProgress.value = 0;
 
     function processLines(lines: string[]) {
-
         for (let line of lines) {
             line = line.replaceAll('\r', '');
             if (line.startsWith('v ')) {
                 const text = line.substring(2);
-                if (!verticesSet.has(text))
+                let mapped = verticesSet.get(text);
+                if (mapped >= 0)
+                    vertexMap.push(mapped);
+                else
                 {
-                    verticesSet.add(text);
+                    mapped = verticesSet.size;
+                    verticesSet.set(text, mapped);
+                    vertexMap.push(mapped);
                     vertices.push(text);
                 }
-
-                vertexMap.push(vertexMap.length);
             }
             // else if (line.startsWith('vn ')) {
             //     const text = line.substring(2);
@@ -65,13 +69,17 @@ export async function Parse(f: File) : Promise<IObjImport> {
             //         normals.push(text);
             //     normalMap.push(normalMap.length);
             // }
-            else if (line.startsWith('g ')) {
-                currentGroupName = line.substring(2);
-                currentGroupFaces = []
-                faces.set(currentGroupName, currentGroupFaces);
+            //else if (line.startsWith('g ')) { }
+            else if (line.startsWith('o ')) {
+                currentObjectName = line.substring(2);
+                currentObjectFaces = []
+                faces.set(currentObjectName, currentObjectFaces);
+            }
+            else if (line.startsWith('usemtl ')) {
+                materials.set(currentObjectName, line.substring(7));
             }
             else if (line.startsWith('f ')) {
-                const faceVertices = line.substring(1).trimStart().split(" ").filter(x => x?.length > 0);
+                const faceVertices = line.substring(2).trimStart().split(" ").filter(x => x?.length > 0);
                 let vertexString: string[] = [];
                 for (const vertex of faceVertices) {
                     //const components = vertex.split('/');
@@ -84,15 +92,17 @@ export async function Parse(f: File) : Promise<IObjImport> {
                     const slashIndex = vertex.indexOf('/');
                     vertexString.push(slashIndex >= 0 ? vertex.substring(0, slashIndex) : vertex);
                 }
-                currentGroupFaces.push(vertexString.join(' '));
+                currentObjectFaces.push(vertexString.join(' '));
             }
         }
-
-        appstate.modelParsingProgress.value = 0;
     }
-    return {
+
+    const result = {
         vertices: vertices,
         //normals: normals,
-        faces: Object.fromEntries(faces)
+        faces: Object.fromEntries(Array.from(faces, ([key, group]) => [key, group.map(x => x.split(' ').map(v => vertexMap[parseInt(v) - 1]).join(' '))])),
+        materials: Object.fromEntries(materials)
     }
+    appstate.modelParsingProgress.value = 0;
+    return result;
 }

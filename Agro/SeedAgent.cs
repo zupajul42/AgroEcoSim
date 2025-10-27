@@ -54,7 +54,7 @@ public struct SeedAgent : IAgent
 	/// <summary>
 	/// Ratio ∈ [0, 1] of the required energy to start growing roots and stems
 	/// </summary>
-	public float GerminationProgress => Water / GerminationThreshold;
+	public readonly float GerminationProgress => Water / GerminationThreshold;
 	public readonly int SoilIndex;
 
 	public SeedAgent(int soilIndex, Vector3 center, float radius, Vector2 vegetativeTemperature, float energy = -1f)
@@ -80,6 +80,7 @@ public struct SeedAgent : IAgent
 		{
 			Water = 0f;
 			plant.SeedDeath();
+			Debug.WriteLine($"Seed death: {formationID} at {world.Timestep}");
 		}
 		else
 		{
@@ -109,7 +110,7 @@ public struct SeedAgent : IAgent
 				{
 					var soilTemperature = soil.GetTemperature(source, SoilIndex);
 					var waterRequest = 0f;
-					for(int i = 0; i < world.HoursPerTick; ++i)
+					for (int i = 0; i < world.HoursPerTick; ++i)
 					{
 						var amount = Pi4 * Radius * Radius; //sphere surface is 4πr²
 						if (soilTemperature > mVegetativeTemperature.X)

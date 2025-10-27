@@ -15,6 +15,7 @@ export class BaseRequestObject {
     px: Signal<number>;
     py: Signal<number>;
     pz: Signal<number>;
+    fieldIndex: Signal<number>;
     state: Signal<SelectionState>;
     mesh: THREE.Mesh;
     handleMesh: THREE.Object3D;
@@ -23,12 +24,13 @@ export class BaseRequestObject {
 
     materials: ReqObjMaterials;
 
-    constructor(x: number, y: number, z: number, materials: ReqObjMaterials) {
+    constructor(x: number, y: number, z: number, materials: ReqObjMaterials, fieldIndex?: number) {
         this.px = signal(x);
         this.py = signal(y);
         this.pz = signal(z);
         this.state = signal("none");
         this.materials = materials;
+        this.fieldIndex = signal(fieldIndex ?? 0);
     }
 
     hover() {

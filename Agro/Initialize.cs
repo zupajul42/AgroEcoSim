@@ -8,18 +8,28 @@ namespace Agro;
 
 public static class Initialize
 {
-	public static AgroWorld World(SimulationRequest? settings = null)
+	public static AgroWorld World(SimulationRequest? settings = null, ISoilFormation terrainOverride = null)
 	{
 		var world = new AgroWorld(settings);
 		world.AddCallback(world.Irradiance.Tick);
 
 		world.StreamExporterFunc = world.Irradiance.ExportToStream;
 		world.RendererName = "unknown";
+
 		ISoilFormation soil;
-		if (settings.FieldModelData?.Faces?.Count > 0)
-			soil = new SoilFormationsList(world, settings.FieldModelData, 0.001f, settings.FieldItemRegex, world.FieldResolution);
+		if (terrainOverride != null)
+		{
+			terrainOverride.SetWorld(world);
+			soil = terrainOverride;
+		}
 		else
-			soil = new SoilFormationRegularVoxels(world, new Vector3i(world.FieldSize / world.FieldResolution), world.FieldSize);
+		{
+			if (settings.FieldModelData?.Faces?.Count > 0)
+				soil = new SoilFormationsList(world, world.HoursPerTick, settings.FieldModelData, 1f, settings.FieldItemRegex, settings.FieldItemRegexMaterial ?? false, world.FieldResolution);
+			else
+				soil = new SoilFormationRegularVoxels(world, world.HoursPerTick, new Vector3i(world.FieldSize / world.FieldResolution), world.FieldSize);
+		}
+
 		world.Add(soil);
 		world.Soil = soil;
 

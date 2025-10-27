@@ -15,11 +15,13 @@ public class SimulationController : ControllerBase
 {
     private readonly IConfiguration Configuration;
     private readonly ISimulationUploadService UploadService;
+    readonly ITerrainBuffer TerrainBuffer;
 
-    public SimulationController(IConfiguration configuration, ISimulationUploadService uploadService)
+    public SimulationController(IConfiguration configuration, ISimulationUploadService uploadService, ITerrainBuffer terrainBuffer)
     {
         Configuration = configuration;
         UploadService = uploadService;
+        TerrainBuffer = terrainBuffer;
     }
 
     [HttpGet]
@@ -60,5 +62,12 @@ public class SimulationController : ControllerBase
     {
         //TODO Validate the regex
         return UploadService.Add(request);
+    }
+
+    [HttpPost]
+    [Route("[action]")]
+    public async Task<string> Terrain([FromBody] ImportedObjData data)
+    {
+        return TerrainBuffer.Add(data);
     }
 }

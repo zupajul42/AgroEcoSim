@@ -480,4 +480,6 @@ public class AgroWorld : SimulationWorld
 
 	public static float J2Cal(float joules) => joules / 4.186f;
 	public static float Cal2J(float calories) => calories * 4.186f;
+
+	public byte[] SerializeTerrain() => Soil.Serialize();
 }

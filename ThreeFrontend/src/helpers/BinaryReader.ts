@@ -1,4 +1,5 @@
 import { Primitive, Primitives } from "./Primitives";
+import { BoxTerrainItem } from "./Terrain";
 
 export default class BinaryReader {
     source: Uint8Array;
@@ -218,6 +219,17 @@ export default class BinaryReader {
             result.push(entity);
         }
 
+        return result;
+    }
+
+    readBoxTerrain() {
+        const result : BoxTerrainItem[] = [];
+        const version = this.readUInt8();
+        const entitiesCount = this.readInt32();
+        for(let i = 0; i < entitiesCount; ++i) {
+            const data = this.readFloat32Vector(3 + 3 + 4);
+            result.push(new BoxTerrainItem(data));
+        }
         return result;
     }
 }

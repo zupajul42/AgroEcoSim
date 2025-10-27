@@ -12,8 +12,8 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
 import { scene } from "./components/viewport/ThreeSceneFn";
 import { VisualMappingOptions } from "./helpers/Plant";
 import { Species } from "./helpers/Species";
-import { FieldItemRegex } from "./components/hud/FieldItemRegex";
 import { IObjImport, Parse } from "./helpers/ObjParser";
+import { BoxTerrainItem } from "./helpers/Terrain";
 
 interface RetryContext {
     readonly previousRetryCount: number; //The number of consecutive failed tries so far.
@@ -101,6 +101,13 @@ hubConnection.on("preview", (result: ISimPreview) => {
     }
 });
 
+hubConnection.on("terrain", (response: Uint8Array) => {
+    const binaryTerrain = base64ToArrayBuffer(response);
+    const reader = new BinaryReader(binaryTerrain);
+    st.terrainList = reader.readBoxTerrain();
+    st.terrainTimestamp.value = Date.now();
+})
+
 const start = async() => hubConnection.start();
 hubConnection.onclose(start);
 
@@ -161,13 +168,15 @@ class State {
     // SETTINGS
     hoursPerTick = signal(4);
     totalHours = signal(1440);
-    fieldResolution = signal(0.5);
+    fieldResolution = signal(0.05);
     fieldSizeX = signal(10);
     fieldSizeZ = signal(10);
     fieldSizeD = signal(4);
     fieldCellsX = computed(() => Math.ceil(this.fieldSizeX.value / this.fieldResolution.value));
     fieldCellsZ = computed(() => Math.ceil(this.fieldSizeZ.value / this.fieldResolution.value));
     fieldCellsD = computed(() => Math.ceil(this.fieldSizeD.value / this.fieldResolution.value));
+    terrainList: BoxTerrainItem[] = [];
+    terrainTimestamp = signal(Date.now());
     initNumber = signal(42);
     randomize = signal(false);
     renderMode = signal(1); //1 is Mitsuba
@@ -177,6 +186,8 @@ class State {
     species = signal<Species[]>([Species.Default()]);
 
     //INITIAL SCENE SETUP
+    seedsPerField = signal(1);
+    seedsOptimalDistance = signal(0.165);
     seeds = signal<Seed[]>([]);
     seedsCount = computed(() => this.seeds.value.length);
 
@@ -223,7 +234,8 @@ class State {
     historySize = signal(0);
 
     fieldModelPath = signal("");
-    fieldItemRegex = signal("");
+    fieldItemRegex = signal("erde");
+    fieldItemRegexMaterial = signal(true);
     fieldModelData?: IObjImport = undefined;
     modelParsingProgress = signal(0);
 
@@ -246,6 +258,7 @@ class State {
         DownloadRoots: this.downloadRoots.value,
 
         FieldItemRegex: this.fieldItemRegex.value,
+        FieldItemRegexMaterial: this.fieldItemRegexMaterial.value,
         FieldModelPath: this.fieldModelPath.value,
         FieldModelData: this.fieldModelData
     }};
@@ -310,7 +323,61 @@ class State {
             this.playing.value = PlayState.ForwardWaiting;
     }
 
-    pushRndSeed = () => { this.seeds.value = [ ...this.seeds.peek(), Seed.rndItem()] };
+    pushRndSeed = (count?: number) => {
+        if (count >= 1)
+        {
+            const result : Seed[] = [];
+            if (this.terrainList?.length > 0)
+            {
+                for(let t = 0; t < this.terrainList.length; ++t)
+                    for(let i = 0; i < count; ++i)
+                        result.push(Seed.rndItem(0, t));
+            }
+            else
+            {
+                for(let i = 0; i < count; ++i)
+                    result.push(Seed.rndItem());
+            }
+            this.seeds.value = [ ...this.seeds.peek(), ...result]
+        }
+        else
+            this.seeds.value = [ ...this.seeds.peek(), Seed.rndItem()]
+    };
+
+    pushSeedRaster = (dist: number) => {
+        const result : Seed[] = [];
+        debugger;
+        if (this.terrainList?.length > 0)
+        {
+            for(let i = 0; i < this.terrainList.length; ++i)
+            {
+                const terrain = this.terrainList[i];
+                const xCount = Math.max(1, Math.round(terrain.sx() / dist));
+                const zCount = Math.max(1, Math.round(terrain.sz() / dist));
+                const xDist = terrain.sx() / xCount;
+                const zDist = terrain.sz() / zCount;
+                const xHalf = xDist * 0.5;
+                const zHalf = zDist * 0.5;
+                for(let x = 0; x < xCount; ++x)
+                    for(let z = 0; z < zCount; ++z)
+                        result.push(new Seed(this.species.peek()[Math.floor(Math.random() * this.species.value.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, i));
+            }
+        }
+        else
+        {
+            const xCount = Math.max(1, Math.round(this.fieldSizeX.value / dist));
+            const zCount = Math.max(1, Math.round(this.fieldSizeZ.value / dist));
+            const xDist = this.fieldSizeX.value / xCount;
+            const zDist = this.fieldSizeZ.value / zCount;
+            const xHalf = xDist * 0.5;
+            const zHalf = zDist * 0.5;
+            for(let x = 0; x < xCount; ++x)
+                for(let z = 0; z < zCount; ++z)
+                    result.push(new Seed(this.species.peek()[Math.floor(Math.random() * this.species.value.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0));
+        }
+debugger;
+        this.seeds.value = [ ...this.seeds.peek(), ...result];
+    }
 
     removeSeedAt = (i : number) => {
         const seeds = this.seeds.peek();
@@ -464,7 +531,7 @@ class State {
                     self.visualMapping.value = data.visualMapping;
                     self.debugBoxes.value = data.debugDisplayOrientations;
                     self.showLeaves.value = data.showLeaves;
-                    self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz));
+                    self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz, s.fi));
                     self.obstacles.value = data.obstacles.map(o => new Obstacle(o.type, o.px, o.py, o.pz, o.ax, o.ay, o.l, o.h, o.t));
                     self.species.value = data.species.map(s => new Species().load(s));
 
@@ -503,6 +570,22 @@ class State {
         // const bytes = new Uint8Array(await f.arrayBuffer());
         // this.fieldModelData = bytes;
         this.fieldModelPath.value = f.name;
+        if (hubConnection.state !== SignalR.HubConnectionState.Connected)
+            await start();
+
+        if (hubConnection.state == SignalR.HubConnectionState.Connected)
+        {
+            const bufferResponse = await fetch(`${BackendURI.startsWith("localhost") ? "https:" : location.protocol}//${BackendURI}/simulation/terrain`, {
+                body: JSON.stringify(this.fieldModelData),
+                method: 'post',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+            const terrainId = await bufferResponse.json();
+            hubConnection.invoke("terrain", terrainId, this.hoursPerTick.value, this.fieldItemRegex.value, this.fieldItemRegexMaterial.value, this.fieldResolution.value);
+        }
     }
 
     clearFieldModel = () => {
@@ -543,7 +626,7 @@ class State {
 const st = new State();
 export default st;
 //now that the singleton is exported push in the default seed
-st.seeds.value = [ new Seed(st.species.peek()[0].name.peek(), st.fieldSizeX.peek() * 0.5, -0.01, st.fieldSizeZ.peek() * 0.5) ];
+st.seeds.value = [ new Seed(st.species.peek()[0].name.peek(), st.fieldSizeX.peek() * 0.5, -0.01, st.fieldSizeZ.peek() * 0.5, 0) ];
 
 effect(() => {
     if (st.previewRequest.value && hubConnection.state == SignalR.HubConnectionState.Connected) {

@@ -28,12 +28,16 @@ public interface ISoilFormation : IFormation
 	float GetWater(int index, int soilIndex);
 
 	Vector3 GetRandomSeedPosition(Pcg rnd, int soilIndex);
+    void Write(BinaryWriter writer, int i);
+    void SetWorld(AgroWorld world);
+    byte[] Serialize();
+    Vector3 GetFieldOrigin(int soilIndex);
 }
 
 public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 {
 	const MethodImplOptions AI = MethodImplOptions.AggressiveInlining;
-	readonly AgroWorld World;
+	AgroWorld World;
 	///<sumary>
 	/// Water amount per cell
 	///</sumary>
@@ -67,7 +71,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	readonly List<(PlantSubFormation<UnderGroundAgent> Plant, int Part, float Amount)>[] WaterRequestsRoots;
 	public float Depth => Size.Z * CellSize.Z;
 
-	public SoilFormationRegularVoxels(AgroWorld world, Vector3i size, Vector3 metricSize, Vector3 position = default)
+	public SoilFormationRegularVoxels(AgroWorld world, ushort hoursPerTick, Vector3i size, Vector3 metricSize, Vector3 position = default)
 	{
 		World = world;
 		if (size.X >= ushort.MaxValue - 1 || size.Y >= ushort.MaxValue - 1 || size.Z >= ushort.MaxValue - 1)
@@ -156,8 +160,8 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		WaterRequestsRoots = new List<(PlantSubFormation<UnderGroundAgent>, int, float)>[Water.Length];
 		for (int i = 0; i < Water.Length; ++i)
 		{
-			WaterRequestsSeeds[i] = new();
-			WaterRequestsRoots[i] = new();
+			WaterRequestsSeeds[i] = [];
+			WaterRequestsRoots[i] = [];
 		}
 
 		Array.Fill(Water, 1e3f * CellVolume); //some basic water
@@ -174,11 +178,11 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		// 			Temp[Index(x, y, z)] = temp;
 		// }
 
-		WaterRetainedPerCell = CellSize.Z / WaterTravelDistPerTick();
+		WaterRetainedPerCell = CellSize.Z / WaterTravelDistPerTick(hoursPerTick);
 
 		WaterTransactions = new List<(int dst, float amount)>[Water.Length];
 		for (int i = 0; i < Water.Length; ++i)
-			WaterTransactions[i] = new();
+			WaterTransactions[i] = [];
 	}
 
 	public int FieldsCount => 1;
@@ -214,7 +218,8 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 
 	[M(AI)] public float GetTemperature(int index, int soilIndex) => 20f;
 
-	[M(AI)] public int SoilIndex(Vector3i coords) => coords.X + coords.Y * Size.X + (coords.Z + 1) * SizeXY;
+	[M(AI)] public int SoilCellIndex(Vector3i coords) => coords.X + coords.Y * Size.X + (coords.Z + 1) * SizeXY;
+	[M(AI)] public Vector3 GetFieldOrigin(int soilIndex) => Position;
 
 	public int IntersectPoint(Vector3 center, int soilIndex = 0)
 	{
@@ -253,7 +258,8 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		return (MaxLevel - GroundLevel(iCenter)) * CellSize.Y;
 	}
 
-	[M(AI)] float WaterTravelDistPerTick() => World.HoursPerTick * 0.000012f; //1g of water can travel so far an hour
+	[M(AI)] float WaterTravelDistPerTick() => WaterTravelDistPerTick(World.HoursPerTick); //1g of water can travel so far an hour
+	[M(AI)] static float WaterTravelDistPerTick(ushort hoursPerTick) => hoursPerTick * 0.000012f; //1g of water can travel so far an hour
 	readonly float WaterRetainedPerCell;
 
 	public void Tick(uint timestep)
@@ -467,6 +473,33 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	{
 		var metricSize = Size * CellSize;
 		return new(metricSize.X * rnd.NextFloat(), -rnd.NextPositiveFloat(Math.Min(metricSize.Z, 0.04f)), metricSize.Y * rnd.NextFloat());
+	}
+
+	public void SetWorld(AgroWorld world) => World = world;
+
+	public byte[] Serialize()
+	{
+		using var stream = new MemoryStream();
+		using var writer = new BinaryWriter(stream);
+
+		writer.Write((byte)0); //version
+		var count = FieldsCount;
+		writer.Write(count);
+		for (int i = 0; i < count; ++i)
+			Write(writer, i);
+
+		return stream.ToArray();
+    }
+
+	public void Write(BinaryWriter writer, int i)
+	{
+		var metricSize = Size * CellSize;
+		//write position
+		writer.WriteV32(Position);
+		//write size
+		writer.WriteV32(metricSize);
+		//write orientation
+		writer.WriteQ32(Quaternion.Identity);
 	}
 }
 

@@ -22,6 +22,7 @@ builder.Services.AddCors(o => o.AddPolicy(name: Origins, p =>
 
 // Add services to the container.
 builder.Services.AddSingleton<ISimulationUploadService>(new SimulationUploadService());
+builder.Services.AddSingleton<ITerrainBuffer>(new TerrainBuffer());
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
