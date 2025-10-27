@@ -1,16 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using System.Text.Json.Serialization;
+using Agro;
+using AgroServer.Controllers;
 using AgroServer.Hubs;
 using AgroServer.Services;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.DependencyInjection;
 
 Console.WriteLine("HELLO THERE!");
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateSlimBuilder(args);
 
 const string Origins = "_AgroEcoSim";
 
@@ -25,6 +21,11 @@ builder.Services.AddCors(o => o.AddPolicy(name: Origins, p =>
 //.SetIsOriginAllowedToAllowWildcardSubdomains()
 //.WithMethods("GET", "POST", "OPTIONS").AllowAnyHeader().AllowCredentials().Build()
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+  options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
+});
+
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenLocalhost(7215); // HTTP only
@@ -33,9 +34,10 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.WebHost.UseUrls("http://localhost:7215");
 
 // Add services to the container.
-builder.Services.AddSingleton<ISimulationUploadService>(new SimulationUploadService());
-builder.Services.AddSingleton<ITerrainBuffer>(new TerrainBuffer());
-builder.Services.AddControllers();
+var simulationUploeadService = new SimulationUploadService();
+var terainBufferService = new TerrainBuffer();
+builder.Services.AddSingleton<ISimulationUploadService>(simulationUploeadService);
+builder.Services.AddSingleton<ITerrainBuffer>(terainBufferService);
 
 builder.Services.AddSignalR(options => {
     options.MaximumParallelInvocationsPerClient = 3;
@@ -46,5 +48,17 @@ builder.Configuration.AddEnvironmentVariables(prefix: "AGRO_");
 var app = builder.Build();
 app.UseCors(Origins);
 app.MapHub<SimulationHub>("/SimSocket").RequireCors(Origins);
-app.MapControllers();
+SimulationController.Map(app.MapGroup("/Simulation"), app.Configuration, simulationUploeadService, terainBufferService);
 app.Run();
+
+[JsonSerializable(typeof(Utils.Json.Vector3Data))]
+[JsonSerializable(typeof(Utils.Json.Vector3XYZ))]
+[JsonSerializable(typeof(Utils.Json.Vector3XDZ))]
+[JsonSerializable(typeof(SimulationRequest))]
+[JsonSerializable(typeof(PlantRequest))]
+[JsonSerializable(typeof(ObstacleRequest))]
+
+internal partial class AppJsonSerializerContext : JsonSerializerContext
+{
+
+}

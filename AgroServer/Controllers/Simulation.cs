@@ -9,65 +9,48 @@ using AgroServer.Services;
 
 namespace AgroServer.Controllers;
 
-[ApiController]
-[Route("[controller]")]
-public class SimulationController : ControllerBase
+// [ApiController]
+// [Route("[controller]")]
+public class SimulationController// : ControllerBase
 {
-    private readonly IConfiguration Configuration;
-    private readonly ISimulationUploadService UploadService;
-    readonly ITerrainBuffer TerrainBuffer;
-
-    public SimulationController(IConfiguration configuration, ISimulationUploadService uploadService, ITerrainBuffer terrainBuffer)
+    public static void Map(RouteGroupBuilder api, IConfiguration configuration, ISimulationUploadService uploadService, ITerrainBuffer terrainBuffer)
     {
-        Configuration = configuration;
-        UploadService = uploadService;
-        TerrainBuffer = terrainBuffer;
-    }
+        api.MapGet("/", () => Results.Ok());
 
-    [HttpGet]
-    public ActionResult Get() => Ok();
-
-    [HttpPost]
-    public async Task<ActionResult<SimulationResponse>> Post([FromBody] SimulationRequest request)
-    {
-        var world = Initialize.World(request);
-        world.Irradiance.SetAddress(Configuration["RendererIPMitsuba"], Configuration["RendererPortMitsuba"], Configuration["RendererIPTamashii"], Configuration["RendererPortTamashii"], request?.RenderMode ?? 0);
-
-        var start = DateTime.UtcNow.Ticks;
-        world.Run((uint)world.TimestepsTotal());
-        var stop = DateTime.UtcNow.Ticks;
-        Debug.WriteLine($"Simulation time: {(stop - start) / TimeSpan.TicksPerMillisecond} ms");
-
-        var response = new SimulationResponse() { Plants = new(world.Count) };
-        world.ForEach(formation =>
+        api.MapPost("/", (SimulationRequest request) =>
         {
-            if (formation is PlantFormation2 plant)
-                //plantData.Add(@$"{{""P"":{JsonSerializer.Serialize(new Vector3Data(plant.Position))},""V"":{plant.AG.GetVolume()}}}");
-                response.Plants.Add(new() { Volume = plant.AG.GetVolume() });
+            var world = Initialize.World(request);
+            world.Irradiance.SetAddress(configuration["RendererIPMitsuba"], configuration["RendererPortMitsuba"], configuration["RendererIPTamashii"], configuration["RendererPortTamashii"], request?.RenderMode ?? 0);
+
+            var start = DateTime.UtcNow.Ticks;
+            world.Run((uint)world.TimestepsTotal());
+            var stop = DateTime.UtcNow.Ticks;
+            Debug.WriteLine($"Simulation time: {(stop - start) / TimeSpan.TicksPerMillisecond} ms");
+
+            var response = new SimulationResponse() { Plants = new(world.Count) };
+            world.ForEach(formation =>
+            {
+                if (formation is PlantFormation2 plant)
+                    //plantData.Add(@$"{{""P"":{JsonSerializer.Serialize(new Vector3Data(plant.Position))},""V"":{plant.AG.GetVolume()}}}");
+                    response.Plants.Add(new() { Volume = plant.AG.GetVolume() });
+            });
+
+            Debug.WriteLine($"RENDER TIME: {world.Irradiance.ElapsedMilliseconds} ms");
+
+            if (request?.RequestGeometry ?? false)
+                response.Scene = world.ExportToStream(3);
+
+            response.Renderer = world.RendererName;
+
+            return response;
         });
 
-        Debug.WriteLine($"RENDER TIME: {world.Irradiance.ElapsedMilliseconds} ms");
+        api.MapPost("/upload", (SimulationRequest request) =>
+        {
+            //TODO Validate the regex
+            return uploadService.Add(request);
+        });
 
-        if (request?.RequestGeometry ?? false)
-            response.Scene = world.ExportToStream(3);
-
-        response.Renderer = world.RendererName;
-
-        return response;
-    }
-
-    [HttpPost]
-    [Route("[action]")]
-    public async Task<string> Upload([FromBody] SimulationRequest request)
-    {
-        //TODO Validate the regex
-        return UploadService.Add(request);
-    }
-
-    [HttpPost]
-    [Route("[action]")]
-    public async Task<string> Terrain([FromBody] ImportedObjData data)
-    {
-        return TerrainBuffer.Add(data);
+        api.MapPost("/terrain", (ImportedObjData data) => terrainBuffer.Add(data));
     }
 }

@@ -295,7 +295,7 @@ class State {
                     }
                 });
 
-                const preparedID = await prepared.json();
+                const preparedID = await prepared.text();
                 if (preparedID?.length > 0)
                     hubConnection.invoke("start", preparedID).catch(e => {
                         console.error(e);
@@ -348,7 +348,6 @@ class State {
 
     pushSeedRaster = (dist: number) => {
         const result : Seed[] = [];
-        debugger;
         if (this.terrainList?.length > 0)
         {
             for(let i = 0; i < this.terrainList.length; ++i)
@@ -377,7 +376,6 @@ class State {
                 for(let z = 0; z < zCount; ++z)
                     result.push(new Seed(this.species.peek()[Math.floor(Math.random() * this.species.value.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0));
         }
-debugger;
         this.seeds.value = [ ...this.seeds.peek(), ...result];
     }
 
@@ -585,7 +583,7 @@ debugger;
                     'Content-Type': 'application/json'
                 }
             });
-            const terrainId = await bufferResponse.json();
+            const terrainId = await bufferResponse.text();
             hubConnection.invoke("terrain", terrainId, this.hoursPerTick.value, this.fieldItemRegex.value, this.fieldItemRegexMaterial.value, this.fieldResolution.value);
         }
     }

@@ -10,7 +10,7 @@
             "request": "launch",
             "preLaunchTask": "build CLI",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Agro/bin/Debug/net6.0/Agro.dll",
+            "program": "${workspaceFolder}/Agro/bin/Debug/net8.0/Agro.dll",
             "args": ["--import", "${workspaceFolder}/Agro/ML-Import5.json", "--export", "${workspaceFolder}/Agro/ML-Export.json"],
             "cwd": "${workspaceFolder}/Agro",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
@@ -26,7 +26,7 @@
             "request": "launch",
             "preLaunchTask": "build CLI Release",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Agro/bin/Release/net6.0/Agro.dll",
+            "program": "${workspaceFolder}/Agro/bin/Release/net8.0/Agro.dll",
             "args": ["--import", "${workspaceFolder}/Agro/ML-Import5.json", "--export", "${workspaceFolder}/Agro/ML-Export.json"],
             "cwd": "${workspaceFolder}/Agro",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
@@ -42,7 +42,7 @@
             "request": "launch",
             "preLaunchTask": "build WebAPI",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/AgroServer/bin/Debug/net6.0/AgroServer.dll",
+            "program": "${workspaceFolder}/AgroServer/bin/Debug/net8.0/AgroServer.dll",
             "cwd": "${workspaceFolder}/AgroServer",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
@@ -57,7 +57,7 @@
             "request": "launch",
             "preLaunchTask": "build WebAPI Release",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/AgroServer/bin/Release/net6.0/AgroServer.dll",
+            "program": "${workspaceFolder}/AgroServer/bin/Release/net8.0/AgroServer.dll",
             "cwd": "${workspaceFolder}/AgroServer",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
