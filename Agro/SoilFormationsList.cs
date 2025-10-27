@@ -136,7 +136,8 @@ public class SoilFormationsList : ISoilFormation
 {
 	const MethodImplOptions AI = MethodImplOptions.AggressiveInlining;
 	readonly AgroWorld World;
-	List<SoilFormationRegularVoxels> Items;
+	readonly List<SoilFormationRegularVoxels> Items;
+	readonly List<MeshObstacle> Obstacles;
 
 	public SoilFormationsList(AgroWorld world, ushort hoursPerTick, ImportedObjData objData, float scale, string? soilItemRegex, bool regexForMaterials, float fieldResolution)
 	{
@@ -152,26 +153,28 @@ public class SoilFormationsList : ISoilFormation
 			vertices[i] = new Vector3(float.Parse(vertex[0]), float.Parse(vertex[1]), float.Parse(vertex[2])) * scale;
 		}
 		var regex = soilItemRegex != null ? new Regex(soilItemRegex, RegexOptions.IgnoreCase) : null;
-		var faces = new List<List<int>>();
+		var soilFaces = new List<List<int>>();
+		var obstacleFaces = new List<List<int>>();
 
 		Items = [];
+		var components = new List<Component>();
+		var verts = new List<int>();
+		var edges = new List<Edge>();
+		var remove = new List<int>();
 		foreach (var (group, faceLines) in objData.Faces)
 		{
 			var nameToMatch = regexForMaterials && (objData.Materials?.TryGetValue(group, out var mat) ?? false) ? mat : group;
 			if (regex?.IsMatch(nameToMatch) ?? true) //for FAV use *Natur_Erde*
 			{
-				var components = new List<Component>();
-				var verts = new List<int>();
-				var edges = new List<Edge>();
-				var remove = new List<int>();
-				faces.Clear();
+				soilFaces.Clear();
+				components.Clear();
 				for (int i = 0; i < faceLines.Length; ++i)
 				{
 					var face = faceLines[i].Split(' ');
 					verts.Clear();
 					verts.AddRange(face.Select(ParseFaceIndex));
 					Debug.Assert(verts.All(x => x < vertices.Length));
-					faces.Add([.. verts]);
+					soilFaces.Add([.. verts]);
 
 					edges.Clear();
 					for (int v = 1; v < verts.Count; ++v)
@@ -205,7 +208,7 @@ public class SoilFormationsList : ISoilFormation
 					var max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
 					foreach (var fi in item.Faces)
 					{
-						var face = faces[fi];
+						var face = soilFaces[fi];
 						for (int fv = 0; fv < face.Count; ++fv)
 						{
 							Debug.Assert(face[fv] < vertices.Length);
@@ -222,6 +225,28 @@ public class SoilFormationsList : ISoilFormation
 					}
 				}
 			}
+			else //otherwise consider it an obstacle
+			{
+				for (int i = 0; i < faceLines.Length; ++i)
+				{
+					var face = faceLines[i].Split(' ');
+					verts.Clear();
+					verts.AddRange(face.Select(ParseFaceIndex));
+					Debug.Assert(verts.All(x => x < vertices.Length));
+					obstacleFaces.Add([.. verts]);
+				}
+			}
+		}
+
+		if (obstacleFaces.Count > 0)
+		{
+			if (World == null)
+			{
+				Obstacles ??= [];
+				Obstacles.Add(new(vertices, obstacleFaces));
+			}
+			else
+				World.Add(new MeshObstacle(vertices, obstacleFaces));
 		}
 	}
 
@@ -278,6 +303,9 @@ public class SoilFormationsList : ISoilFormation
 	{
 		for (int i = 0; i < Items.Count; ++i)
 			Items[i].SetWorld(world);
+		if (Obstacles?.Count > 0)
+			foreach (var obstacle in Obstacles)
+				world.Add(obstacle);
 	}
 
 	[M(AI)] public Vector3 GetFieldOrigin(int soilIndex) => Items[soilIndex].GetFieldOrigin(0);
@@ -292,6 +320,11 @@ public class SoilFormationsList : ISoilFormation
 		writer.Write(count);
 		for (int i = 0; i < count; ++i)
 			Write(writer, i);
+
+		count = Obstacles?.Count ?? 0;
+		writer.Write(count);
+		for (int i = 0; i < count; ++i)
+			Obstacles[i].ExportMesh(writer);
 
 		return stream.ToArray();
 	}

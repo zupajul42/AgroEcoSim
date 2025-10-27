@@ -1,3 +1,4 @@
+import { Obstacle } from "./Obstacle";
 import { Primitive, Primitives } from "./Primitives";
 import { BoxTerrainItem } from "./Terrain";
 
@@ -52,6 +53,13 @@ export default class BinaryReader {
         const result = new Float32Array(n);
         for(let i = 0; i < n; ++i)
             result[i] = this.readFloat32();
+        return result;
+    }
+
+    readInt32Array(n: number) {
+        const result : number[] = [];
+        for(let i = 0; i < n; ++i)
+            result[i] = this.readInt32();
         return result;
     }
 
@@ -223,13 +231,24 @@ export default class BinaryReader {
     }
 
     readBoxTerrain() {
-        const result : BoxTerrainItem[] = [];
-        const version = this.readUInt8();
+        const terrains : BoxTerrainItem[] = [];
+        const version = this.readUInt8(); //assuming 0 for now
         const entitiesCount = this.readInt32();
         for(let i = 0; i < entitiesCount; ++i) {
             const data = this.readFloat32Vector(3 + 3 + 4);
-            result.push(new BoxTerrainItem(data));
+            terrains.push(new BoxTerrainItem(data));
         }
-        return result;
+
+        const obstacles : Obstacle[] = [];
+        const obstaclesCount = this.readInt32();
+        for(let i = 0; i < obstaclesCount; ++i) {
+            const verticesCount = this.readInt32();
+            const vertices = this.readFloat32Vector(verticesCount * 3);
+            const trianglesCount = this.readInt32();
+            const faces = this.readInt32Array(trianglesCount);
+            obstacles.push(new Obstacle('mesh', 0, 0, 0, 0, 0, 0, 0, 0, vertices, faces));
+        }
+
+        return {terrains: terrains, obstacles: obstacles};
     }
 }

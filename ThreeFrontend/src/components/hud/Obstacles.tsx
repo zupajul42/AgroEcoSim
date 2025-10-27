@@ -25,6 +25,8 @@ export class Obstacles extends Component
                 <input min={0} max={Math.max(appstate.fieldSizeX.value, appstate.fieldSizeZ.value) * 2} step={0.1}type="number" name={`obstacleur-${i}`} value={+x.wallLength_UmbrellaRadius.value.toFixed(4)} onChange={e => x.wallLength_UmbrellaRadius.value = parseFloat(e.currentTarget.value)} />
                 {common}
                 </>;
+            case "mesh": return <>
+            </>
             default: return (<></>);
         }
     }
@@ -32,11 +34,8 @@ export class Obstacles extends Component
     wrapItem(x:Obstacle, i: number) {
         return (<>
                 <label for={`obstaclept-${i}`}>type:</label>
-                <select name={`obstaclet-${i}`} onChange={e => x.type.value = e.currentTarget.value as ObstacleType}>
-                    <option value="wall" selected={x.type.value == "wall"}>wall</option>
-                    <option value="umbrella" selected={x.type.value == "umbrella"}>umbrella</option>
-                </select>
-                <button onClick={() => appstate.removeObstacleAt(i)}>🗙</button>
+                {x.type.value === 'mesh' ? meshObstacleSelector(i, x) : primitiveObstacleSelector(i, x)}
+                <button onClick={() => appstate.removeObstacleAt(i)}>x</button>
                 <br/>
                 <label for={`obstaclepx-${i}`}>x:</label>
                 <input min={-appstate.fieldSizeZ.value} max={appstate.fieldSizeX.value} step={0.1} type="number" name={`obstaclepx-${i}`} value={x.px} onChange={e => x.px.value = parseFloat(e.currentTarget.value)} />
@@ -56,4 +55,15 @@ export class Obstacles extends Component
             <ul> {appstate.obstacles.value.map((x, i) => <li>{this.wrapItem(x, i)}</li>)} </ul>
         </div>;
     }
+}
+
+function primitiveObstacleSelector(i: number, x: Obstacle) {
+    return <select name={`obstaclet-${i}`} onChange={e => x.type.value = e.currentTarget.value as ObstacleType}>
+        <option value="wall" selected={x.type.value == "wall"}>wall</option>
+        <option value="umbrella" selected={x.type.value == "umbrella"}>umbrella</option>
+    </select>;
+}
+
+function meshObstacleSelector(i: number, x: Obstacle) {
+    return <span>Obstacle</span>;
 }

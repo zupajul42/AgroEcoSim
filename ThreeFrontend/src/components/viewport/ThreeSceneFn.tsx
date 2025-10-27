@@ -322,14 +322,13 @@ export default function ThreeSceneFn () {
                 const t = appstate.terrainList[i];
                 const terrainMesh = new THREE.Mesh(terrainBoxPrimitive, new THREE.MeshLambertMaterial({ color: 0x573600, name: "terrainMesh" }));
                 terrainMesh.scale.set(t.sx(), t.sy(), t.sz());
-                console.log("P:", t.px(), t.py(), t.pz(), "S:", t.sx(), t.sy(), t.sz());
                 //terrainMesh.scale.set(0.1, t.py(), 0.1);
                 terrainMesh.position.set(t.px(), t.py() - t.sy(), t.pz());
                 terrainMesh.userData = { type: "terrain", index: i };
                 appstate.objTerrain.add(terrainMesh);
             }
         }
-        console.log(appstate.objTerrain.children.length);
+
         renderOnce();
     }
 

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { neutralColor } from "./Selection";
 import { BaseRequestObject, ReqObjMaterials } from "./BaseRequestObject";
 
-const color = new THREE.Color("#a60");
+const color = new THREE.Color("#bbb");
 const box = new THREE.BoxGeometry().translate(0, 0.5, 0);
 const disk = new THREE.CircleGeometry().rotateX(-Math.PI * 0.5);
 const defaultMaterial = new THREE.MeshLambertMaterial({
@@ -30,7 +30,7 @@ const obstacleMaterials : ReqObjMaterials = {
     selectHover: selectHoverMaterial
 }
 
-export type ObstacleType = "wall" | "umbrella";
+export type ObstacleType = "wall" | "umbrella" | "mesh";
 
 export class Obstacle extends BaseRequestObject
 {
@@ -41,7 +41,11 @@ export class Obstacle extends BaseRequestObject
     height: Signal<number>;
     thickness: Signal<number>;
 
-    constructor(type: ObstacleType, x: number, y: number, z: number, ax: number, ay: number, l: number, h: number, t: number) {
+    vertices: Float32Array;
+    faces: number[];
+    bufferGeometry: THREE.BufferGeometry;
+
+    constructor(type: ObstacleType, x: number, y: number, z: number, ax: number, ay: number, l: number, h: number, t: number, verts: Float32Array, faces: number[]) {
         super(x, y, z, obstacleMaterials);
 
         this.type = signal(type);
@@ -51,15 +55,40 @@ export class Obstacle extends BaseRequestObject
         this.height= signal(h);
         this.thickness = signal(t);
 
+        this.vertices = verts;
+        this.faces = faces;
+
         switch(type)
         {
             case "wall":
-                this.mesh = new THREE.Mesh(box, defaultMaterial);
+                this.mesh = new THREE.Mesh(box, obstacleMaterials.default);
                 this.setupWall();
                 break;
             case "umbrella":
-                this.mesh = new THREE.Mesh(disk, defaultMaterial);
+                this.mesh = new THREE.Mesh(disk, obstacleMaterials.default);
                 this.setupUmbrella();
+                break;
+            case "mesh":
+                console.log("Vertices", this.vertices, this.vertices.length % 3, this.vertices.length / 3);
+                console.log("Faces", this.faces, this.faces.length % 3, this.faces.length / 3);
+                console.log("MaxVertex", this.faces.reduce((a,c) => Math.max(a, c), 0));
+
+                this.bufferGeometry = new THREE.BufferGeometry();
+                this.bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
+                this.bufferGeometry.setIndex(this.faces);
+                this.bufferGeometry.computeVertexNormals();
+                // this.bufferGeometry.setIndex(new THREE.BufferAttribute(this.faces, 1))
+                // this.bufferGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-20, 0, 20,  20, 0, 20,  -20, 0, -20]), 3));
+                // this.bufferGeometry.setIndex([0, 1, 2]);
+                // this.bufferGeometry = new THREE.BoxGeometry();
+                // this.bufferGeometry.scale(100, 10, 2);
+                this.mesh = new THREE.Mesh(this.bufferGeometry, obstacleMaterials.default);
+                // this.setupMesh();
+                // this.wallLength_UmbrellaRadius.value = 1;
+                // this.height.value = 1;
+                // this.thickness.value = 1;
+                // this.mesh = new THREE.Mesh(box, meshMaterial);
+                // this.setupWall();
                 break;
         }
 
@@ -83,17 +112,24 @@ export class Obstacle extends BaseRequestObject
                     this.mesh.geometry = disk;
                     this.setupUmbrella();
                     break;
+                case "mesh":
+                    this.mesh.geometry = this.bufferGeometry;
+                    break;
             }
             appstate.needsRender.value = true;
         });
 
         effect(() => {
-            const lr = this.wallLength_UmbrellaRadius.value;
-            const t = this.thickness.value;
-            this.mesh.scale.set(
-                lr * (this.type.peek() == "wall" ? 1 : 0.5),
-                this.height.value,
-                this.type.peek() == "wall" ? t : lr * 0.5);
+            if (this.type.peek() !== "mesh")
+            {
+                const lr = this.wallLength_UmbrellaRadius.value;
+                const t = this.thickness.value;
+
+                this.mesh.scale.set(
+                    lr * (this.type.peek() == "wall" ? 1 : 0.5),
+                    this.height.value,
+                    this.type.peek() == "wall" ? t : lr * 0.5);
+            }
             appstate.needsRender.value = true;
         })
     }
@@ -108,13 +144,17 @@ export class Obstacle extends BaseRequestObject
         this.mesh.position.set(this.px.peek(), this.py.peek(), this.pz.peek());
     }
 
+    private setupMesh() {
+        this.mesh.position.set(this.px.peek(), this.py.peek(), this.pz.peek());
+    }
+
     static rndObstacle() {
         const type = Math.random() > 0.5 ? "wall" : "umbrella";
         const isWall = type == "wall";
         return new Obstacle(type,
             Math.random() * appstate.fieldSizeX.value, 0, Math.random() * appstate.fieldSizeZ.value,
             0, 0,
-            isWall ? 4 : 1, isWall ? 3 : 2.2,  isWall ? 0.4 : 0.08);
+            isWall ? 4 : 1, isWall ? 3 : 2.2,  isWall ? 0.4 : 0.08, undefined, undefined);
     }
 
     transformMove() {
@@ -137,6 +177,8 @@ export class Obstacle extends BaseRequestObject
             t: this.thickness.peek(),
             ax: this.angleX.peek(),
             ay: this.angleY.peek(),
+            vt: this.vertices.buffer,
+            fc: this.faces
         }
     }
 }

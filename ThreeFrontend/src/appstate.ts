@@ -34,7 +34,7 @@ const InfiniteHubRetry = {
     }
 }
 
-const hubConnection = new SignalR.HubConnectionBuilder().withUrl(`${BackendURI.startsWith("localhost") ? "https:" : location.protocol}//${BackendURI}/SimSocket`).withAutomaticReconnect(InfiniteHubRetry).build();
+const hubConnection = new SignalR.HubConnectionBuilder().withUrl(`${location.protocol}//${BackendURI}/SimSocket`).withAutomaticReconnect(InfiniteHubRetry).build();
 hubConnection.on("reject", () => { console.log("You have another simulation already running. Please wait until it is finished."); });
 hubConnection.on("progress", (step: number, length: number) => {
     batch(() => {
@@ -104,7 +104,9 @@ hubConnection.on("preview", (result: ISimPreview) => {
 hubConnection.on("terrain", (response: Uint8Array) => {
     const binaryTerrain = base64ToArrayBuffer(response);
     const reader = new BinaryReader(binaryTerrain);
-    st.terrainList = reader.readBoxTerrain();
+    const result = reader.readBoxTerrain();
+    st.terrainList = result.terrains;
+    st.obstacles.value = [...st.obstacles.value.filter(x => x.type.value !== 'mesh'), ...result.obstacles];
     st.terrainTimestamp.value = Date.now();
 })
 
@@ -284,7 +286,7 @@ class State {
             if (hubConnection.state == SignalR.HubConnectionState.Connected)
             {
                 //console.log(this.requestBody());
-                const prepared = await fetch(`${BackendURI.startsWith("localhost") ? "https:" : location.protocol}//${BackendURI}/simulation/upload`, {
+                const prepared = await fetch(`${location.protocol}//${BackendURI}/simulation/upload`, {
                     body: JSON.stringify(this.requestBody()),
                     method: 'post',
                     headers: {
@@ -532,7 +534,7 @@ debugger;
                     self.debugBoxes.value = data.debugDisplayOrientations;
                     self.showLeaves.value = data.showLeaves;
                     self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz, s.fi));
-                    self.obstacles.value = data.obstacles.map(o => new Obstacle(o.type, o.px, o.py, o.pz, o.ax, o.ay, o.l, o.h, o.t));
+                    self.obstacles.value = data.obstacles.map(o => new Obstacle(o.type, o.px, o.py, o.pz, o.ax, o.ay, o.l, o.h, o.t, new Float32Array(o.vt), o.fc));
                     self.species.value = data.species.map(s => new Species().load(s));
 
                     self.plants.value = data.plants;
@@ -575,7 +577,7 @@ debugger;
 
         if (hubConnection.state == SignalR.HubConnectionState.Connected)
         {
-            const bufferResponse = await fetch(`${BackendURI.startsWith("localhost") ? "https:" : location.protocol}//${BackendURI}/simulation/terrain`, {
+            const bufferResponse = await fetch(`${location.protocol}//${BackendURI}/simulation/terrain`, {
                 body: JSON.stringify(this.fieldModelData),
                 method: 'post',
                 headers: {

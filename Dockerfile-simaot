@@ -9,7 +9,7 @@ ENV ASPNETCORE_ENVIRONMENT='Production'
 WORKDIR AgroServer
 
 ARG BACKEND
-RUN dotnet restore --runtime alpine-x64
+#RUN dotnet restore --runtime alpine-x64
 #--disable-parallel
 
 RUN dotnet publish \
@@ -17,20 +17,20 @@ RUN dotnet publish \
     -p:Platform=x64 \
     --framework=net8.0 \
     --nologo \
-    --runtime alpine-x64 \
-    --no-self-contained \
-    -p:PublishReadyToRun=true \
-    -p:PublishReadyToRunShowWarnings=true \
-    -p:WarningLevel=0 \
-    #-p:PublishTrimmed=true \
+    --runtime linux-x64 \
+    -p:DebugType=None \
+    -p:DebugSymbols=false \
+    -p:PublishAot=true \
+    -p:OptimizationPreference=Speed \
     --output /app/ \
     /clp:ErrorsOnly
 #--verbosity detailed
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
+FROM alpine:latest AS final
 WORKDIR /app
 ENV COMPlus_EnableDiagnostics=0
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 ENV ASPNETCORE_ENVIRONMENT='Production'
 ENV AGRO_HOSTNAME=${BACKEND}
 #only copy the published app folder into the final image, everything else (the whole src) is ignored

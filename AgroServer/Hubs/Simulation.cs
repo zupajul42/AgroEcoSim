@@ -101,7 +101,7 @@ public class SimulationHub : Hub<IEditorHub>
 
         ClientTerrains.TryGetValue(Context.ConnectionId, out var terrain);
         var world = Initialize.World(request, terrain);
-        _ = Clients.Caller.Terrain(world.SerializeTerrain());
+        //_ = Clients.Caller.Terrain(world.SerializeTerrain());
         await Task.Run(() =>
         {
             world.Irradiance.SetAddress(Config["RendererIPMitsuba"], Config["RendererPortMitsuba"], Config["RendererIPTamashii"], Config["RendererPortTamashii"], request?.RenderMode ?? 0);
