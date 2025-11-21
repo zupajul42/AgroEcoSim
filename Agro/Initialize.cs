@@ -30,7 +30,7 @@ public static class Initialize
 			{
 				var cellCounts = new Vector3(world.FieldSize.X, world.FieldSize.Z, world.FieldSize.Y) / world.FieldResolution;
 				var cellCountsInt = new Vector3i((int)Math.Round(cellCounts.X), (int)Math.Round(cellCounts.Y), (int)Math.Round(cellCounts.Z));
-				soil = new SoilFormationRegularVoxels(world, cellCountsInt, world.FieldSize);
+				soil = new SoilFormationRegularVoxels(world, cellCountsInt, new(world.FieldSize.X, world.FieldSize.Z, world.FieldSize.Y));
 			}
 		}
 
