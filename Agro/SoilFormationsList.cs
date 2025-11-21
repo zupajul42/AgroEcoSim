@@ -139,7 +139,7 @@ public class SoilFormationsList : ISoilFormation
 	readonly List<SoilFormationRegularVoxels> Items;
 	readonly List<MeshObstacle> Obstacles;
 
-	public SoilFormationsList(AgroWorld world, ushort hoursPerTick, ImportedObjData objData, float scale, string? soilItemRegex, bool regexForMaterials, float fieldResolution)
+	public SoilFormationsList(AgroWorld world, ImportedObjData objData, float scale, string? soilItemRegex, bool regexForMaterials, float fieldResolution)
 	{
 		World = world;
 
@@ -220,8 +220,11 @@ public class SoilFormationsList : ISoilFormation
 					var metricSize = max - min;
 					if (metricSize.X > 0.01f && metricSize.Y > 0.01f && metricSize.Z > 0.01f)
 					{
-						var celularSize = Vector3i.Max(new Vector3i(metricSize / fieldResolution), new Vector3i(1, 1, 1));
-						Items.Add(new(world, hoursPerTick, celularSize, metricSize, min));
+						//var celularSize = Vector3i.Max(new Vector3i(metricSize / fieldResolution), new Vector3i(1, 1, 1));
+						//Items.Add(new(world, celularSize, metricSize, min));
+						var cellCounts = new Vector3(metricSize.X, metricSize.Y, metricSize.Z) / fieldResolution;
+						var cellCountsInt = new Vector3i((int)Math.Round(cellCounts.X), (int)Math.Round(cellCounts.Y), (int)Math.Round(cellCounts.Z));
+						Items.Add(new(world, cellCountsInt, metricSize, min));
 					}
 				}
 			}

@@ -2,29 +2,48 @@ import { Component, h, Fragment } from "preact";
 import appstate from "../../appstate";
 import { DecodePlantName } from "../../helpers/Plant";
 import { Primitive, Primitives } from "../../helpers/Primitives";
+import * as THREE from "three";
+
+const fixedPrecision = 4;
 
 export function PlantsTable()
 {
+    const seedPick = appstate.seedPick.value;
+    if (seedPick >= 0 && seedPick <= appstate.seeds.value.length)
+    {
+        const seed = appstate.seeds.value[seedPick];
+        const v = new THREE.Vector3();
+        seed.mesh.getWorldPosition(v);
+        return <ul style={{listStyleType: "none"}}>
+            <li>Index: {seedPick}</li>
+            <li>Position: {v.x.toFixed(fixedPrecision)}, {v.y.toFixed(fixedPrecision)}, {v.z.toFixed(fixedPrecision)}</li>
+        </ul>;
+    }
+
     const pickName = appstate.plantPick.value;
     //appstate.history.length > appstate.playPointer.value ? appstate.history[appstate.playPointer.value].s
+    // return <>
+    //         <ul>
+    //             {appstate.plants.value.map(plant => (<li>
+    //                 Volume: {plant.V} m³
+    //             </li>))}
+    //         </ul>
+    //     </>;
+    // else
 
-    if (pickName == "")
-        return <>
-            <ul>
-                {appstate.plants.value.map(plant => (<li>
-                    Volume: {plant.V} m³
-                </li>))}
-            </ul>
-        </>;
-    else
+    if (pickName?.length > 0)
     {
         const index = DecodePlantName(pickName);
         let primitive : Primitive = undefined;
+        let affineTransform : Float32Array = undefined;
         if (appstate.scene.value.length > index.entity)
         {
             const ent = appstate.scene.value[index.entity];
             if (ent.length > index.primitive)
                 primitive = ent[index.primitive];
+
+            if (primitive.type != Primitives.Sphere)
+                affineTransform = primitive.affineTransform;
         }
 
         return primitive ? (<>
@@ -42,7 +61,10 @@ export function PlantsTable()
                         <li>Relative Resources: {primitive.stats[7]}</li>
                         <li>Relative Production: {primitive.stats[8]}</li></>
                     : <></>}
+                {affineTransform !== undefined ? <li>Position: {affineTransform[3].toFixed(fixedPrecision)}, {affineTransform[7].toFixed(fixedPrecision)}, {affineTransform[11].toFixed(fixedPrecision)}</li> : <></>}
             </ul>
         </>) : (<></>);
     }
+
+    return <></>;
 }

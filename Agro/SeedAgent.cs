@@ -80,7 +80,7 @@ public struct SeedAgent : IAgent
 		{
 			Water = 0f;
 			plant.SeedDeath();
-			Debug.WriteLine($"Seed death: {formationID} at {world.Timestep}");
+			Debug.WriteLine($"Seed death: {formationID} at {world.Timestep} in field {SoilIndex}");
 		}
 		else
 		{

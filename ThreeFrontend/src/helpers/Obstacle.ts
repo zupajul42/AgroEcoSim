@@ -69,9 +69,9 @@ export class Obstacle extends BaseRequestObject
                 this.setupUmbrella();
                 break;
             case "mesh":
-                console.log("Vertices", this.vertices, this.vertices.length % 3, this.vertices.length / 3);
-                console.log("Faces", this.faces, this.faces.length % 3, this.faces.length / 3);
-                console.log("MaxVertex", this.faces.reduce((a,c) => Math.max(a, c), 0));
+                // console.log("Vertices", this.vertices, this.vertices.length % 3, this.vertices.length / 3);
+                // console.log("Faces", this.faces, this.faces.length % 3, this.faces.length / 3);
+                // console.log("MaxVertex", this.faces.reduce((a,c) => Math.max(a, c), 0));
 
                 this.bufferGeometry = new THREE.BufferGeometry();
                 this.bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));

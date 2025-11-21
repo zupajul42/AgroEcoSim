@@ -6,6 +6,10 @@ import { SelectionState, backgroundColor, neutralColor } from "../../helpers/Sel
 const hoverColor = backgroundColor.clone().lerpHSL(neutralColor, 0.25).toArray().map(x => Math.round(255*x));
 const hoverColorStr = `rgb(${hoverColor[0]}, ${hoverColor[1]}, ${hoverColor[2]})`;
 
+function compareSeeds(x: Seed, y: Seed) {
+    return x.fieldIndex.value - y.fieldIndex.value;
+}
+
 export class Seeds extends Component
 {
     color(state: SelectionState) {
@@ -26,7 +30,7 @@ export class Seeds extends Component
             <input type="number" min={0} step={0.01} name={"seeds-optimal-distance"} value={+appstate.seedsOptimalDistance.value.toFixed(3)} onChange={e => appstate.seedsOptimalDistance.value = parseFloat(e.currentTarget.value)}/>
             <button name="seeds-dist" onClick={() => appstate.pushSeedRaster(appstate.seedsOptimalDistance.value)}>Evenly distributed seeds</button>
             <ul class="plants-listing">
-                {appstate.seeds.value.sort((x, y) => { return x.fieldIndex.value - y.fieldIndex.value; }).map((x: Seed, i) => (<li style={{backgroundColor: this.color(x.state.value)}} onMouseEnter={() => appstate.seeds.value[i].hover()} onMouseLeave={() => appstate.seeds.value[i].unhover()}>
+                {appstate.seeds.value.sort(compareSeeds).map((x: Seed, i: number) => (<li style={{backgroundColor: this.color(x.state.value)}} onMouseEnter={() => appstate.seeds.value[i].hover()} onMouseLeave={() => appstate.seeds.value[i].unhover()}>
                     <div>
                         <span>{i}.</span>
                         <label for={`seedpx-${i}`} >Species:</label>

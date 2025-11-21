@@ -15,8 +15,8 @@ public partial class PlantFormation2 : IPlantFormation
 {
 	internal readonly AgroWorld World;
 
-	public Vector3 Position { get; private set; }
-	public int SoilIndex { get; set; }
+	public Vector3 Position { get; private init; }
+	public int SoilIndex { get; private init; }
 	bool ReadTMP = false;
 	internal ISoilFormation Soil;
 	protected SeedAgent[] Seed = new SeedAgent[1]; //must be an array due to messaging compaatibility

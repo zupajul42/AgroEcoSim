@@ -25,9 +25,13 @@ public static class Initialize
 		else
 		{
 			if (settings.FieldModelData?.Faces?.Count > 0)
-				soil = new SoilFormationsList(world, world.HoursPerTick, settings.FieldModelData, 1f, settings.FieldItemRegex, settings.FieldItemRegexMaterial ?? false, world.FieldResolution);
+				soil = new SoilFormationsList(world, settings.FieldModelData, 1f, settings.FieldItemRegex, settings.FieldItemRegexMaterial ?? false, world.FieldResolution);
 			else
-				soil = new SoilFormationRegularVoxels(world, world.HoursPerTick, new Vector3i(world.FieldSize / world.FieldResolution), world.FieldSize);
+			{
+				var cellCounts = new Vector3(world.FieldSize.X, world.FieldSize.Z, world.FieldSize.Y) / world.FieldResolution;
+				var cellCountsInt = new Vector3i((int)Math.Round(cellCounts.X), (int)Math.Round(cellCounts.Y), (int)Math.Round(cellCounts.Z));
+				soil = new SoilFormationRegularVoxels(world, cellCountsInt, world.FieldSize);
+			}
 		}
 
 		world.Add(soil);
@@ -42,7 +46,7 @@ public static class Initialize
 			for (int i = 0; i < plantsCount; ++i)
 			{
 				var minVegTemp = rnd.NextFloat(8f, 10f);
-				var soilIndex = (int)rnd.NextUInt((uint)world.Soil.FieldsCount);
+				var soilIndex = settings.Plants[i].SoilIndex;
 
 				var pos = settings.Plants[i].Position ?? world.Soil.GetRandomSeedPosition(rnd, soilIndex);
 				pos.Y -= soil.GetMetricGroundDepth(pos.X, pos.Z, soilIndex);
