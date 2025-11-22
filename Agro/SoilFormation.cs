@@ -181,7 +181,8 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 
 		WaterCapacityPerCell = CellVolume * 200f * 1000;
 		MinimumWaterToDiffuse = WaterCapacityPerCell * 0.001f;
-		WaterCellsPerStep = WaterTravelDistPerTick() / CellSize.Y;
+		if (world != null)
+			WaterCellsPerStep = WaterTravelDistPerTick() / CellSize.Y;
 
 		WaterTransactions = new List<(int dst, float amount)>[Water.Length];
 		for (int i = 0; i < Water.Length; ++i)
@@ -313,7 +314,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	/// <summary>
 	/// Number of cells water can pass in one time step. Since initial cell saturation is added at computation time, this is stored as a float.
 	/// </summary>
-	readonly float WaterCellsPerStep;
+	float WaterCellsPerStep;
 
 	public void Tick(uint timestep)
 	{
@@ -525,7 +526,12 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		return new(metricSize.X * rnd.NextFloat(), -rnd.NextPositiveFloat(Math.Min(metricSize.Y, 0.04f)), metricSize.Z * rnd.NextFloat());
 	}
 
-	public void SetWorld(AgroWorld world) => World = world;
+	public void SetWorld(AgroWorld world)
+	{
+		World = world;
+		if (World != null)
+			WaterCellsPerStep = WaterTravelDistPerTick() / CellSize.Y;
+	}
 
 	public byte[] Serialize()
 	{
