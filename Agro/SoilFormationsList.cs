@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using M = System.Runtime.CompilerServices.MethodImplAttribute;
 using System.Collections;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace Agro;
 
@@ -150,7 +151,7 @@ public class SoilFormationsList : ISoilFormation
 			var vertex = line.Split(' ').Where(x => x?.Length > 0).ToList();
 			if (vertex.Count != 3)
 				throw new Exception($"Invalid count of vertex coordinates. Expected: 3. Provided: {vertex.Count}.");
-			vertices[i] = new Vector3(float.Parse(vertex[0]), float.Parse(vertex[1]), float.Parse(vertex[2])) * scale;
+			vertices[i] = new Vector3(float.Parse(vertex[0], CultureInfo.InvariantCulture), float.Parse(vertex[1], CultureInfo.InvariantCulture), float.Parse(vertex[2], CultureInfo.InvariantCulture)) * scale;
 		}
 		var regex = soilItemRegex != null ? new Regex(soilItemRegex, RegexOptions.IgnoreCase) : null;
 		var soilFaces = new List<List<int>>();
