@@ -52,5 +52,11 @@ public class SimulationController// : ControllerBase
         });
 
         api.MapPost("/terrain", (ImportedObjData data) => terrainBuffer.Add(data));
+
+        //Returns a listing of all predefined species
+        api.MapGet("/species", () => SpeciesSettings.Predefined);
+
+        //Returns a listing of all predefined behaviors
+        api.MapGet("/behaviors", () => Enum.GetNames<Behavior>());
     }
 }

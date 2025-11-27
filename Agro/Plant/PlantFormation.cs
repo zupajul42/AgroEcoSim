@@ -64,7 +64,7 @@ public partial class PlantFormation2 : IPlantFormation
 	public PlantFormation2(AgroWorld world, SpeciesSettings parameters, ISoilFormation soil, SeedAgent seed, Pcg parentRNG, int hoursPerTick)
 	{
 		World = world;
-		Parameters = parameters ?? SpeciesSettings.Avocado;
+		Parameters = parameters ?? SpeciesSettings.Default;
 		Parameters.Init(hoursPerTick);
 		Soil = soil;
 		Seed[0] = seed;

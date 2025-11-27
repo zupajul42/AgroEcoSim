@@ -44,6 +44,11 @@ public partial struct AboveGroundAgent : IPlantAgent
 	public float Radius { get; private set; }
 
 	/// <summary>
+	/// Length ratio (0..1) where the leaf reaches its maximum radius
+	/// </summary>
+	public float LeafMaxRadiusRatio { get; private set; }
+
+	/// <summary>
 	/// Priority of the branch, depends on banching type e.g. monopodial, GetIrradiance(ag, i) etc.
 	/// </summary>
 	public byte DominanceLevel { get; private set; } = 1;
@@ -157,6 +162,8 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// </summary>
 	public const float InitialRadius = 0.2e-5f;
 
+	public const float InitialMaxRadiusRatio = 0.4f;
+
 	public const float EnergyTransportRatio = 4f;
 	//So far same as for undergrounds
 	public const float WaterTransportRatio = 1.8f;
@@ -240,6 +247,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 		BirthTime = plant.World.Timestep;
 		Parent = parent;
 		Radius = radius;
+		LeafMaxRadiusRatio = InitialMaxRadiusRatio; //TDMI For initial testing, just a constant
 		Length = length;
 		Orientation = orientation;
 

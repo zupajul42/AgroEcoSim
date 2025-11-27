@@ -1,15 +1,20 @@
 import { signal } from "@preact/signals"
 import appstate from "../appstate";
+import { radToDeg } from "three/src/math/MathUtils";
 
 const DegToRad = Math.PI / 180.0;
+const RadToDeg = 180.0 / Math.PI;
+
 export class Species {
     name = signal("Planta Fortuita " + Date.now());
+    aka = signal("");
+    behaviorIndex = signal(0);
 
     //trunkToWood = signal(1);
     height = signal(12);
 
-    nodeDist = signal(0.04);
-    nodeDistVar = signal(0.01);
+    nodeDistance = signal(0.04);
+    nodeDistanceVar = signal(0.01);
 
     //https://sites.google.com/view/plant-diversity/
     monopodialFactor = signal(1); //at 0 it is fully dipodial, between 0 and 1 it is anisotomous see https://sites.google.com/site/paleoplant/terminology/branching
@@ -24,7 +29,7 @@ export class Species {
     twigsBending = signal(0.5);
     apexBending = signal(0.02);
     bendingByLevel = signal(1);
-    shootsGravitaxy = signal(0.2);
+    shootsGravitaxis = signal(0.2);
 
     woodGrowthTime = signal(100);
     woodGrowthTimeVar = signal(10);
@@ -58,10 +63,12 @@ export class Species {
     public save() {
         return {
             name: this.name.peek(),
+            aka: this.aka.peek(),
+            behavior: this.behaviorIndex.peek(),
             height: this.height.peek(),
 
-            nodeDist: this.nodeDist.peek(),
-            nodeDistVar: this.nodeDistVar.peek(),
+            nodeDist: this.nodeDistance.peek(),
+            nodeDistVar: this.nodeDistanceVar.peek(),
 
             monopodialFactor: this.monopodialFactor.peek(),
             dominanceFactor: this.dominanceFactor.peek(),
@@ -70,15 +77,15 @@ export class Species {
             auxinsReach: this.auxinsReach.peek(),
 
             lateralsPerNode: this.lateralsPerNode.peek(),
-            lateralRollDeg: this.lateralRollDeg.peek(),
-            lateralRollDegVar: this.lateralRollDegVar.peek(),
-            lateralPitchDeg: this.lateralPitchDeg.peek(),
-            lateralPitchDegVar: this.lateralPitchDegVar.peek(),
+            lateralRoll: this.lateralRollDeg.peek() * DegToRad,
+            lateralRollVar: this.lateralRollDegVar.peek() * DegToRad,
+            lateralPitch: this.lateralPitchDeg.peek() * DegToRad,
+            lateralPitchVar: this.lateralPitchDegVar.peek() * DegToRad,
 
             twigsBending: this.twigsBending.peek(),
             apexBending: this.apexBending.peek(),
             bendingByLevel: this.bendingByLevel.peek(),
-            shootsGravitaxy: this.shootsGravitaxy.peek(),
+            shootsGravitaxis: this.shootsGravitaxis.peek(),
 
             woodGrowthTime: this.woodGrowthTime.peek(),
             woodGrowthTimeVar: this.woodGrowthTimeVar.peek(),
@@ -90,8 +97,8 @@ export class Species {
             leafRadiusVar: this.leafRadiusVar.peek(),
             leafGrowthTime: this.leafGrowthTime.peek(),
             leafGrowthTimeVar: this.leafGrowthTimeVar.peek(),
-            leafPitchDeg: this.leafPitchDeg.peek(),
-            leafPitchDegVar: this.leafPitchDegVar.peek(),
+            leafPitch: this.leafPitchDeg.peek() * DegToRad,
+            leafPitchVar: this.leafPitchDegVar.peek() * DegToRad,
 
             petioleLength: this.petioleLength.peek(),
             petioleLengthVar: this.petioleLengthVar.peek(),
@@ -105,9 +112,11 @@ export class Species {
 
     public load(s: any) {
         this.name.value = s.name;
+        this.aka.value = s.aka;
+        this.behaviorIndex.value = s.behavior;
         this.height.value = s.height;
-        this.nodeDist.value = s.nodeDist;
-        this.nodeDistVar.value = s.nodeDistVar;
+        this.nodeDistance.value = s.nodeDistance;
+        this.nodeDistanceVar.value = s.nodeDistanceVar;
 
         this.monopodialFactor.value = s.monopodialFactor;
         this.dominanceFactor.value = s.dominanceFactor;
@@ -116,15 +125,15 @@ export class Species {
         this.auxinsReach.value = s.auxinsReach;
 
         this.lateralsPerNode.value = s.lateralsPerNode;
-        this.lateralRollDeg.value = s.lateralRollDeg;
-        this.lateralRollDegVar.value = s.lateralRollDegVar;
-        this.lateralPitchDeg.value = s.lateralPitchDeg;
-        this.lateralPitchDegVar.value = s.lateralPitchDegVar;
+        this.lateralRollDeg.value = s.lateralRoll * RadToDeg;
+        this.lateralRollDegVar.value = s.lateralRollVar * RadToDeg;
+        this.lateralPitchDeg.value = s.lateralPitch * RadToDeg;
+        this.lateralPitchDegVar.value = s.lateralPitchVar * RadToDeg;
 
         this.twigsBending.value = s.twigsBending;
-        this.apexBending.value = s.apexBending;
-        this.bendingByLevel.value = s.bendingByLevel;
-        this.shootsGravitaxy.value = s.shootsGravitaxy;
+        this.apexBending.value = s.twigsBendingApical;
+        this.bendingByLevel.value = s.twigsBendingLevel;
+        this.shootsGravitaxis.value = s.shootsGravitaxis;
 
         this.woodGrowthTime.value = s.woodGrowthTime;
         this.woodGrowthTimeVar.value = s.woodGrowthTimeVar;
@@ -136,64 +145,66 @@ export class Species {
         this.leafRadiusVar.value = s.leafRadiusVar;
         this.leafGrowthTime.value = s.leafGrowthTime;
         this.leafGrowthTimeVar.value = s.leafGrowthTimeVar;
-        this.leafPitchDeg.value = s.leafPitchDeg;
-        this.leafPitchDegVar.value = s.leafPitchDegVar;
+        this.leafPitchDeg.value = s.leafPitch * RadToDeg;
+        this.leafPitchDegVar.value = s.leafPitchVar * RadToDeg;
 
         this.petioleLength.value = s.petioleLength;
         this.petioleLengthVar.value = s.petioleLengthVar;
         this.petioleRadius.value = s.petioleRadius;
         this.petioleRadiusVar.value = s.petioleRadiusVar;
 
-        this.rootsDensity.value = s.rootsDensity;
+        this.rootsDensity.value = s.hasOwnProperty("rootsSparsity") ? (100 - s.rootsSparsity) / 99.999 : s.rootsDensity;
         this.rootsGravitaxis.value = s.rootsGravitaxis;
         return this;
     }
 
     public serialize() {
-        return ({
-            N: this.name.peek(),
+        return {
+            Name: this.name.peek(),
+            Aka: this.aka.peek(),
+            Behavior: this.behaviorIndex.peek(),
 
-            H: this.height.peek(),
-            ND: this.nodeDist.peek(),
-            NDv: this.nodeDistVar.peek(),
+            Height: this.height.peek(),
+            NodeDistance: this.nodeDistance.peek(),
+            NodeDistanceVar: this.nodeDistanceVar.peek(),
 
-            BMF: this.monopodialFactor.peek(),
-            BDF: this.dominanceFactor.peek(),
+            MonopodialFactor: this.monopodialFactor.peek(),
+            DominanceFactor: this.dominanceFactor.peek(),
 
-            AP: this.auxinsProduction.peek(),
-            AR: this.auxinsReach.peek(),
+            AuxinsProduction: this.auxinsProduction.peek(),
+            AusinsReach: this.auxinsReach.peek(),
 
-            BLN: this.lateralsPerNode.peek(),
-            BR: this.lateralRollDeg.peek() * DegToRad,
-            BRv: this.lateralRollDegVar.peek() * DegToRad,
-            BP: this.lateralPitchDeg.peek() * DegToRad,
-            BPv: this.lateralPitchDegVar.peek() * DegToRad,
+            LateralsPerNode: this.lateralsPerNode.peek(),
+            LateralRoll: this.lateralRollDeg.peek() * DegToRad,
+            LateralRollVar: this.lateralRollDegVar.peek() * DegToRad,
+            LateralPitch: this.lateralPitchDeg.peek() * DegToRad,
+            LateralPitchVar: this.lateralPitchDegVar.peek() * DegToRad,
 
-            TB: this.twigsBending.peek(),
-            TBL: this.bendingByLevel.peek(),
-            TBA: 1.0 - this.apexBending.peek(),
-            SG: this.shootsGravitaxy.peek(),
+            TwigsBending: this.twigsBending.peek(),
+            TwigsBendingLevel: this.bendingByLevel.peek(),
+            TwigsBendingApical: 1.0 - this.apexBending.peek(),
+            ShootsGravitaxis: this.shootsGravitaxis.peek(),
 
-            WGT: this.woodGrowthTime.peek() * 24,
-            WGTv: this.woodGrowthTimeVar.peek() * 24,
+            WoodGrowthTime: this.woodGrowthTime.peek() * 24,
+            WoodGrowthTimeVar: this.woodGrowthTimeVar.peek() * 24,
 
-            LV: this.leafLevel.peek(),
-            LL: this.leafLength.peek(),
-            LLv: this.leafLengthVar.peek(),
-            LR: this.leafRadius.peek(),
-            LRv: this.leafRadiusVar.peek(),
-            LGT: this.leafGrowthTime.peek(),
-            LGTv: this.leafGrowthTimeVar.peek(),
-            LP: this.leafPitchDeg.peek() * DegToRad,
-            LPv: this.leafPitchDegVar.peek() * DegToRad,
+            LeafLevel: this.leafLevel.peek(),
+            LeafLength: this.leafLength.peek(),
+            LeafLengthVar: this.leafLengthVar.peek(),
+            LeafRadius: this.leafRadius.peek(),
+            LeafRadiusVar: this.leafRadiusVar.peek(),
+            LeafGrowthTime: this.leafGrowthTime.peek(),
+            LeafGrowthTimeVar: this.leafGrowthTimeVar.peek(),
+            LeafPitch: this.leafPitchDeg.peek() * DegToRad,
+            LeafPitchVar: this.leafPitchDegVar.peek() * DegToRad,
 
-            PL: this.petioleLength.peek(),
-            PLv: this.petioleLengthVar.peek(),
-            PR: this.petioleRadius.peek(),
-            PRv: this.petioleRadiusVar.peek(),
+            PetioleLength: this.petioleLength.peek(),
+            PetioleLengthVar: this.petioleLengthVar.peek(),
+            PetioleRadius: this.petioleRadius.peek(),
+            PetioleRadiusVar: this.petioleRadiusVar.peek(),
 
-            RS: 100 - 99.999 * Math.min(1, Math.max(0, this.rootsDensity.peek())), //roots sparsity
-            RG: this.rootsGravitaxis.peek()
-        });
+            RootsSparsity: 100 - 99.999 * Math.min(1, Math.max(0, this.rootsDensity.peek())), //roots sparsity
+            RootsGravitaxis: this.rootsGravitaxis.peek()
+        };
     }
 }
