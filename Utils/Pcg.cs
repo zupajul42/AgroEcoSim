@@ -471,8 +471,8 @@ public class Pcg
 		_increment = reader.ReadUInt64();
 	}
 
-	[M(AI)]public static float AccumulatedProbability(float singleProbability, int tryouts) => 1f - MathF.Pow(1f - singleProbability, tryouts);
-	[M(AI)]public static uint AccumulatedProbabilityUInt(float singleProbability, int tryouts) => (uint)((1f - MathF.Pow(1f - singleProbability, tryouts)) * uint.MaxValue);
+	[M(AI)]public static float AccumulatedProbability(float singleProbability, int tryouts) => 1f - MathF.Pow(singleProbability > 1f ? 0f : 1f - singleProbability, tryouts);
+	[M(AI)]public static uint AccumulatedProbabilityUInt(float singleProbability, int tryouts) => (uint)((1f - MathF.Pow(singleProbability > 1f ? 0f : 1f - singleProbability, tryouts)) * uint.MaxValue);
 
 	[M(AI)]public bool NextFloatAccum(float singleProbability, int tryouts) => NextFloat() < AccumulatedProbability(singleProbability, tryouts);
 	[M(AI)]public bool NextFloatVarAccum(float variance, float singleProbability, int tryouts) => NextFloatVar(variance) < AccumulatedProbability(singleProbability, tryouts);
