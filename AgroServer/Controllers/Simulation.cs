@@ -6,6 +6,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using AgroServer.Services;
+using System.Diagnostics.CodeAnalysis;
 
 namespace AgroServer.Controllers;
 
@@ -13,6 +14,7 @@ namespace AgroServer.Controllers;
 // [Route("[controller]")]
 public class SimulationController// : ControllerBase
 {
+    [RequiresUnreferencedCode("SimulationController")]
     public static void Map(RouteGroupBuilder api, IConfiguration configuration, ISimulationUploadService uploadService, ITerrainBuffer terrainBuffer)
     {
         api.MapGet("/", () => Results.Ok());
@@ -38,7 +40,10 @@ public class SimulationController// : ControllerBase
             Debug.WriteLine($"RENDER TIME: {world.Irradiance.ElapsedMilliseconds} ms");
 
             if (request?.RequestGeometry ?? false)
-                response.Scene = world.ExportToStream(3);
+            {
+                var exportVersion = (byte)(5 + (request.DownloadRoots ?? false ? 1 : 0));
+                response.Scene = world.ExportToStream(exportVersion);
+            }
 
             response.Renderer = world.RendererName;
 

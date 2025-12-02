@@ -72,8 +72,7 @@ public static class Initialize
 				var seed = new SeedAgent(soilIndex, pos,
 											rnd.NextPositiveFloat(0.02f),
 											new Vector2(minVegTemp, minVegTemp + rnd.NextFloat(8f, 14f)));
-				var species = string.IsNullOrEmpty(settings.Plants[i].SpeciesName) ? null : settings.Species?.FirstOrDefault(x => x.Name == settings.Plants[i].SpeciesName);
-				plantsFormation[i] = new PlantFormation2(world, species ?? SpeciesSettings.Default, soil, seed, rnd, world.HoursPerTick);
+				plantsFormation[i] = new PlantFormation2(world, SpeciesSettings.Default, soil, seed, rnd, world.HoursPerTick);
 			}
 		}
 		world.AddRange(plantsFormation);

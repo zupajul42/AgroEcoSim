@@ -43,30 +43,30 @@ public readonly struct WeatherStats
 
 public class AgroWorld : SimulationWorld
 {
-	public ushort HoursPerTick = 1;
-	public byte TicksPerDay = 24;
+	public readonly ushort HoursPerTick = 1;
+	public readonly byte TicksPerDay = 24;
 	//public const int TotalHours = 24 * 365 * 10;
-	public int TotalHours = 24 * 31 * 12;
+	public readonly int TotalHours = 24 * 31 * 12;
 
-	public byte StatsBlockLength = 24;
+	public readonly byte StatsBlockLength = 24;
 
 	//public static readonly Vector3 FieldSize = new(6f, 4f, 2f);
 	//public const float FieldResolution = 0.1f;
 
 	/// <summary>
-	/// Metric size with X, Y, Depth
+	/// Metric size with X (right), Y (front), Depth (down)
 	/// </summary>
-	public Vector3 FieldSize = new(1f, 1f, 1f); //TODO switch this (breaking change) so that y represents height again
+	public Vector3 FieldSize = new(1f, 1f, 1f);  //TODO switch this (breaking change) so that y represents height again
 	/// <summary>
 	/// Target metric size of a cell (same in all directions)
 	/// </summary>
-	public float FieldResolution = 0.5f;
+	public readonly float FieldResolution = 0.5f;
 
 	public const float Latitude = 48.208333f;
 	public const float Longitude = 16.3725f;
 	public const float Altitude = 188f; //meters above sea level
 
-	public TimeZoneInfo TimeZone = TimeZoneInfo.Local;
+	public readonly TimeZoneInfo TimeZone = TimeZoneInfo.Local;
 
 	public readonly IrradianceClient Irradiance;
 
@@ -82,13 +82,13 @@ public class AgroWorld : SimulationWorld
 		return ticks + (rem == 0 ? 0 : 1);
 	}
 
-	public readonly static DateTime InitialTime = new(2022, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+	public readonly DateTime InitialTime = new(2022, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
 
 	public AgroWorld(SimulationRequest? settings = null) : base()
 	{
 		var ianaTimeZone = TimeZoneLookup.GetTimeZone(Latitude, Longitude).Result;
 		#if WINDOWS
-		TimeZone = TimeZoneInfo.FindSystemTimeZoneById(TZConvert.IanaToWindows(ianaTimeZone));
+		TimeZone = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneConverter.TZConvert.IanaToWindows(ianaTimeZone));
 		#else
 		TimeZone = TimeZoneInfo.FindSystemTimeZoneById(ianaTimeZone);
 		#endif
