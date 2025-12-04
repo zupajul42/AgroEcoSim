@@ -34,12 +34,12 @@ export function Start(props: { inclStats: boolean }) {
             }}/>
             <label for="frameslider">{time()} h ({encodeTime(time())})</label>
         </span>
-        {props.inclStats ? <>
+        {props.inclStats ? <span>
             <div>Seeds: {appstate.seeds.value.length}</div>
             <div>Obstacles: {appstate.obstacles.value.length}</div>
             <div>Objects: {Math.floor(appstate.scene.value.reduce((a,c) => a + c.length, 0) + appstate.playPointer.value * 0.01)}</div>
             <div>Triangles: {Math.floor(appstate.scene.value.reduce((a,c) => a + c.reduce((b,d)=> b + tris[d.type], 0), 0) + appstate.playPointer.value * 0.01)}</div>
             <div>Backend Renderer: {appstate.renderer.value}</div>
-        </> : <></>}
+        </span> : <></>}
     </p>;
 }

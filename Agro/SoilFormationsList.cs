@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using M = System.Runtime.CompilerServices.MethodImplAttribute;
 using System.Collections;
 using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace Agro;
 
@@ -139,7 +140,7 @@ public class SoilFormationsList : ISoilFormation
 	readonly List<SoilFormationRegularVoxels> Items;
 	readonly List<MeshObstacle> Obstacles;
 
-	public SoilFormationsList(AgroWorld world, ushort hoursPerTick, ImportedObjData objData, float scale, string? soilItemRegex, bool regexForMaterials, float fieldResolution)
+	public SoilFormationsList(AgroWorld world, ImportedObjData objData, float scale, string? soilItemRegex, bool regexForMaterials, float fieldResolution)
 	{
 		World = world;
 
@@ -150,7 +151,7 @@ public class SoilFormationsList : ISoilFormation
 			var vertex = line.Split(' ').Where(x => x?.Length > 0).ToList();
 			if (vertex.Count != 3)
 				throw new Exception($"Invalid count of vertex coordinates. Expected: 3. Provided: {vertex.Count}.");
-			vertices[i] = new Vector3(float.Parse(vertex[0]), float.Parse(vertex[1]), float.Parse(vertex[2])) * scale;
+			vertices[i] = new Vector3(float.Parse(vertex[0], CultureInfo.InvariantCulture), float.Parse(vertex[1], CultureInfo.InvariantCulture), float.Parse(vertex[2], CultureInfo.InvariantCulture)) * scale;
 		}
 		var regex = soilItemRegex != null ? new Regex(soilItemRegex, RegexOptions.IgnoreCase) : null;
 		var soilFaces = new List<List<int>>();
@@ -220,8 +221,11 @@ public class SoilFormationsList : ISoilFormation
 					var metricSize = max - min;
 					if (metricSize.X > 0.01f && metricSize.Y > 0.01f && metricSize.Z > 0.01f)
 					{
-						var celularSize = Vector3i.Max(new Vector3i(metricSize / fieldResolution), new Vector3i(1, 1, 1));
-						Items.Add(new(world, hoursPerTick, celularSize, metricSize, min));
+						//var celularSize = Vector3i.Max(new Vector3i(metricSize / fieldResolution), new Vector3i(1, 1, 1));
+						//Items.Add(new(world, celularSize, metricSize, min));
+						var cellCounts = new Vector3(metricSize.X, metricSize.Y, metricSize.Z) / fieldResolution;
+						var cellCountsInt = new Vector3i((int)Math.Round(cellCounts.X), (int)Math.Round(cellCounts.Y), (int)Math.Round(cellCounts.Z));
+						Items.Add(new(world, cellCountsInt, metricSize, min));
 					}
 				}
 			}
@@ -263,7 +267,7 @@ public class SoilFormationsList : ISoilFormation
 
 	public float GetTemperature(int index, int soilIndex) => 20f;
 
-	public float GetWater(int index, int soilIndex) => Items[soilIndex].GetWater(index);
+	public float GetWater_g(int index, int soilIndex) => Items[soilIndex].GetWater_g(index);
 
 	public int IntersectPoint(Vector3 center, int soilIndex) => Items[soilIndex].IntersectPoint(center);
 
@@ -288,9 +292,9 @@ public class SoilFormationsList : ISoilFormation
 			Items[i].ProcessRequests();
 	}
 
-	public void RequestWater(int index, float amount, PlantFormation2 plant, int soilIndex) => Items[soilIndex].RequestWater(index, amount, plant);
+	public void RequestWater(int index, float amount_g, PlantFormation2 plant, int soilIndex) => Items[soilIndex].RequestWater(index, amount_g, plant);
 
-	public void RequestWater(int index, float amount, PlantSubFormation<UnderGroundAgent> plant, int part, int soilIndex) => Items[soilIndex].RequestWater(index, amount, plant, part);
+	public void RequestWater(int index, float amount_g, PlantSubFormation<UnderGroundAgent> plant, int part, int soilIndex) => Items[soilIndex].RequestWater(index, amount_g, plant, part);
 
 	public void Tick(uint timestep)
 	{

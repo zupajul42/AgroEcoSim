@@ -189,9 +189,11 @@ export default function ThreeSceneFn () {
             //raycaster.params.Line = { threshold: 0.04 }
             appstate.grabbed.value?.forEach((x: Seed) => x.move(raycaster));
 
-            const intersections = raycaster.intersectObjects(appstate.objSeeds.children, true);
-            intersections.push(...raycaster.intersectObjects(appstate.objObstacles.children, true));
-            intersections.push(...raycaster.intersectObjects(appstate.objPlants.children, true));
+            const intersections = raycaster.intersectObjects(appstate.showSeeds.peek() ? appstate.objSeeds.children : [], true);
+            if (appstate.showObstacles.peek())
+                intersections.push(...raycaster.intersectObjects(appstate.objObstacles.children, true));
+            const plantObjects = appstate.showLeaves.peek() ? appstate.objPlants.children.filter(x => x.visible) : appstate.objPlants.children;
+            intersections.push(...raycaster.intersectObjects(plantObjects, true));
             intersections.sort((a,b) => a.distance < b.distance ? -1 : (a.distance > b.distance ? 1 : 0));
 
             batch(() => {
@@ -208,6 +210,7 @@ export default function ThreeSceneFn () {
                             case "seed":
                                 seedPick = ref.seed;
                                 pickingLogic(clicks, seedPick, raycaster);
+
                             break;
                             case "obstacle":
                                 obstaclePick = ref.obstacle;
@@ -234,6 +237,13 @@ export default function ThreeSceneFn () {
                     appstate.clearObstacleGrabs(obstaclePick);
                 }
                 appstate.plantPick.value = plantPick;
+                if (!plantPick && seedPick)
+                {
+                    const seedIndex = appstate.seeds.peek().indexOf(seedPick);
+                    appstate.seedPick.value = seedIndex;
+                }
+                else
+                    appstate.seedPick.value = -1;
             });
         }
     };
@@ -300,7 +310,6 @@ export default function ThreeSceneFn () {
     const buildTerrain = () => {
         appstate.objTerrain.clear();
         appstate.objTerrain.userData = {...appstate.objTerrain.userData, ts: appstate.terrainTimestamp.value};
-        debugger;
         if (appstate.terrainList?.length > 0)
         {
             for(let i = 0; i < appstate.terrainList.length; ++i)
@@ -446,6 +455,16 @@ export default function ThreeSceneFn () {
             appstate.needsRender.value = false;
             renderOnce();
         }
+    });
+
+    useSignalEffect(() => {
+        appstate.objObstacles.visible = appstate.showObstacles.value;
+        renderOnce();
+    });
+
+    useSignalEffect(() => {
+        appstate.objSeeds.visible = appstate.showSeeds.value;
+        renderOnce();
     });
 
     const divRef = useRef(null);

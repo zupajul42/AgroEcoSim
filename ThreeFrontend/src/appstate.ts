@@ -186,6 +186,7 @@ class State {
 
     //SPECIES
     species = signal<Species[]>([Species.Default()]);
+    behaviors = signal<string[]>([]);
 
     //INITIAL SCENE SETUP
     seedsPerField = signal(1);
@@ -205,6 +206,7 @@ class State {
     needsRender = signal(false);
     visualMapping = signal(VisualMappingOptions.Natural);
     plantPick = signal("");
+    seedPick = signal(-1);
 
     transformControls: TransformControls | undefined;
     downloadRoots = signal(false);
@@ -212,6 +214,8 @@ class State {
     showLeaves = signal(true);
     showTerrain = signal(true);
     showRoots = signal(true);
+    showObstacles = signal(true);
+    showSeeds = signal(true);
 
     grabbed = computed(() => this.seeds.value.filter((x: Seed) => x.state.value == "grab"));
 
@@ -251,7 +255,7 @@ class State {
         Seed: Math.trunc(this.randomize.peek() ? Math.random() * 4294967295 : this.initNumber.peek()),
         Species: this.species.peek().map(s => s.serialize()),
 
-        Plants: this.seeds.peek().map((p: Seed) => ({ S: p.species.peek(), P: { X: p.px.peek(), Y: p.py.peek(), Z: p.pz.peek() } })),
+        Plants: this.seeds.peek().map((p: Seed) => ({ S: p.species.peek(), P: { X: p.px.peek(), Y: p.py.peek(), Z: p.pz.peek() }, F: p.fieldIndex.peek() })),
         Obstacles: this.obstacles.peek().map((o: Obstacle) => exportObstacle(o)),
         RequestGeometry: true,
         RenderMode: this.renderMode.value,
@@ -348,20 +352,23 @@ class State {
 
     pushSeedRaster = (dist: number) => {
         const result : Seed[] = [];
+        const species = this.species.peek();
         if (this.terrainList?.length > 0)
         {
             for(let i = 0; i < this.terrainList.length; ++i)
             {
                 const terrain = this.terrainList[i];
-                const xCount = Math.max(1, Math.round(terrain.sx() / dist));
-                const zCount = Math.max(1, Math.round(terrain.sz() / dist));
-                const xDist = terrain.sx() / xCount;
-                const zDist = terrain.sz() / zCount;
+                const sx = terrain.sx();
+                const sz = terrain.sz();
+                const xCount = Math.max(1, Math.round(sx / dist));
+                const zCount = Math.max(1, Math.round(sz / dist));
+                const xDist = sx / xCount;
+                const zDist = sz / zCount;
                 const xHalf = xDist * 0.5;
                 const zHalf = zDist * 0.5;
                 for(let x = 0; x < xCount; ++x)
                     for(let z = 0; z < zCount; ++z)
-                        result.push(new Seed(this.species.peek()[Math.floor(Math.random() * this.species.value.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, i));
+                        result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, i));
             }
         }
         else
@@ -374,9 +381,9 @@ class State {
             const zHalf = zDist * 0.5;
             for(let x = 0; x < xCount; ++x)
                 for(let z = 0; z < zCount; ++z)
-                    result.push(new Seed(this.species.peek()[Math.floor(Math.random() * this.species.value.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0));
+                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0));
         }
-        this.seeds.value = [ ...this.seeds.peek(), ...result];
+        this.seeds.value = [ ...this.seeds.value, ...result];
     }
 
     removeSeedAt = (i : number) => {
@@ -627,6 +634,9 @@ const st = new State();
 export default st;
 //now that the singleton is exported push in the default seed
 st.seeds.value = [ new Seed(st.species.peek()[0].name.peek(), st.fieldSizeX.peek() * 0.5, -0.01, st.fieldSizeZ.peek() * 0.5, 0) ];
+fetch(`${location.protocol}//${BackendURI}/Simulation/species`, { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }}).then(response => response.json()).then((list: Species[]) => st.species.value = list.map(x => new Species().load(x)));
+
+fetch(`${location.protocol}//${BackendURI}/Simulation/behaviors`, { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }}).then(response => response.json()).then((list: string[]) => st.behaviors.value = list);
 
 effect(() => {
     if (st.previewRequest.value && hubConnection.state == SignalR.HubConnectionState.Connected) {

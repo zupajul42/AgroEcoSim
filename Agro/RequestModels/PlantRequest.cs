@@ -19,4 +19,6 @@ public class PlantRequest
     [JsonPropertyName("P")]
     public Utils.Json.Vector3XYZ? Position { get; set; }
     //public System.Numerics.Vector3? Position { get; set; }
+    [JsonPropertyName("F")]
+    public int SoilIndex { get; set; }
 }

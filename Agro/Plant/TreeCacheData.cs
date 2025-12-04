@@ -9,8 +9,8 @@ internal class TreeCacheData
 	List<int>[] ChildrenNodes;
 	ushort[] DepthNodes;
 	Vector3[] PointNodes;
-	readonly List<int> Roots = new();
-	readonly List<int> Leaves = new();
+	readonly List<int> Roots = [];
+	readonly List<int> Leaves = [];
 	public float Height { get; private set; }
 
 	ushort MaxDepth = 0;
@@ -18,9 +18,9 @@ internal class TreeCacheData
 	public TreeCacheData()
 	{
 		Count = 0;
-		ChildrenNodes = new List<int>[]{ new(), new() };
-		DepthNodes = new ushort[]{ 0, 0 };
-		PointNodes = new Vector3[] {default, default};
+		ChildrenNodes = [[], []];
+		DepthNodes = [0, 0];
+		PointNodes = [default, default];
 	}
 
 	public void Clear(int newSize)
@@ -32,7 +32,7 @@ internal class TreeCacheData
 			var l = ChildrenNodes.Length;
 			Array.Resize(ref ChildrenNodes, newSize);
 			for(int i = l; i < newSize; ++i)
-				ChildrenNodes[i] = new();
+				ChildrenNodes[i] = [];
 			Array.Resize(ref DepthNodes, newSize);
 			Array.Resize(ref PointNodes, newSize);
 		}

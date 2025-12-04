@@ -23,17 +23,26 @@ export function VisualMapping() {
             <input type="checkbox" name="debugOrientations" title={tooltipDebugOrientations} checked={appstate.debugBoxes} onChange={e => appstate.debugBoxes.value = e.currentTarget.checked }/>
             <label for='debugOrientations' title={tooltipDebugOrientations}>debug orientations</label>
         </div>
+        <h4>Show:</h4>
         <div>
             <input type="checkbox" name="showLeaves" checked={appstate.showLeaves} onChange={e => appstate.showLeaves.value = e.currentTarget.checked }/>
-            <label for='showLeaves'>show leaves</label>
+            <label for='showLeaves'>Leaves</label>
         </div>
         <div>
             <input type="checkbox" name="showTerrain" checked={appstate.showTerrain} onChange={e => appstate.showTerrain.value = e.currentTarget.checked }/>
-            <label for='showTerain'>show terrain</label>
+            <label for='showTerain'>Terrain</label>
         </div>
         <div>
             <input type="checkbox" name="showRoots" checked={appstate.showRoots} onChange={e => appstate.showRoots.value = e.currentTarget.checked }/>
-            <label for='showRoots'>show roots</label>
+            <label for='showRoots'>Roots</label>
+        </div>
+        <div>
+            <input type="checkbox" name="showSeeds" checked={appstate.showSeeds} onChange={e => appstate.showSeeds.value = e.currentTarget.checked }/>
+            <label for='showSeeds'>Seeds</label>
+        </div>
+        <div>
+            <input type="checkbox" name="showObstacles" checked={appstate.showObstacles} onChange={e => appstate.showObstacles.value = e.currentTarget.checked }/>
+            <label for='showObstacles'>Obstacles</label>
         </div>
     </>;
 }

@@ -73,7 +73,7 @@ public class SimulationHub : Hub<IEditorHub>
     {
         if (TerrainBuffer.TryGet(terrainId, out var objData))
         {
-            var terrain = new SoilFormationsList(null, hoursPerTick, objData, 1f, pattern, patternForMaterial, resolution);
+            var terrain = new SoilFormationsList(null, objData, 1f, pattern, patternForMaterial, resolution);
             lock (ClientTerrains)
             {
                 ClientTerrains[Context.ConnectionId] = terrain;

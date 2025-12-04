@@ -1,55 +1,54 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
 using System.Text.Json.Serialization;
-using AgentsSystem;
-using glTFLoader.Schema;
-using NumericHelpers;
-using Utils;
+using Agro.Species;
 
 namespace Agro;
+
+public enum Behavior : byte { Default, Geranium_Sanguineum, Geranium_x_Cantabrigiense, Geranium_Macrorrhizum, Bergenia_Cordifolia }
 
 public class SpeciesSettings
 {
     ///<summary>
     /// Species name
     ///</summary>
-    [JsonPropertyName("N")]
-    public string Name { get; init; }
+    public string Name { get; init; } = "Default";
+
+    /// <summary>
+    /// Colloquial name
+    /// </summary>
+    public string Aka { get; init; }
+
+    /// <summary>
+    /// Growth behavoir of the plant
+    /// </summary>
+    public Behavior Behavior { get; init; } = Behavior.Default;
 
     ///<summary>
     /// Standard height of the plant (in meters)
     ///</summary>
-    [JsonPropertyName("H")]
-    public float Height { get; init; }
+    public float Height { get; init; } = 10f;
 
     ///<summary>
-    /// Standard height of the plant (in meters)
+    /// Standard length of a stem segment (in meters)
     ///</summary>
-    [JsonPropertyName("ND")]
-    public float NodeDistance { get; init; }
+    public float NodeDistance { get; init; } = 0.04f;
 
     ///<summary>
-    /// Variance of the plant height (in meters)
+    /// Variance of the stem segment length (in meters)
     ///</summary>
-    [JsonPropertyName("NDv")]
-    public float NodeDistanceVar { get; init; }
+    public float NodeDistanceVar { get; init; } = 0.01f;
 
     ///<summary>
     /// For monopodial branching select 1, for dichotomous select 0 and for anisotomous select sth. between
     ///</summary>
-    [JsonPropertyName("BMF")]
-    public float MonopodialFactor { get; init; }
+    public float MonopodialFactor { get; init; } = 1;
 
     private float dominanceFactor;
-    public float[] DominanceFactors;
+    public float[] DominanceFactors = [0.7f];
 
     ///<summary>
     /// Dominance factor reduces (or boosts) growth of lateral branches. Multiplies with each recursion level.
     ///</summary>
-    [JsonPropertyName("BDF")]
     public float DominanceFactor { get => dominanceFactor; init {
         dominanceFactor = value;
         const int factors = 16;
@@ -64,177 +63,181 @@ public class SpeciesSettings
     ///<summary>
     /// Number of lateral branches emerging from a node
     ///</summary>
-    [JsonPropertyName("BLN")]
-    public int LateralsPerNode { get; init; }
+    public int LateralsPerNode { get; init; } = 2;
 
     ///<summary>
     /// Angular offset (along growth axis) to the previous node, in radians
     ///</summary>
-    [JsonPropertyName("BR")]
-    public float LateralRoll { get; init; }
+    public float LateralRoll { get; init; } = 0f;
 
     ///<summary>
     /// Variance of the angular offset (along growth axis) to the previous node, in radians
     ///</summary>
-    [JsonPropertyName("BRv")]
-    public float LateralRollVar { get; init; }
+    public float LateralRollVar { get; init; } = MathF.PI * 5f / 180f;
 
     ///<summary>
     /// Angle of the lateral to its parent, in radians
     ///</summary>
-    [JsonPropertyName("BP")]
-    public float LateralPitch { get; init; }
+    public float LateralPitch { get; init; } = MathF.PI * 45f / 180f;
 
     ///<summary>
     /// Variance of the angle of the lateral to its parent, in radians
     ///</summary>
-    [JsonPropertyName("BPv")]
-    public float LateralPitchVar { get; init; }
+    public float LateralPitchVar { get; init; } = MathF.PI * 5f / 180f;
 
 
-    [JsonPropertyName("TB")]
-    public float TwigsBending { get; init; }
-    [JsonPropertyName("TBL")]
-    public float TwigsBendingLevel { get; init; }
-
-    [JsonPropertyName("TBA")]
-    public float TwigsBendingApical { get; set; }
-
-    [JsonPropertyName("SG")]
-    public float ShootsGravitaxis { get; set; }
+    public float TwigsBending { get; init; } = 0.5f;
+    public float TwigsBendingLevel { get; init; } = 1;
+    public float TwigsBendingApical { get; set; } = 0.02f;
+    public float ShootsGravitaxis { get; set; } = 0.2f;
 
     /// <summary>
     /// Standard wood growth time (in hours)
     /// </summary>
-    [JsonPropertyName("WGT")]
-    public float WoodGrowthTime { get; set; }
+    public float WoodGrowthTime { get; set; } = 100f;
     /// <summary>
     /// Variance of the wood growth time (in hours)
     /// </summary>
-    [JsonPropertyName("WGTv")]
-    public float WoodGrowthTimeVar { get; set; }
+    public float WoodGrowthTimeVar { get; set; } = 10f;
 
     ///<summary>
     /// Maximum branch level that supports leaves (here level denotes the max. subtree depth)
     ///</summary>
-    [JsonPropertyName("LV")]
-    public int LeafLevel { get; init; }
+    public int LeafLevel { get; init; } = 2;
 
     ///<summary>
     /// Standard leaf length along its main axis (in meters)
     ///</summary>
-    [JsonPropertyName("LL")]
-    public float LeafLength { get; init; }
+    public float LeafLength { get; init; } = 0.12f;
 
     ///<summary>
     /// Variance of the leaf length along its main axis (in meters)
     ///</summary>
-    [JsonPropertyName("LLv")]
-    public float LeafLengthVar { get; init; }
+    public float LeafLengthVar { get; init; } = 0.02f;
 
     ///<summary>
     /// Standard leaf radius, i.e. the span perpendicular to its main axis (in meters)
     ///</summary>
-    [JsonPropertyName("LR")]
-    public float LeafRadius { get; init; }
+    public float LeafRadius { get; init; } = 0.04f;
 
     ///<summary>
     /// Variance of the leaf radius, i.e. the span perpendicular to its main axis (in meters)
     ///</summary>
-    [JsonPropertyName("LRv")]
-    public float LeafRadiusVar { get; init; }
+    public float LeafRadiusVar { get; init; } = 0.01f;
 
     ///<summary>
     /// Standard growth time of a leaf (in hours)
     ///</summary>
-    [JsonPropertyName("LGT")]
-    public float LeafGrowthTime { get; init; }
+    public float LeafGrowthTime { get; init; } = 480f;
 
     ///<summary>
     /// Variance of the growth time of a leaf (in hours)
     ///</summary>
-    [JsonPropertyName("LGTv")]
-    public float LeafGrowthTimeVar { get; init; }
+    public float LeafGrowthTimeVar { get; init; } = 120f;
 
 
     ///<summary>
     /// Standard leaf pitch angle wrt. to its petiole (in radians)
     ///</summary>
-    [JsonPropertyName("LP")]
-    public float LeafPitch { get; init; }
+    public float LeafPitch { get; init; } = MathF.PI * 20f / 180f;
 
     ///<summary>
     /// Variance of the leaf pitch angle wrt. to its petiole (in radians)
     ///</summary>
-    [JsonPropertyName("LPv")]
-    public float LeafPitchVar { get; init; }
+    public float LeafPitchVar { get; init; } = MathF.PI * 5f / 180f;
 
     ///<summary>
     /// Standard petiole length (in meters)
     ///</summary>
-    [JsonPropertyName("PL")]
-    public float PetioleLength { get; init; }
+    public float PetioleLength { get; init; } = 0.05f;
 
     ///<summary>
     /// Variance of the petiole length (in meters)
     ///</summary>
-    [JsonPropertyName("PLv")]
-    public float PetioleLengthVar { get; init; }
+    public float PetioleLengthVar { get; init; } = 0.01f;
 
     ///<summary>
     /// Standard petiole radius (in meters)
     ///</summary>
-    [JsonPropertyName("PR")]
-    public float PetioleRadius { get; init; }
+    public float PetioleRadius { get; init; } = 0.0025f;
 
     ///<summary>
     /// Variance of the petiole radius (in meters)
     ///</summary>
-    [JsonPropertyName("PRv")]
-    public float PetioleRadiusVar { get; init; }
+    public float PetioleRadiusVar { get; init; } = 0.0005f;
 
     ///<summary>
     /// Density of the roots system (affects branching probabiilty). Valued 1 to 100 (with one being the most dense)
     ///</summary>
-    [JsonPropertyName("RS")]
-    public float RootsSparsity { get; init; }
+    public float RootsSparsity { get; init; } = 0.5f;
 
     ///<summary>
     /// Correction factor to point the roots growth downwards
     ///</summary>
-    [JsonPropertyName("RG")]
-    public float RootsGravitaxis { get; init; }
+    public float RootsGravitaxis { get; init; } = 0.2f;
 
     // public float RootRadiusGrowthPerH { get; init; }
     // public float RootLengthGrowthPerH { get; init; }
 
     //public int FirstFruitHour { get; init; }
 
+    public float AuxinsProduction { get; init; } = 40;
+    public float CytokininsProduction { get; init; } = 40;
 
-    [JsonPropertyName("AP")]
-    public float AuxinsProduction { get; init; }
+    public float AuxinsReach { get; init; } = 1;
 
-    public float CytokininsProduction { get; init; }
-
-    [JsonPropertyName("AR")]
-    public float AuxinsReach { get; init; }
-
-    public float CytokininsReach { get; init; }
+    public float CytokininsReach { get; init; } = 1;
 
     public float AuxinsThreshold => 1f;
 
-    public float DensityDryWood = 700; //in kg/m³
-	public float DensityDryStem = 200; //in kg/m³
+    public float DensityDryWood = 700_000; //in g/m³
+	public float DensityDryStem = 200_000; //in g/m³
 
     public float PetioleCoverThreshold { get; private set; } = float.MaxValue;
 
-    public static SpeciesSettings Avocado;
+
+    #region Leaf Appearance
+    /// <summary>
+    /// Hex string typical color
+    /// </summary>
+    public string LeafColor { get; init; } = "2d5a27";
+
+    /// <summary>
+    /// Radius-Length ratios along the leaf. If null or empty, fallback to the the default quad.
+    /// </summary>
+    /// <remarks>
+    /// Assuming Radius is the half-width of the leaf at x-axis and Length is its y-axis.
+    /// Then every entry means: The leaf reaches x factor of its Radius at y of its length.
+    /// Both x and y are normalized, only values from [0..1] are valid.
+    /// Implicit values: [Petiole_radius, 0]
+    /// </remarks>
+    public Vector2[] LeafShape { get; init; }
+    #endregion
+
+    public static List<SpeciesSettings> Predefined = [];
+
+    // public static SpeciesSettings Geranium_Macrorhizum;
+    // public static SpeciesSettings Geranium_Cantabrigiense;
+    // public static SpeciesSettings Bergonia_Cordifolia;
+
+    public static SpeciesSettings Default => Predefined[0];
 
     static SpeciesSettings()
     {
+        Predefined.Add(new() {
+            Name = "Default",
+            LeafLength = 0.16f,
+            LeafRadius = 0.9f,
+            PetioleLength = 0.7f,
+            PetioleRadius = 0.004f,
+            LeafGrowthTime = 720,
+            Height = 10f,
+        });
+
         //Just gueesing
-        Avocado = new() {
+        Predefined.Add(new() {
             Name = "Persea americana",
+            Aka = "Avocado",
             LeafLength = 0.2f,
             LeafRadius = 0.04f,
             PetioleLength = 0.05f,
@@ -244,7 +247,17 @@ public class SpeciesSettings
             LeafGrowthTime = 720,
             Height = 12f,
             //FirstFruitHour = 113952,
-        };
+        });
+
+        Predefined.Add(Geranium_Macrorrhizum.Init());
+        Predefined.Add(Geranium_x_Cantabrigiense.Init());
+        Predefined.Add(Bergonia_Cordifolia.Init());
+
+        // Campanula;
+        // Heuchera;
+        // Fragaria;
+        // Carex;
+
     }
 
     private bool Initialized = false;

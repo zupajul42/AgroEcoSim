@@ -121,3 +121,17 @@ ul.plants-listing {
 	padding-right: 8px;
 }
 
+.speciesNameInput {
+	min-width: 12em;
+}
+
+.speciesAkaInput {
+	min-width: 8em;
+}
+
+.speciesDetails {
+	margin-top: 1em;
+	overflow-y: auto!important;
+	height: 83vh;
+	padding-right: 1em;
+}

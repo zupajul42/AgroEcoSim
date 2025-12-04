@@ -24,9 +24,9 @@ public interface IPlantAgent : ITreeAgent
 	float Energy { get; }
 
 	/// <summary>
-	/// Water volume in m³
+	/// Water amount in gramms
 	/// </summary>
-	float Water { get; }
+	float Water_g { get; }
 
 	float Auxins { get; }
 	//float Cytokinins { get; }
@@ -40,18 +40,18 @@ public interface IPlantAgent : ITreeAgent
 	/// <summary>
 	/// Production during the previous day, per m² i.e. invariant of size
 	/// </summary>
-	float PreviousDayProductionInv { get; }
+	float PreviousDayProductionInvariant { get; }
 
 	/// <summary>
 	/// Resources allocated during the previous day, per m² i.e. invariant of size
 	/// </summary>
-	float PreviousDayEnvResourcesInv { get; }
+	float PreviousDayEnvResourcesInvariant { get; }
 
 	public float PreviousDayEnvResources { get; }
 
 	float EnergyStorageCapacity();
-	float WaterStorageCapacity();
-	float WaterTotalCapacityPerTick(AgroWorld world);
+	float WaterStorageCapacity_g();
+	float WaterTotalCapacityPerTick_g(AgroWorld world);
 	float EnergyFlowToParentPerTick(AgroWorld world);
 
 	float LifeSupportPerHour();
