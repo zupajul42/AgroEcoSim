@@ -319,7 +319,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 			var waterStorageCapacity = dst[i].WaterStorageCapacity_g();
 			waterCapacity += waterStorageCapacity;
 
-			Gathering[i] = new(lifeSupport, photosynthSupport, energyStorageCapacity, waterStorageCapacity, dst[i].PreviousDayEnvResourcesInvariant / DailyResourceMax, dst[i].PreviousDayProductionInvariant / DailyProductionMax);
+			Gathering[i] = new(lifeSupport, photosynthSupport, energyStorageCapacity, waterStorageCapacity, DailyResourceMax > 0f ? dst[i].PreviousDayEnvResourcesInvariant / DailyResourceMax : 1f, DailyProductionMax > 0f ? dst[i].PreviousDayProductionInvariant / DailyProductionMax : 1f);
 		}
 
 		//this is faster than probing .Contains() for each i
@@ -720,7 +720,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 				Volumes.Add(src[i].Volume());
 			}
 
-			if (DailyResourceMax == float.MinValue) //means that all leaves are in incmplete list
+			if (DailyResourceMax == float.MinValue) //means that all leaves are in incomplete list
 			{
 				DailyResourceMax = 1;
 				DailyProductionMax = 1;
@@ -736,6 +736,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 			}
 
 			Debug.Assert(DailyProductionMax > 0f);
+			Debug.Assert(DailyResourceMax > 0);
 
 			//now bubble up the tree to the root(s) and propagate the maximum
 			while (ReadyNodes0.Count > 0)
@@ -807,6 +808,9 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 				DailyResourceMax = 1;
 				DailyProductionMax = 1;
 			}
+
+			Debug.Assert(DailyProductionMax > 0f);
+			Debug.Assert(DailyResourceMax > 0);
 
 			foreach(var i in NewDayIncomplete)
 				src[i].DailySet(DailyResourceMax, DailyProductionMax, 0f);

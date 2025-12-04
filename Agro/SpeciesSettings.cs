@@ -227,7 +227,7 @@ public class SpeciesSettings
         Predefined.Add(new() {
             Name = "Default",
             LeafLength = 0.16f,
-            LeafRadius = 0.9f,
+            LeafRadius = 0.09f,
             PetioleLength = 0.7f,
             PetioleRadius = 0.004f,
             LeafGrowthTime = 720,
