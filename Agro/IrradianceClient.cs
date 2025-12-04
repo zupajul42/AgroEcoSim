@@ -862,8 +862,8 @@ public class IrradianceClient
 									writer.Write(scale.X); //length
 									writer.Write(scale.Z * 0.5f); //radius
 									writer.WriteM32(z, x, y, center);
-									//writer.Write(Math.Clamp(ug.GetWater(i) / ug.GetWaterStorageCapacity(i), 0, 1));
-									writer.Write(ug.GetWater(i));
+									writer.Write(Math.Clamp(ug.GetWater(i) / ug.GetWaterStorageCapacity(i), 0, 1));
+									//writer.Write(ug.GetWater(i));
 									writer.Write(Math.Clamp(ug.GetEnergy(i) / ug.GetEnergyCapacity(i), 0, 1));
 									writer.Write(Math.Clamp(ug.GetWoodRatio(i), 0, 1));
 									if (extended)

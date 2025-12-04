@@ -126,17 +126,17 @@ public partial class PlantFormation2 : IPlantFormation
 				AG.NewDay(World.Timestep, World.TicksPerDay);
 			}
 
-			var globalUG = UG.Gather();
-			var globalAG = AG.Gather();
+			var ugGathered = UG.Gather();
+			var agGathered = AG.Gather();
 
-			var energy = globalAG.Energy + globalUG.Energy;
-			var water = globalAG.Water + globalUG.Energy;
+			var energy = agGathered.Energy + ugGathered.Energy;
+			var water = agGathered.Water + ugGathered.Energy;
 
-			var energyRequirement = globalAG.EnergyRequirementPerTick + globalUG.EnergyRequirementPerTick;
-			var waterRequirement = globalAG.WaterRequirementPerTick + globalUG.WaterRequirementPerTick;
+			var energyRequirement = agGathered.EnergyRequirementPerTick + ugGathered.EnergyRequirementPerTick;
+			var waterRequirement = agGathered.WaterRequirementPerTick + ugGathered.WaterRequirementPerTick;
 
-			var energyStorage = globalAG.EnergyCapacity + globalUG.EnergyCapacity;
-			var waterStorage = globalAG.WaterCapacity + globalUG.WaterCapacity;
+			var energyStorage = agGathered.EnergyCapacity + ugGathered.EnergyCapacity;
+			var waterStorage = agGathered.WaterCapacity + ugGathered.WaterCapacity;
 
 			var energyEmergencyThrehold = Math.Max(1, 168 / World.HoursPerTick) * energyRequirement / World.HoursPerTick;
 			var energAlertThreshold = Math.Max(energyEmergencyThrehold * 4, 0.01 * energyStorage);
@@ -148,11 +148,11 @@ public partial class PlantFormation2 : IPlantFormation
 			if (energy < energyEmergencyThrehold)
 			{
 				//Debug.WriteLine("E DIST: req!!!");
-				var count = globalAG.Gathering.Count;
+				var count = agGathered.Count;
 				var ordering = new List<(float energyRequired, int index)>(count);
 				int i = 0;
 				for(; i < count; ++i)
-					ordering.Add((globalAG.Gathering[i].ResourcesEfficiency, i));
+					ordering.Add((agGathered[i].ResourcesEfficiency, i));
 				ordering.Sort((x, y) => x.energyRequired.CompareTo(y.energyRequired));
 				var target = energyEmergencyThrehold - energy;
 				i = 0;
@@ -162,36 +162,36 @@ public partial class PlantFormation2 : IPlantFormation
 					var index = ordering[i++].index;
 					if (!removed.Contains(index))
 					{
-						target -= globalAG.Gathering[index].LifesupportEnergy;
+						target -= agGathered[index].LifesupportEnergy;
 						removed.Add(index);
 						var deaths = AG.Death(index);
 						if (deaths != null)
 							foreach(var item in deaths)
 								if (!removed.Contains(item))
 								{
-									target -= globalAG.Gathering[item].LifesupportEnergy;
+									target -= agGathered[item].LifesupportEnergy;
 									removed.Add(item);
 								}
 					}
 				}
 				Debug.Write($"Emergency removal of {removed.Count} plant agents.");
 
-				var weights = globalAG.Weights4EnergyDistributionByRequirement() + globalUG.Weights4EnergyDistributionByRequirement();
+				var weights = agGathered.Weights4EnergyDistributionByRequirement() +ugGathered.Weights4EnergyDistributionByRequirement();
 				var factor = (float)(energy / (weights >= zero ? weights : 1));
-				globalAG.DistributeEnergyByRequirement(factor);
-				globalUG.DistributeEnergyByRequirement(factor);
+				agGathered.DistributeEnergyByRequirement(factor);
+				ugGathered.DistributeEnergyByRequirement(factor);
 			}
 			else if (energy < energAlertThreshold || energyStorage < energyRequirement) //the plant is short on energy, it must be distributed
 			{
 				//Debug.WriteLine("E DIST: req");
 				var min = float.MaxValue;
 				var minList = new List<int>();
-				var count = globalAG.Gathering.Count;
+				var count = agGathered.Count;
 				for(int i = 0; i < count; ++i)
-					switch (globalAG.Gathering[i].ResourcesEfficiency.CompareTo(min))
+					switch (agGathered[i].ResourcesEfficiency.CompareTo(min))
 					{
 						case -1:
-							min = globalAG.Gathering[i].ResourcesEfficiency;
+							min = agGathered[i].ResourcesEfficiency;
 							minList.Clear();
 							minList.Add(i);
 						break;
@@ -201,23 +201,23 @@ public partial class PlantFormation2 : IPlantFormation
 				foreach(var item in minList)
 					AG.Death(item);
 
-				var weights = globalAG.Weights4EnergyDistributionByRequirement() + globalUG.Weights4EnergyDistributionByRequirement();
+				var weights = agGathered.Weights4EnergyDistributionByRequirement() + ugGathered.Weights4EnergyDistributionByRequirement();
 				var factor = (float)(energy / (weights >= zero ? weights : 1));
-				globalAG.DistributeEnergyByRequirement(factor);
-				globalUG.DistributeEnergyByRequirement(factor);
+				agGathered.DistributeEnergyByRequirement(factor);
+				ugGathered.DistributeEnergyByRequirement(factor);
 			}
 			else //there is enough energy
 			{
 				//Debug.WriteLine("E DIST: storage");
 				var energyOverhead = energy - energyRequirement;
-				var weights = globalAG.Weights4EnergyDistributionByStorage() + globalUG.Weights4EnergyDistributionByStorage();
+				var weights = agGathered.Weights4EnergyDistributionByStorage() + ugGathered.Weights4EnergyDistributionByStorage();
 
 				var factor = (float)(energyOverhead / (weights >= zero ? weights : 1));
-				globalAG.DistributeEnergyByStorage(factor);
-				globalUG.DistributeEnergyByStorage(factor);
+				agGathered.DistributeEnergyByStorage(factor);
+				ugGathered.DistributeEnergyByStorage(factor);
 			}
 			#if DEBUG
-			var check = Math.Abs(energy - (globalAG.ReceivedEnergy.Sum() + globalUG.ReceivedEnergy.Sum()));
+			var check = Math.Abs(energy - (agGathered.ReceivedEnergySum() + ugGathered.ReceivedEnergySum()));
 			Debug.Assert(check <= energy * 1e-3);
 			#endif
 
@@ -226,8 +226,8 @@ public partial class PlantFormation2 : IPlantFormation
 				//Debug.WriteLine("W DIST: req");
 				var factor = (float)(water / (waterRequirement >= zero ? waterRequirement : 1));
 
-				globalAG.DistributeWaterByRequirement(factor);
-				globalUG.DistributeWaterByRequirement(factor);
+				agGathered.DistributeWaterByRequirement(factor);
+				ugGathered.DistributeWaterByRequirement(factor);
 			}
 			else
 			{
@@ -236,16 +236,20 @@ public partial class PlantFormation2 : IPlantFormation
 				var waterWeight = waterStorage -  waterRequirement;
 
 				var factor = (float)(waterOverhead / (waterWeight >= zero ? waterWeight : 1));
-				globalAG.DistributeWaterByStorage(factor);
-				globalUG.DistributeWaterByStorage(factor);
+				agGathered.DistributeWaterByStorage(factor);
+				ugGathered.DistributeWaterByStorage(factor);
 			}
 
-			UG.Distribute(globalUG);
-			AG.Distribute(globalAG);
+			UG.Distribute(ugGathered);
+			AG.Distribute(agGathered);
 
 			WaterBalance = waterRequirement > 1e-6 ? (float)(water / waterRequirement) : 1;
-			WaterBalanceUG = WaterBalance * WaterBalance;
+			//WaterBalanceUG = WaterBalance * WaterBalance;
+			//WaterBalanceUG = MathF.Pow(WaterBalance, 4f);
+			WaterBalanceUG = WaterBalance;
 			EnergyBalance = energyRequirement > 1e-6 ? (float)(energy / energyRequirement) : 1;
+
+			Debug.WriteLine($"{timestep}\twater: {WaterBalanceUG}\tenergy: {EnergyBalance}");
 
 			WaterProductionMax = UG.DailyProductionMax;
 			EnergyProductionMax = AG.DailyProductionMax;

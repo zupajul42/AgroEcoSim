@@ -18,9 +18,9 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 	T[] Agents = Array.Empty<T>();
 	T[] AgentsTMP = Array.Empty<T>();
 	readonly PostBox<T> Post = new();
-	readonly List<T> Births = new();
-	readonly HashSet<int> Deaths = new();
-	readonly List<int> DeathsHelper = new();
+	readonly List<T> Births = [];
+	readonly HashSet<int> Deaths = [];
+	readonly List<int> DeathsHelper = [];
 
 	readonly TreeCacheData TreeCache = new();
 
@@ -70,7 +70,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 					{
 						if (Deaths.Add(child))
 						{
-							result ??= new();
+							result ??= [];
 							result.Add(child);
 							buffer.Enqueue(child);
 						}
@@ -268,7 +268,8 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 	}
 
 
-	List<GatherDataBase> Gathering = new();
+    readonly List<GatherDataBase> Gathering = [];
+	public readonly PlantGlobalStats Gathered = new();
 
 	public PlantGlobalStats Gather()
 	{
@@ -294,11 +295,11 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 		{
 			//Debug.WriteLine($"{(IsAboveGround ? "⊤" : "⊥")}-{i} Energy {dst[i].Energy} Water {dst[i].Water} Res {dst[i].PreviousDayEnvResourcesInv} / {DailyResourceMax} Prod {dst[i].PreviousDayProductionInv} / {DailyProductionMax} Life {dst[i].LifeSupportPerTick(world)} wStore {dst[i].WaterStorageCapacity()} wStore {dst[i].EnergyStorageCapacity()}");
 			energy += Math.Max(0f, dst[i].Energy);
-			water += dst[i].Water;
+			water += dst[i].Water_g;
 
 			var previousEnergy = src[i].Energy;
 			energyDiff -= previousEnergy;
-			waterDiff -= src[i].Water;
+			waterDiff -= src[i].Water_g;
 
 			var lifeSupport = dst[i].LifeSupportPerTick(world);
 			energyRequirement += lifeSupport;
@@ -315,10 +316,10 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 			var energyStorageCapacity = dst[i].EnergyStorageCapacity();
 			energyCapacity += energyStorageCapacity;
 
-			var waterStorageCapacity = dst[i].WaterStorageCapacity();
+			var waterStorageCapacity = dst[i].WaterStorageCapacity_g();
 			waterCapacity += waterStorageCapacity;
 
-			Gathering[i] = new(lifeSupport, photosynthSupport, energyStorageCapacity, waterStorageCapacity, dst[i].PreviousDayEnvResourcesInv / DailyResourceMax, dst[i].PreviousDayProductionInv / DailyProductionMax);
+			Gathering[i] = new(lifeSupport, photosynthSupport, energyStorageCapacity, waterStorageCapacity, dst[i].PreviousDayEnvResourcesInvariant / DailyResourceMax, dst[i].PreviousDayProductionInvariant / DailyProductionMax);
 		}
 
 		//this is faster than probing .Contains() for each i
@@ -328,28 +329,30 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 			energyRequirement -= dst[i].LifeSupportPerTick(world);
 			waterRequirement -= dst[i].PhotosynthPerTick(world);
 			energyCapacity -= dst[i].EnergyStorageCapacity();
-			waterCapacity -= dst[i].WaterStorageCapacity();
+			waterCapacity -= dst[i].WaterStorageCapacity_g();
 		}
 
 		energyDiff += energy; //optimal variant of sum(dst[i] - src[i])
 		waterDiff += water;
 
-		return new PlantGlobalStats() {
-			Energy = energy,
-			Water = water,
-			EnergyDiff = energyDiff,
-			WaterDiff = waterDiff,
-			EnergyCapacity = energyCapacity,
-			WaterCapacity = waterCapacity,
-			EnergyRequirementPerTick = energyRequirement,
-			WaterRequirementPerTick = waterRequirement,
-			Gathering = Gathering,
-		};
+		//return new PlantGlobalStats() {
+			Gathered.Energy = energy;
+			Gathered.Water = water;
+			Gathered.EnergyDiff = energyDiff;
+			Gathered.WaterDiff = waterDiff;
+			Gathered.EnergyCapacity = energyCapacity;
+			Gathered.WaterCapacity = waterCapacity;
+			Gathered.EnergyRequirementPerTick = energyRequirement;
+			Gathered.WaterRequirementPerTick = waterRequirement;
+			Gathered.Gathering = Gathering;
+		//};
+
+		return Gathered;
 	}
 
 	//work in progress
-	List<float> Weights = new();
-	List<int> WeightReoslveChildren = new();
+	List<float> Weights = [];
+	List<int> WeightReoslveChildren = [];
 
 	internal void Gravity()
 	{
@@ -550,12 +553,12 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 		: (Agents.Length > index ? Agents[index].EnergyStorageCapacity() : 0f);
 
 	internal float GetWaterStorageCapacity(int index) => ReadTMP
-		? (AgentsTMP.Length > index ? AgentsTMP[index].WaterStorageCapacity() : 0f)
-		: (Agents.Length > index ? Agents[index].WaterStorageCapacity() : 0f);
+		? (AgentsTMP.Length > index ? AgentsTMP[index].WaterStorageCapacity_g() : 0f)
+		: (Agents.Length > index ? Agents[index].WaterStorageCapacity_g() : 0f);
 
 	internal float GetWaterTotalCapacity(AgroWorld world, int index) => ReadTMP
-		? (AgentsTMP.Length > index ? AgentsTMP[index].WaterTotalCapacityPerTick(world) : 0f)
-		: (Agents.Length > index ? Agents[index].WaterTotalCapacityPerTick(world) : 0f);
+		? (AgentsTMP.Length > index ? AgentsTMP[index].WaterTotalCapacityPerTick_g(world) : 0f)
+		: (Agents.Length > index ? Agents[index].WaterTotalCapacityPerTick_g(world) : 0f);
 
 	internal float GetWaterEfficientCapacity(AgroWorld world, int index)
 	{
@@ -563,7 +566,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 		if (AgentsTMP.Length > index)
 		{
 			var agent = src[index];
-			return agent.WaterStorageCapacity() + agent.PhotosynthPerTick(world);
+			return agent.WaterStorageCapacity_g() + agent.PhotosynthPerTick(world);
 		}
 		else
 			return 0f;
@@ -578,8 +581,8 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 		: (Agents.Length > index ? Agents[index].EnergyFlowToParentPerTick(world) : 0f);
 
 	public float GetWater(int index) => ReadTMP
-		? (AgentsTMP.Length > index ? AgentsTMP[index].Water : 0f)
-		: (Agents.Length > index ? Agents[index].Water : 0f);
+		? (AgentsTMP.Length > index ? AgentsTMP[index].Water_g : 0f)
+		: (Agents.Length > index ? Agents[index].Water_g : 0f);
 
 	public float GetBaseRadius(int index) => ReadTMP
 		? (AgentsTMP.Length > index ? AgentsTMP[index].Radius : 0f)
@@ -612,15 +615,15 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 	/// Production during the previous day, per m² i.e. invariant of size
 	/// </summary>
 	public float GetDailyProductionInv(int index) => ReadTMP
-		? (AgentsTMP.Length > index ? AgentsTMP[index].PreviousDayProductionInv : 0f)
-		: (Agents.Length > index ? Agents[index].PreviousDayProductionInv : 0f);
+		? (AgentsTMP.Length > index ? AgentsTMP[index].PreviousDayProductionInvariant : 0f)
+		: (Agents.Length > index ? Agents[index].PreviousDayProductionInvariant : 0f);
 
 	/// <summary>
 	/// Resources allocated during the previous day, per m² i.e. invariant of size
 	/// </summary>
 	public float GetDailyResourcesInv(int index) => ReadTMP
-		? (AgentsTMP.Length > index ? AgentsTMP[index].PreviousDayEnvResourcesInv : 0f)
-		: (Agents.Length > index ? Agents[index].PreviousDayEnvResourcesInv : 0f);
+		? (AgentsTMP.Length > index ? AgentsTMP[index].PreviousDayEnvResourcesInvariant : 0f)
+		: (Agents.Length > index ? Agents[index].PreviousDayEnvResourcesInvariant : 0f);
 
 	public float GetDailyEfficiency(int index) => ReadTMP
 		? (AgentsTMP.Length > index ? AgentsTMP[index].PreviousDayEnvResources : 0f)
@@ -646,7 +649,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 		else
 		{
 			var woodRatio = src[index].WoodRatio();
-			return (woodRatio * species.DensityDryWood + (1f - woodRatio * species.DensityDryStem)) * 1e3f * src[index].Volume() + src[index].Water;
+			return (woodRatio * species.DensityDryWood + ((1f - woodRatio) * species.DensityDryStem)) * src[index].Volume() + src[index].Water_g;
 		}
 	}
 
@@ -662,12 +665,12 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 	//THERE ARE NO WRITE METHODS ALLOWED except for these via messages.
 	#endregion
 
-	List<byte> ChildrenToWaitFor = new();
-	List<uint> LeavesCount = new();
-	List<float> Volumes = new();
-	List<float> Resources = new();
-	List<int> ReadyNodes0 = new(), ReadyNodes1 = new();
-	List<int> NewDayIncomplete = new();
+	readonly List<byte> ChildrenToWaitFor = [];
+	readonly List<uint> LeavesCount = [];
+	readonly List<float> Volumes = [];
+	readonly List<float> Resources = [];
+	List<int> ReadyNodes0 = [], ReadyNodes1 = [];
+	readonly List<int> NewDayIncomplete = [];
 	public void NewDay(uint timestep, byte ticksPerDay)
 	{
 		var src = Src();
@@ -693,8 +696,8 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 				{
 					if (complete)
 					{
-						if (DailyResourceMax < src[i].PreviousDayEnvResourcesInv) DailyResourceMax = src[i].PreviousDayEnvResourcesInv;
-						if (DailyProductionMax < src[i].PreviousDayProductionInv) DailyProductionMax = src[i].PreviousDayProductionInv;
+						if (DailyResourceMax < src[i].PreviousDayEnvResourcesInvariant) DailyResourceMax = src[i].PreviousDayEnvResourcesInvariant;
+						if (DailyProductionMax < src[i].PreviousDayProductionInvariant) DailyProductionMax = src[i].PreviousDayProductionInvariant;
 					}
 					else
 						NewDayIncomplete.Add(i);
@@ -747,7 +750,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 						//src[parent].DailyMax(src[i].PreviousDayEnvResourcesInv, src[i].PreviousDayProductionInv);
 						if (lc > 0)
 						{
-							src[parent].DailyAdd(src[i].PreviousDayEnvResourcesInv, src[i].PreviousDayProductionInv);
+							src[parent].DailyAdd(src[i].PreviousDayEnvResourcesInvariant, src[i].PreviousDayProductionInvariant);
 							LeavesCount[parent] += LeavesCount[i];
 							Resources[parent] += Resources[i];
 						}
@@ -769,7 +772,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 				if (src[i].Organ == OrganTypes.Bud)
 				{
 					var parent = src[i].Parent;
-					src[i].DailySet(src[parent].PreviousDayEnvResourcesInv, src[parent].PreviousDayProductionInv, Resources[parent] * rcpScale / Volumes[parent]);
+					src[i].DailySet(src[parent].PreviousDayEnvResourcesInvariant, src[parent].PreviousDayProductionInvariant, Resources[parent] * rcpScale / Volumes[parent]);
 					//src[i].DailySet(Resources[parent], Volumes[parent]);
 				}
 				else
@@ -781,9 +784,9 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 
 					if (LeavesCount[i] > 1)
 						//src[i].DailyDiv(LeavesCount[i]);
-						src[i].DailySet(src[i].PreviousDayEnvResourcesInv / LeavesCount[i], src[i].PreviousDayProductionInv / LeavesCount[i], efficiency);
+						src[i].DailySet(src[i].PreviousDayEnvResourcesInvariant / LeavesCount[i], src[i].PreviousDayProductionInvariant / LeavesCount[i], efficiency);
 					else
-						src[i].DailySet(src[i].PreviousDayEnvResourcesInv, src[i].PreviousDayProductionInv, efficiency);
+						src[i].DailySet(src[i].PreviousDayEnvResourcesInvariant, src[i].PreviousDayProductionInvariant, efficiency);
 				}
 		}
 		else
@@ -792,8 +795,8 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 			{
 				if (src[i].NewDay(timestep, ticksPerDay))
 				{
-					if (DailyResourceMax < src[i].PreviousDayEnvResourcesInv) DailyResourceMax = src[i].PreviousDayEnvResourcesInv;
-					if (DailyProductionMax < src[i].PreviousDayProductionInv) DailyProductionMax = src[i].PreviousDayProductionInv;
+					if (DailyResourceMax < src[i].PreviousDayEnvResourcesInvariant) DailyResourceMax = src[i].PreviousDayEnvResourcesInvariant;
+					if (DailyProductionMax < src[i].PreviousDayProductionInvariant) DailyProductionMax = src[i].PreviousDayProductionInvariant;
 				}
 				else
 					NewDayIncomplete.Add(i);
@@ -825,8 +828,8 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 
 		for(int i = 0; i < src.Length; ++i)
 		{
-			if (DailyResourceMax < src[i].PreviousDayEnvResourcesInv) DailyResourceMax = src[i].PreviousDayEnvResourcesInv;
-			if (DailyProductionMax < src[i].PreviousDayProductionInv) DailyProductionMax = src[i].PreviousDayProductionInv;
+			if (DailyResourceMax < src[i].PreviousDayEnvResourcesInvariant) DailyResourceMax = src[i].PreviousDayEnvResourcesInvariant;
+			if (DailyProductionMax < src[i].PreviousDayProductionInvariant) DailyProductionMax = src[i].PreviousDayProductionInvariant;
 		}
 
 		// switch (Efficiencies.Count.CompareTo(src.Length))

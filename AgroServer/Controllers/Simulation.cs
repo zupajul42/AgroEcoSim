@@ -1,17 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
 using AgroServer.Models;
 using Agro;
 using System.Diagnostics;
-using System;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using AgroServer.Services;
 using System.Diagnostics.CodeAnalysis;
 
 namespace AgroServer.Controllers;
 
-// [ApiController]
-// [Route("[controller]")]
 public class SimulationController// : ControllerBase
 {
     [RequiresUnreferencedCode("SimulationController")]

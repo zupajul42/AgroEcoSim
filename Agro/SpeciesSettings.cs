@@ -190,8 +190,8 @@ public class SpeciesSettings
 
     public float AuxinsThreshold => 1f;
 
-    public float DensityDryWood = 700; //in kg/m³
-	public float DensityDryStem = 200; //in kg/m³
+    public float DensityDryWood = 700_000; //in g/m³
+	public float DensityDryStem = 200_000; //in g/m³
 
     public float PetioleCoverThreshold { get; private set; } = float.MaxValue;
 

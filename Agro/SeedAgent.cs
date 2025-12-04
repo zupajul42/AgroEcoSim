@@ -18,13 +18,13 @@ public struct SeedAgent : IAgent
 	public readonly struct WaterInc : IMessage<SeedAgent>
 	{
 		/// <summary>
-		/// Water volume in m³
+		/// Water volume in gramm
 		/// </summary>
-		public readonly float Amount;
-		public WaterInc(float amount) => Amount = amount;
-		public bool Valid => Amount > 0f;
+		public readonly float Amount_g;
+		public WaterInc(float amount_g) => Amount_g = amount_g;
+		public bool Valid => Amount_g > 0f;
 		public Transaction Type => Transaction.Increase;
-        public void Receive(ref SeedAgent dstAgent, uint timestep) => dstAgent.IncWater(Amount);
+        public void Receive(ref SeedAgent dstAgent, uint timestep) => dstAgent.IncWater(Amount_g);
     }
 
 	const float Pi4 = MathF.PI * 4f;
@@ -40,9 +40,9 @@ public struct SeedAgent : IAgent
 	/// </summary>
 	public float Radius { get; private set; }
 	/// <summary>
-	/// Amount of energy currrently stored
+	/// Amount of water currrently stored (in gramms)
 	/// </summary>
-	public float Water { get; private set; }
+	public float Water_g { get; private set; }
 
 	readonly Vector2 mVegetativeTemperature;
 
@@ -54,7 +54,7 @@ public struct SeedAgent : IAgent
 	/// <summary>
 	/// Ratio ∈ [0, 1] of the required energy to start growing roots and stems
 	/// </summary>
-	public readonly float GerminationProgress => Water / GerminationThreshold;
+	public readonly float GerminationProgress => Water_g / GerminationThreshold;
 	public readonly int SoilIndex;
 
 	public SeedAgent(int soilIndex, Vector3 center, float radius, Vector2 vegetativeTemperature, float energy = -1f)
@@ -63,11 +63,11 @@ public struct SeedAgent : IAgent
 		Center = center;
 		Radius = radius;
 		if (energy < 0f)
-			Water = radius * radius * radius * 100f;
+			Water_g = radius * radius * radius * 100f;
 		else
-			Water = energy;
+			Water_g = energy;
 
-		GerminationThreshold = Water * 500f + 100f * radius;
+		GerminationThreshold = Water_g * 500f + 100f * radius;
 		mVegetativeTemperature = vegetativeTemperature;
 	}
 
@@ -75,31 +75,31 @@ public struct SeedAgent : IAgent
 	{
 		var plant = (PlantFormation2)_formation;
 		var world = plant.World;
-		Water -= Radius * Radius * Radius * world.HoursPerTick; //life support
-		if (Water <= 0) //energy depleted
+		Water_g -= Radius * Radius * Radius * world.HoursPerTick; //life support
+		if (Water_g <= 0) //energy depleted
 		{
-			Water = 0f;
+			Water_g = 0f;
 			plant.SeedDeath();
 			Debug.WriteLine($"Seed death: {formationID} at {world.Timestep} in field {SoilIndex}");
 		}
 		else
 		{
-			if (Water >= GerminationThreshold) //GERMINATION
+			if (Water_g >= GerminationThreshold) //GERMINATION
 			{
 				Debug.WriteLine($"GERMINATION at {timestep}");
 				var initialYawAngle = plant.RNG.NextFloat(-MathF.PI, MathF.PI);
 				var initialYaw = Quaternion.CreateFromAxisAngle(Vector3.UnitY, initialYawAngle);
-				plant.UG.Birth(new UnderGroundAgent(plant, timestep, -1, initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.5f * MathF.PI), Water * 0.4f, initialResources: 1f, initialProduction: 1f));
+				plant.UG.Birth(new UnderGroundAgent(plant, timestep, -1, initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.5f * MathF.PI), Water_g * 0.4f, initialResources: 1f, initialProduction: 1f));
 
 				var baseStemOrientation = initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.5f * MathF.PI);
-				var meristem = new AboveGroundAgent(plant, -1, OrganTypes.Meristem, baseStemOrientation, Water * 0.4f, initialResources: 1f, initialProduction: 1f);
+				var meristem = new AboveGroundAgent(plant, -1, OrganTypes.Meristem, baseStemOrientation, Water_g * 0.4f, initialResources: 1f, initialProduction: 1f);
 				var meristemIndex = plant.AG.Birth(meristem); //base stem
 
 				if (plant.Parameters.LateralsPerNode > 0)
 					AboveGroundAgent.CreateFirstLeaves(meristem, plant, 0, meristemIndex);
 
 				plant.SeedDeath();
-				Water = 0f;
+				Water_g = 0f;
 			}
 			else
 			{
@@ -109,19 +109,19 @@ public struct SeedAgent : IAgent
 				if (source >= 0) //TODO this is a rough approximation taking only the first intersected soil cell
 				{
 					var soilTemperature = soil.GetTemperature(source, SoilIndex);
-					var waterRequest = 0f;
-					for (int i = 0; i < world.HoursPerTick; ++i)
+					var waterRequest_g = 0f;
+					//for (int i = 0; i < world.HoursPerTick; ++i)
 					{
-						var amount = Pi4 * Radius * Radius; //sphere surface is 4πr²
+						var amount_g = Pi4 * Radius * Radius * 1e5f * world.HoursPerTick; //sphere surface is 4πr² square meters, 1e5 tansofmrs m² to gramms
 						if (soilTemperature > mVegetativeTemperature.X)
 						{
 							if (soilTemperature < mVegetativeTemperature.Y)
-								amount *= (soilTemperature - mVegetativeTemperature.X) / (mVegetativeTemperature.Y - mVegetativeTemperature.X);
+								amount_g *= (soilTemperature - mVegetativeTemperature.X) / (mVegetativeTemperature.Y - mVegetativeTemperature.X);
 
-							waterRequest += amount;
+							waterRequest_g += amount_g;
 						}
 					}
-					soil.RequestWater(source, waterRequest, plant, SoilIndex);
+					soil.RequestWater(source, waterRequest_g, plant, SoilIndex);
 				}
 			}
 		}
@@ -130,7 +130,7 @@ public struct SeedAgent : IAgent
 	void IncWater(float amount)
 	{
 		Debug.Assert(amount >= 0f);
-		Water += amount * 0.7f; //store most of the energy, 0.2f are losses
+		Water_g += amount;
 		Radius = MathF.Pow(Radius * Radius * Radius + amount * PiV, Third); //use the rest for growth
 	}
 }

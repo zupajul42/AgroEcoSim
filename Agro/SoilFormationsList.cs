@@ -267,7 +267,7 @@ public class SoilFormationsList : ISoilFormation
 
 	public float GetTemperature(int index, int soilIndex) => 20f;
 
-	public float GetWater(int index, int soilIndex) => Items[soilIndex].GetWater(index);
+	public float GetWater_g(int index, int soilIndex) => Items[soilIndex].GetWater_g(index);
 
 	public int IntersectPoint(Vector3 center, int soilIndex) => Items[soilIndex].IntersectPoint(center);
 
@@ -292,9 +292,9 @@ public class SoilFormationsList : ISoilFormation
 			Items[i].ProcessRequests();
 	}
 
-	public void RequestWater(int index, float amount, PlantFormation2 plant, int soilIndex) => Items[soilIndex].RequestWater(index, amount, plant);
+	public void RequestWater(int index, float amount_g, PlantFormation2 plant, int soilIndex) => Items[soilIndex].RequestWater(index, amount_g, plant);
 
-	public void RequestWater(int index, float amount, PlantSubFormation<UnderGroundAgent> plant, int part, int soilIndex) => Items[soilIndex].RequestWater(index, amount, plant, part);
+	public void RequestWater(int index, float amount_g, PlantSubFormation<UnderGroundAgent> plant, int part, int soilIndex) => Items[soilIndex].RequestWater(index, amount_g, plant, part);
 
 	public void Tick(uint timestep)
 	{
