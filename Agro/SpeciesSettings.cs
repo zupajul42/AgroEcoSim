@@ -8,6 +8,7 @@ public enum Behavior : byte { Default, Geranium_Sanguineum, Geranium_x_Cantabrig
 
 public class SpeciesSettings
 {
+    const float DegToRad = MathF.PI / 180f;
     ///<summary>
     /// Species name
     ///</summary>
@@ -73,17 +74,17 @@ public class SpeciesSettings
     ///<summary>
     /// Variance of the angular offset (along growth axis) to the previous node, in radians
     ///</summary>
-    public float LateralRollVar { get; init; } = MathF.PI * 5f / 180f;
+    public float LateralRollVar { get; init; } = 5f * DegToRad;
 
     ///<summary>
     /// Angle of the lateral to its parent, in radians
     ///</summary>
-    public float LateralPitch { get; init; } = MathF.PI * 45f / 180f;
+    public float LateralPitch { get; init; } = 45f * DegToRad;
 
     ///<summary>
     /// Variance of the angle of the lateral to its parent, in radians
     ///</summary>
-    public float LateralPitchVar { get; init; } = MathF.PI * 5f / 180f;
+    public float LateralPitchVar { get; init; } = 5f * DegToRad;
 
 
     public float TwigsBending { get; init; } = 0.5f;
@@ -139,17 +140,17 @@ public class SpeciesSettings
     ///<summary>
     /// Standard leaf pitch angle wrt. to its petiole (in radians)
     ///</summary>
-    public float LeafPitch { get; init; } = MathF.PI * 20f / 180f;
+    public float LeafPitch { get; init; } = 20f * DegToRad;
 
     ///<summary>
     /// Variance of the leaf pitch angle wrt. to its petiole (in radians)
     ///</summary>
-    public float LeafPitchVar { get; init; } = MathF.PI * 5f / 180f;
+    public float LeafPitchVar { get; init; } = 5f * DegToRad;
 
     ///<summary>
     /// Standard petiole length (in meters)
     ///</summary>
-    public float PetioleLength { get; init; } = 0.05f;
+    public float PetioleLength { get; init; } = 0.04f;
 
     ///<summary>
     /// Variance of the petiole length (in meters)
@@ -167,9 +168,9 @@ public class SpeciesSettings
     public float PetioleRadiusVar { get; init; } = 0.0005f;
 
     ///<summary>
-    /// Density of the roots system (affects branching probabiilty). Valued 1 to 100 (with one being the most dense)
+    /// Density of the roots system (affects branching probabiilty). Valued 0 to 1 (with one being the most dense)
     ///</summary>
-    public float RootsSparsity { get; init; } = 0.5f;
+    public float RootsDensity { get; init; } = 0.5f;
 
     ///<summary>
     /// Correction factor to point the roots growth downwards
@@ -224,15 +225,7 @@ public class SpeciesSettings
 
     static SpeciesSettings()
     {
-        Predefined.Add(new() {
-            Name = "Default",
-            LeafLength = 0.16f,
-            LeafRadius = 0.09f,
-            PetioleLength = 0.7f,
-            PetioleRadius = 0.004f,
-            LeafGrowthTime = 720,
-            Height = 10f,
-        });
+        Predefined.Add(new());
 
         //Just gueesing
         Predefined.Add(new() {

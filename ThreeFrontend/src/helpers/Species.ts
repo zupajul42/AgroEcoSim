@@ -153,7 +153,7 @@ export class Species {
         this.petioleRadius.value = s.petioleRadius;
         this.petioleRadiusVar.value = s.petioleRadiusVar;
 
-        this.rootsDensity.value = s.hasOwnProperty("rootsSparsity") ? (100 - s.rootsSparsity) / 99.999 : s.rootsDensity;
+        this.rootsDensity.value = s.rootsDensity;
         this.rootsGravitaxis.value = s.rootsGravitaxis;
         return this;
     }
