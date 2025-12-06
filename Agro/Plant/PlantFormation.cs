@@ -34,6 +34,7 @@ public partial class PlantFormation2 : IPlantFormation
 	internal readonly Vector2 VegetativeLowTemperature = new(10, 15);
 	internal readonly Vector2 VegetativeHighTemperature = new(35, 40);
 
+	internal float WaterBalancePrev = 0f;
 	/// <summary>
 	/// The ratio of available water to the required water. If > 1, there is more production than need.
 	/// </summary>
@@ -246,10 +247,18 @@ public partial class PlantFormation2 : IPlantFormation
 			WaterBalance = waterRequirement > 1e-6 ? (float)(water / waterRequirement) : 1;
 			//WaterBalanceUG = WaterBalance * WaterBalance;
 			//WaterBalanceUG = MathF.Pow(WaterBalance, 4f);
-			WaterBalanceUG = WaterBalance;
-			EnergyBalance = energyRequirement > 1e-6 ? (float)(energy / energyRequirement) : 1;
+			if (WaterBalance < WaterBalancePrev && WaterBalance < 1f / (1.00001f - Parameters.RootsDensity)) //The constant actually steers the roots sparsity, maybe take over from the species parameter
+			{
+ 				var trend = WaterBalancePrev / WaterBalance;
+				WaterBalanceUG = Math.Min(trend, WaterBalance);
+			}
+			else
+				WaterBalanceUG = WaterBalance;
 
-			Debug.WriteLine($"{timestep}\twater: {WaterBalanceUG}\tenergy: {EnergyBalance}");
+			WaterBalancePrev = WaterBalance;
+
+			EnergyBalance = energyRequirement > 1e-6 ? (float)(energy / energyRequirement) : 1;
+			Debug.WriteLine($"{timestep}\twater: {WaterBalance}\tP_roots: {1f / WaterBalanceUG}\tenergy: {EnergyBalance}");
 
 			WaterProductionMax = UG.DailyProductionMax;
 			EnergyProductionMax = AG.DailyProductionMax;

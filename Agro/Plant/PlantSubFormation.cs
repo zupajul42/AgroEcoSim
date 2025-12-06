@@ -809,8 +809,9 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 				DailyProductionMax = 1;
 			}
 
-			Debug.Assert(DailyProductionMax > 0f);
-			Debug.Assert(DailyResourceMax > 0);
+			//This happens during a dry period
+			// Debug.Assert(DailyProductionMax > 0f);
+			// Debug.Assert(DailyResourceMax > 0);
 
 			foreach(var i in NewDayIncomplete)
 				src[i].DailySet(DailyResourceMax, DailyProductionMax, 0f);

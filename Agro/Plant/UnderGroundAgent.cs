@@ -136,17 +136,17 @@ public struct UnderGroundAgent : IPlantAgent
 	public const float GrowthDeclineByExpChildren = 5;
 
 	/// <summary>
-	/// Water volume in g that can be absorbed per m² of root surface per hour
+	/// Water amount in g that can be absorbed per m² of root surface per hour
 	/// </summary>
-	public const float WaterAbsortionRatio_g_per_h_m2 = 500f * 1e6f;
+	public const float WaterAbsortionRatio_g_per_h_m2 = 1500f * 1e6f;
 
 	/// <summary>
-	/// Water volume in g which can be absorbed from soil per hour
+	/// Water amount in g which can be absorbed from soil per hour
 	/// </summary>
 	[M(AI)]public readonly float WaterAbsorbtionPerHour_g() => Surface() * WaterAbsortionRatio_g_per_h_m2;
 
 	/// <summary>
-	/// Water volume in g which can be absorbed from soil per timestep
+	/// Water amount in g which can be absorbed from soil per timestep
 	/// </summary>
 	[M(AI)]public readonly float WaterAbsorbtionPerTick_g(AgroWorld world) => WaterAbsorbtionPerHour_g() * world.HoursPerTick;
 
@@ -156,7 +156,7 @@ public struct UnderGroundAgent : IPlantAgent
 	public const float WaterTransportDistance = 1.8f;
 
 	/// <summary>
-	/// Water volume in g which can be passed to the parent per hour
+	/// Water amount in g which can be passed to the parent per hour
 	/// </summary>
 	[M(AI)]public readonly float WaterFlowToParentPerHour_g() => 4f * Radius * Radius * WaterTransportDistance * (2f - mWaterAbsorbtionFactor) * 1e6f;
 
@@ -284,6 +284,7 @@ public struct UnderGroundAgent : IPlantAgent
 		var children = formation.GetChildren(formationID);
 		//Debug.WriteLine($"{timestep} / {formationID}  W {Water} E {Energy} L {Length} R {Radius}");
 		//var waterFactor = Math.Clamp(Water / WaterStorageCapacity(), 0f, 1f);
+		var resourcesAvailability = PreviousDayEnvResourcesInvariant / formation.DailyResourceMax;
 		///////////////////////////
 		#region Growth
 		///////////////////////////
@@ -293,7 +294,7 @@ public struct UnderGroundAgent : IPlantAgent
 			//TDMI 2023-03-07 Incorporate water capacity factor
 			if (formation.DailyProductionMax > 0)
 			{
-				var growthBase = PreviousDayProductionInvariant / formation.DailyProductionMax;
+				var growthBase = (PreviousDayProductionInvariant / formation.DailyProductionMax + resourcesAvailability) * 0.5f;
 				var radiusChildGrowth = childrenCount <= 1 ? 1 : MathF.Pow(childrenCount, GrowthDeclineByExpChildren / 2);
 				var (radiusGrowthBase, lengthGrowthBase) = (1e-5f * growthBase, 2e-4f * growthBase);
 				var newWaterAbsorbtion = mWaterAbsorbtionFactor;
@@ -338,7 +339,7 @@ public struct UnderGroundAgent : IPlantAgent
 				//Debug.WriteLine($"{plant.WaterBalance * species.RootsSparsity * MathF.Pow(childrenCount, childrenCount << 2) / (world.HoursPerTick * PreviousDayProductionInv)} = {plant.WaterBalance} * {species.RootsSparsity} * {MathF.Pow(childrenCount, childrenCount << 2)} / ({world.HoursPerTick * PreviousDayProductionInv})");
 				//Debug.WriteLine($"{PreviousDayEnvResourcesInv} {PreviousDayProductionInv}");
 				//Debug.WriteLine($"{PreviousDayProductionInv} / ({plant.WaterBalanceUG} * {species.RootsSparsity} * {BranchingByChildren[children.Count]}) = {PreviousDayProductionInv / (plant.WaterBalance * plant.WaterBalance * species.RootsSparsity * BranchingByChildren[children.Count])} -> {Utils.Pcg.AccumulatedProbability(PreviousDayProductionInv / (plant.WaterBalance * species.RootsSparsity * BranchingByChildren[childrenCount]), world.HoursPerTick)}");
-				if (plant.RNG.NextFloatAccum(1.0f / (plant.WaterBalanceUG * species.RootsSparsity * BranchingByChildren[childrenCount]), world.HoursPerTick))
+				if (plant.RNG.NextFloatAccum(resourcesAvailability * (100f * species.RootsDensity) / (plant.WaterBalanceUG * BranchingByChildren[childrenCount]), world.HoursPerTick))
 				{
 					var energy = EnergyCapacityFunc(InitialRadius, InitialLength);
 					formation.Birth(new(plant, timestep, formationID, RandomOrientation(plant, species, Orientation), energy, initialResources: PreviousDayEnvResourcesInvariant, initialProduction: PreviousDayProductionInvariant));
