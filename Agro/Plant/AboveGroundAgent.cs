@@ -545,7 +545,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 						Radius += growth;
 					}
 					break;
-				};
+				}
 
 				//TDMI maybe do it even if no growth
 				if (Organ == OrganTypes.Stem || Organ == OrganTypes.Meristem)
