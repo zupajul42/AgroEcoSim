@@ -52,9 +52,9 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	readonly ushort[] GroundLevels;
 
 	/// <summary>
-    /// Precomputed coefficiens for vertical diffusion
+    /// Precomputed coefficiens for vertical diffusion: [diffusionDepth][realDepth][cefficients]
     /// </summary>
-	float[][] DiffusionCoefs;
+	float[][][] DiffusionCoefs;
 
 	/// <summary>
 	/// Cells count in all directions (x, depth, z)
@@ -414,9 +414,9 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		{
 			//simple scaling of what portion of water can reach what depth
 			var length = Math.Min(cellsPerStep, groundLevel - currentDepth);
-			
+
 			var resolved = 0f;
-			var coefs = DiffusionCoefs[cellsPerStep];
+			var coefs = DiffusionCoefs[cellsPerStep][length];
 			for (int h = 0; h < length; ++h)
 			{
 				var target = srcIdx - h - 1;
@@ -437,7 +437,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 					}
 				}
 			}
-			
+
 			Water_g[srcIdx] -= resolved;
 			Debug.Assert(Water_g[srcIdx] >= 0f);
 		}
@@ -515,7 +515,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 				}
 			}
 		}
-		
+
 		RequestsPresent.Clear();
 	}
 
@@ -541,28 +541,53 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
         for (int i = 0; i < GroundLevels.Length; ++i)
             if (GroundLevels[i] > maxGroundLevel) maxGroundLevel = GroundLevels[i];
 
-        DiffusionCoefs = new float[maxGroundLevel][];
-        DiffusionCoefs[0] = [];
-        DiffusionCoefs[1] = [1f];
+        DiffusionCoefs = new float[maxGroundLevel][][];
+        DiffusionCoefs[0] = [[]];
+        DiffusionCoefs[1] = [[], [1f]];
 
-        for (int i = 2; i < maxGroundLevel; ++i)
-        {
-            var dc = new float[i];
-            DiffusionCoefs[i] = dc;
+        for (int targetTravel = 2; targetTravel < maxGroundLevel; ++targetTravel)
+		{
+			DiffusionCoefs[targetTravel] = new float[targetTravel + 1][];
+			DiffusionCoefs[targetTravel][0] = [];
+			DiffusionCoefs[targetTravel][1] = [1f];
+			for (int allowedTravel = 2; allowedTravel <= targetTravel; ++allowedTravel)
+			{
+				var dc = new float[allowedTravel];
+				DiffusionCoefs[targetTravel][allowedTravel] = dc;
 
-            dc[0] = 0.5f;
-            var sum = 0.5f;
-            for (int j = 1; j < i; ++j)
-            {
-                var factor = dc[j - 1] * 0.5f;
-                dc[j] = factor;
-                sum += factor;
-            }
-            for (int j = 0; j < i; ++j)
-                dc[j] /= sum;
-        }
-        
+				var factor = 0.5f;
+				dc[0] = factor;
+				var sum = factor;
+				for (int j = 1; j < dc.Length; ++j)
+				{
+					factor *= 0.5f;
+					dc[j] = factor;
+					sum += factor;
+				}
+
+				if (targetTravel > allowedTravel)
+				{
+					var rest = 0f;
+					for (int j = allowedTravel; j < targetTravel; ++j)
+					{
+						factor *= 0.5f;
+						rest += factor;
+					}
+					sum += rest;
+
+					//now assign the rest proportionally - the most to the deepest cell and the least to the top one
+					var restWeightSum = 0.5f * allowedTravel * (allowedTravel + 1); // sum of 1 .. allowedTravel
+					rest /= restWeightSum;
+					for(int j = allowedTravel - 1; j >= 0; --j)
+						dc[j] += rest * (j + 1);
+				}
+
+				for (int j = 0; j < dc.Length; ++j)
+					dc[j] /= sum;
+			}
+		}
         //in case the ground was hit earlier distribute the rest among the cells
+
     }
 
     public byte[] Serialize()
