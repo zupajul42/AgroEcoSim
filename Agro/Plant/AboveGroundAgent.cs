@@ -492,7 +492,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 						if (currentSize.X < sizeLimit.X && currentSize.Y < sizeLimit.Y)
 						{
 							//HoursPerTick are included in GrowthTimeVar
-							var growth = Math.Min(1f, plant.WaterBalance) * sizeLimit * GrowthTimeVar * (PreviousDayProductionInvariant / formation.DailyProductionMax);
+							var growth = formation.DailyProductionMax > 1e-6f ? Math.Min(1f, plant.WaterBalance) * sizeLimit * GrowthTimeVar * (PreviousDayProductionInvariant / formation.DailyProductionMax) : Vector2.Zero;
 							var resultingSize = Vector2.Min(currentSize + growth, sizeLimit);
 							growth = resultingSize - currentSize;
 							Length += growth.X;
@@ -506,7 +506,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 						if (currentSize.X < sizeLimit.X && currentSize.Y < sizeLimit.Y)
 						{
 							//HoursPerTick are included in GrowthTimeVar
-							var growth = Math.Min(1f, plant.WaterBalance) * sizeLimit * GrowthTimeVar * (PreviousDayProductionInvariant / formation.DailyProductionMax);
+							var growth = formation.DailyProductionMax > 1e-6f ? Math.Min(1f, plant.WaterBalance) * sizeLimit * GrowthTimeVar * (PreviousDayProductionInvariant / formation.DailyProductionMax) : Vector2.Zero;
 							var resultingSize = Vector2.Min(currentSize + growth, sizeLimit);
 							growth = resultingSize - currentSize;
 
@@ -523,7 +523,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 					{
 						var energyReserve = Math.Clamp(Energy / EnergyStorageCapacity(), 0f, 1f);
 						var waterReserve = Math.Min(1f, plant.WaterBalance);
-						var growth = new Vector2(1e-3f, 2e-5f) * (dominanceFactor * energyReserve * waterReserve * world.HoursPerTick * (PreviousDayProductionInvariant / formation.DailyProductionMax));
+						var growth = formation.DailyProductionMax > 1e-6f ? new Vector2(1e-3f, 2e-5f) * (dominanceFactor * energyReserve * waterReserve * world.HoursPerTick * (PreviousDayProductionInvariant / formation.DailyProductionMax)) : Vector2.Zero;
 
 						//assure not to outgrow the parent
 						var parentRadius = Parent >= 0 ? formation.GetBaseRadius(Parent) : float.MaxValue;
