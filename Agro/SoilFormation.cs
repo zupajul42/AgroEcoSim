@@ -371,13 +371,14 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		//3. Soak the water from bottom to the top
 		for (int d = MaxLevel - 1; d > 0; --d)
 		{
+			int c = 0;
 			for (int z = 0; z < Size.Z; ++z) //should be in this order to keep adjacency
 				for (int x = 0; x < Size.X; ++x)
 				{
-					var depth = GroundLevel(x, z);
+					var depth = GroundLevels[c]; //GroundLevel(x, z);
 					if (d < depth)
 					{
-						var srcIdx = Index(x, d, z);
+						var srcIdx = GroundAddr[c] - depth; //Index(x, d, z);
 						Debug.Assert(Coords(srcIdx).Y == d);
 						var distribute = Water_g[srcIdx] * evaporizationSoilFactorPerStep;
 
