@@ -378,7 +378,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 					var depth = GroundLevels[c]; //GroundLevel(x, z);
 					if (d < depth)
 					{
-						var srcIdx = GroundAddr[c] - depth; //Index(x, d, z);
+						var srcIdx = GroundAddr[c] - d; //Index(x, d, z);
 						Debug.Assert(Coords(srcIdx).Y == d);
 						var distribute = Water_g[srcIdx] * evaporizationSoilFactorPerStep;
 
