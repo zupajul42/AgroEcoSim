@@ -254,14 +254,19 @@ public class SoilFormationsList : ISoilFormation
 		}
 	}
 
-	public bool HasUndeliveredPost => false;
+	public bool HasUndeliveredPost { get; private set; } = false;
 
 	public int Count => Items.Sum(x => x.Count);
 	public int FieldsCount => Items.Count;
 
 	public void Census() { }
 
-	public void DeliverPost(uint timestep) { }
+	public void DeliverPost(uint timestep)
+	{
+		for (int i = 0; i < Items.Count; ++i)
+			Items[i].DeliverPost(timestep);
+		HasUndeliveredPost = false;
+	}
 
 	public float GetMetricGroundDepth(float x, float z, int soilIndex) => Items.Count < soilIndex && soilIndex >= 0 ? Items[soilIndex].GetMetricGroundDepth(x, z) : 0f;
 
@@ -300,6 +305,8 @@ public class SoilFormationsList : ISoilFormation
 	{
 		for (int i = 0; i < Items.Count; ++i)
 			Items[i].Tick(timestep);
+
+		HasUndeliveredPost = true;
 	}
 
 	public Vector3 GetRandomSeedPosition(Pcg rnd, int soilIndex) => Items[soilIndex].GetRandomSeedPosition(rnd);

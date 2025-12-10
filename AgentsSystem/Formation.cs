@@ -101,7 +101,7 @@ public abstract class Formation<T> : IFormation where T : struct, IAgent
 	/// <summary>
 	/// Broadcast messaging
 	/// </summary>
-	public void Send(IMessage<T> msg) => Postbox.Add(new (msg));
+	public void Send(IMessage<T> msg) { lock(Postbox) Postbox.Add(new (msg)); }
 
 	/// <summary>
 	/// Private targeted messaging
@@ -110,7 +110,7 @@ public abstract class Formation<T> : IFormation where T : struct, IAgent
 	{
 		if (recipient < Agents.Length)
 		{
-			Postbox.Add(new (msg, recipient));
+			lock(Postbox) Postbox.Add(new (msg, recipient));
 			return true;
 		}
 		else

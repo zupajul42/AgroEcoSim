@@ -1,7 +1,7 @@
 {
   "HoursPerTick": 4,
-  //"TotalHours": 1440,
-  "TotalHours": 180,
+  "TotalHours": 1440,
+  //"TotalHours": 180,
   "FieldResolution": 0.05,
   "FieldSize": {
     "X": 10,

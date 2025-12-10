@@ -405,7 +405,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 				GravityDiffusion(srcIdx, distribute, GroundLevels[i], 0);
 		}
 
-		ProcessRequests();
+		HasUndeliveredPost = true; //enforcing ProcessRequests() this way, since it must wait until all other agents have made requests, it needs to be part of the post delivery
 	}
 
 	private void GravityDiffusion(int srcIdx, float distribute, ushort groundLevel, int currentDepth)
@@ -446,8 +446,13 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 
 	[M(AI)] void IFormation.Census() { }
 
-	[M(AI)] void IFormation.DeliverPost(uint timestep) { }
-	bool IFormation.HasUndeliveredPost => false;
+	[M(AI)] public void DeliverPost(uint timestep)
+    {
+		ProcessRequests();
+		HasUndeliveredPost = false;
+    }
+
+	public bool HasUndeliveredPost { get; private set; } = false;
 	///<summary>
 	///Number of agents in this formation
 	///</summary>
@@ -456,7 +461,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	[M(AI)]
 	public void RequestWater(int index, float amount_g, PlantSubFormation<UnderGroundAgent> plant, int part, int soilIndex = 0)
 	{
-		if (Water_g[index] > 0)
+		lock(RequestsPresent) if (Water_g[index] > 0)
 		{
 			RequestsPresent.Add(index);
 			WaterRequests[index].Add((plant.Plant, part, amount_g));
@@ -466,7 +471,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	[M(AI)]
 	public void RequestWater(int index, float amount_g, PlantFormation2 plant, int soilIndex = 0)
 	{
-		if (Water_g[index] > 0)
+		lock(RequestsPresent) if (Water_g[index] > 0)
 		{
 			RequestsPresent.Add(index);
 			WaterRequests[index].Add((plant, -1, amount_g));
@@ -477,43 +482,32 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	{
 		foreach(var i in RequestsPresent)
 		{
+			var reqs = WaterRequests[i];
+			var limit = reqs.Count;
 			var sum = 0f;
-			{
-				var reqs = WaterRequests[i];
-				var limit = reqs.Count;
-				for (int j = 0; j < limit; ++j)
-					sum += reqs[j].Amount_g;
-			}
+			for (int j = 0; j < limit; ++j)
+				sum += reqs[j].Amount_g;
 
 			if (sum > 0)
 			{
 				if (sum <= Water_g[i])
 				{
-					{
-						var reqs = WaterRequests[i];
-						var limit = reqs.Count;
-						for (int j = 0; j < limit; ++j)
-							if (reqs[j].Part < 0)
-								reqs[j].Plant.Send(0, new SeedAgent.WaterInc(reqs[j].Amount_g));
-							else
-								reqs[j].Plant?.UG?.SendProtected(reqs[j].Part, new UnderGroundAgent.WaterInc(reqs[j].Amount_g));
-						reqs.Clear();
-					}
+					for (int j = 0; j < limit; ++j)
+						if (reqs[j].Part < 0)
+							reqs[j].Plant.Send(0, new SeedAgent.WaterInc(reqs[j].Amount_g));
+						else
+							reqs[j].Plant?.UG?.SendProtected(reqs[j].Part, new UnderGroundAgent.WaterInc(reqs[j].Amount_g));
 				}
 				else
 				{
 					var factor = Water_g[i] / sum; //reduce all constributions so that the sum is exactly Water_g and not more
-					{
-						var reqs = WaterRequests[i];
-						var limit = reqs.Count;
-						for (int j = 0; j < limit; ++j)
-							if (reqs[j].Part < 0)
-								reqs[j].Plant.Send(0, new SeedAgent.WaterInc(reqs[j].Amount_g * factor));
-							else
-								reqs[j].Plant?.UG?.SendProtected(reqs[j].Part, new UnderGroundAgent.WaterInc(reqs[j].Amount_g));
-						reqs.Clear();
-					}
+					for (int j = 0; j < limit; ++j)
+						if (reqs[j].Part < 0)
+							reqs[j].Plant.Send(0, new SeedAgent.WaterInc(reqs[j].Amount_g * factor));
+						else
+							reqs[j].Plant?.UG?.SendProtected(reqs[j].Part, new UnderGroundAgent.WaterInc(reqs[j].Amount_g * factor));
 				}
+				reqs.Clear();
 			}
 		}
 
@@ -542,11 +536,11 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
         for (int i = 0; i < GroundLevels.Length; ++i)
             if (GroundLevels[i] > maxGroundLevel) maxGroundLevel = GroundLevels[i];
 
-        DiffusionCoefs = new float[maxGroundLevel][][];
+        DiffusionCoefs = new float[maxGroundLevel + 1][][];
         DiffusionCoefs[0] = [[]];
         DiffusionCoefs[1] = [[], [1f]];
 
-        for (int targetTravel = 2; targetTravel < maxGroundLevel; ++targetTravel)
+        for (int targetTravel = 2; targetTravel <= maxGroundLevel; ++targetTravel)
 		{
 			DiffusionCoefs[targetTravel] = new float[targetTravel + 1][];
 			DiffusionCoefs[targetTravel][0] = [];

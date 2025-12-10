@@ -87,20 +87,20 @@ public partial class PlantFormation2 : IPlantFormation
 	{
 		if (Seed.Length > 0 && Seed.Length > recipient)
 		{
-			PostboxSeed.Add(new (msg, recipient));
+			lock(PostboxSeed) PostboxSeed.Add(new (msg, recipient));
 			return true;
 		}
 		else
 			return false;
 	}
 
-	public bool Send(int recipient, IMessage<UnderGroundAgent> msg) => UG.SendProtected(recipient, msg);
-	public bool Send(int recipient, IMessage<AboveGroundAgent> msg) => AG.SendProtected(recipient, msg);
+	// public bool Send(int recipient, IMessage<UnderGroundAgent> msg) => UG.SendProtected(recipient, msg);
+	// public bool Send(int recipient, IMessage<AboveGroundAgent> msg) => AG.SendProtected(recipient, msg);
 
 	public void SeedDeath()
 	{
 		DeathSeed = true;
-		Seed = Array.Empty<SeedAgent>();
+		Seed = [];
 
 		//initial setup of default efficiencies
 		//Do not call this.Census() as it would also start the gathering phase
@@ -315,16 +315,17 @@ public partial class PlantFormation2 : IPlantFormation
 		}
 		else
 		{
-			for(int i = World.HoursPerTick - 1; i >= 0; --i)
-			{
-				UG.Tick(timestep);
-				if (i > 0) //attention the loop decrements so this will not run for the last item
-				{
-					Soil.ProcessRequests();
-					UG.DeliverPost(timestep);
-					UG.Census();
-				}
-			}
+			UG.Tick(timestep);
+			// for(int i = World.HoursPerTick - 1; i >= 0; --i)
+			// {
+			// 	UG.Tick(timestep);
+			// 	if (i > 0) //attention the loop decrements so this will not run for the last item
+			// 	{
+			// 		Soil.ProcessRequests();
+			// 		UG.DeliverPost(timestep);
+			// 		UG.Census();
+			// 	}
+			// }
 
 			AG.Tick(timestep);
 			AG.Hormones(true);
