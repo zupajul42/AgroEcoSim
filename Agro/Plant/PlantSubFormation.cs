@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 
 namespace Agro;
 
-public interface IPlantSubFormation : IFormation
+public interface IPlantSubFormation<T> : IFormation where T: struct, IPlantAgent
 {
 	bool Alive { get; }
 	Vector3 Size { get; }
@@ -17,9 +17,10 @@ public interface IPlantSubFormation : IFormation
 	void NewDay(uint timestep, byte ticksPerDay);
 	void Distribute(PlantGlobalStats stats);
 	PlantGlobalStats Gather();
+	bool SendProtected(int part, IMessage<T> msg) ;
 }
 
-public partial class PlantSubFormation<T> : IPlantSubFormation where T: struct, IPlantAgent
+public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struct, IPlantAgent
 {
 	readonly Action<T[], int[]> Reindex;
 	public Vector3 Size => throw new NotImplementedException();

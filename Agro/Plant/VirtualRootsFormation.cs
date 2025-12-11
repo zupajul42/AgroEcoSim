@@ -5,7 +5,7 @@ using M = System.Runtime.CompilerServices.MethodImplAttribute;
 
 namespace Agro;
 
-public class VirtualRootsFormation : IPlantSubFormation
+public class VirtualRootsFormation : IPlantSubFormation<UnderGroundAgent>
 {
     const MethodImplOptions AI = MethodImplOptions.AggressiveInlining;
     //Roots volume centered at [0.5, 1, 0.5] in local coordinates
@@ -165,6 +165,11 @@ public class VirtualRootsFormation : IPlantSubFormation
     }
 
     public PlantGlobalStats Gather()
+    {
+        throw new NotImplementedException();
+    }
+
+    public bool SendProtected(int part, IMessage<UnderGroundAgent> msg)
     {
         throw new NotImplementedException();
     }

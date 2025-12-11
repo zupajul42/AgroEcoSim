@@ -25,7 +25,7 @@ public partial class PlantFormation2 : IPlantFormation
 	bool DeathSeed = false;
 
 	//public readonly PlantSubFormation<UnderGroundAgent> UG;
-	public readonly IPlantSubFormation UG;
+	public readonly IPlantSubFormation<UnderGroundAgent> UG;
 	public readonly PlantSubFormation<AboveGroundAgent> AG;
 
 	//public readonly List<Quaternion> SegmentOrientations;
