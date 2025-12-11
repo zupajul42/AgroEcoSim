@@ -9,20 +9,20 @@
     -->
 <!--#if (RhinoVersion == '6')-->
 <!--#if (UseWpf)-->
-    <TargetFrameworks>net7.0-windows;net48;net45</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows</TargetFrameworks>
 <!--#elif (UseWindowsDesktop)-->
-    <TargetFrameworks>net7.0-windows;net7.0;net48;net45</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;net8.0</TargetFrameworks>
 <!--#else-->
-    <TargetFrameworks>net7.0;net48;net45</TargetFrameworks>
+    <TargetFrameworks>net8.0</TargetFrameworks>
 <!--#endif-->
 <!--#endif-->
 <!--#if (RhinoVersion >= '7')-->
 <!--#if (UseWpf)-->
-    <TargetFrameworks>net7.0-windows;net48</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;</TargetFrameworks>
 <!--#elif (UseWindowsDesktop)-->
-    <TargetFrameworks>net7.0-windows;net7.0;net48</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows;net8.0</TargetFrameworks>
 <!--#else-->
-    <TargetFrameworks>net7.0;net48</TargetFrameworks>
+    <TargetFrameworks>net8.0</TargetFrameworks>
 <!--#endif-->
 <!--#endif-->
     <EnableDynamicLoading>true</EnableDynamicLoading>
@@ -41,6 +41,8 @@
     <Title>GreenFDT</Title>
     <Company>GreenFDT Authors</Company>
     <Description>Plant growth simulation</Description>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

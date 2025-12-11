@@ -1,6 +1,7 @@
 using Rhino.Geometry;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
+using System.Collections.Generic;
 
 namespace GreenFDT;
 public class GH_Plant
@@ -8,10 +9,18 @@ public class GH_Plant
     public string Name { get; set; }
     public List<Box> Boxes { get; set; }
 
-    public BoxGroup(string name, IEnumerable<Box> boxes)
+    public GH_Plant(string name, IEnumerable<Box> boxes)
     {
         Name = name;
-        Boxes = new List<Box>(boxes);
+        if (boxes is List<Box> bxs)
+            Boxes = bxs;
+        else
+            Boxes = new (boxes);
+    }
+
+    public GH_Plant(PlantFormation2 src)
+    {
+
     }
 
     public override string ToString()
