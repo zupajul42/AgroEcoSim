@@ -35,6 +35,11 @@ public class SimulationRequest
     ///<example>42</example>
     public ulong? Seed { get; init; }
 
+    /// <summary>
+    /// Date to start the simulation
+    /// </summary>
+    public DateTime? InitialDate { get; init; }
+
     ///<summary>
     ///A list of seeds to be planted (default: a single centered plant)
     ///</summary>

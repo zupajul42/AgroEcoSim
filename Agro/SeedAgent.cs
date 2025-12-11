@@ -89,7 +89,7 @@ public struct SeedAgent : IAgent
 				Debug.WriteLine($"GERMINATION at {timestep}");
 				var initialYawAngle = plant.RNG.NextFloat(-MathF.PI, MathF.PI);
 				var initialYaw = Quaternion.CreateFromAxisAngle(Vector3.UnitY, initialYawAngle);
-				plant.UG.Birth(new UnderGroundAgent(plant, timestep, -1, initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.5f * MathF.PI), Water_g * 0.4f, initialResources: 1f, initialProduction: 1f));
+				plant.UGBirth(new UnderGroundAgent(plant, timestep, -1, initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.5f * MathF.PI), Water_g * 0.4f, initialResources: 1f, initialProduction: 1f));
 
 				var baseStemOrientation = initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.5f * MathF.PI);
 				var meristem = new AboveGroundAgent(plant, -1, OrganTypes.Meristem, baseStemOrientation, Water_g * 0.4f, initialResources: 1f, initialProduction: 1f);

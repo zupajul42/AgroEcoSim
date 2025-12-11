@@ -120,6 +120,8 @@ public struct UnderGroundAgent : IPlantAgent
 	#region Constants and computed data
 	///////////////////////////
 
+	public const float CubicMetersToGrammsOfWater = 1e6f;
+
 	/// <summary>
 	/// Recommended initial length of the agent at birth in m.
 	/// </summary>
@@ -138,7 +140,7 @@ public struct UnderGroundAgent : IPlantAgent
 	/// <summary>
 	/// Water amount in g that can be absorbed per m² of root surface per hour
 	/// </summary>
-	public const float WaterAbsortionRatio_g_per_h_m2 = 1500f * 1e6f;
+	public const float WaterAbsortionRatio_g_per_h_m2 = 1500f * UnderGroundAgent.CubicMetersToGrammsOfWater;
 
 	/// <summary>
 	/// Water amount in g which can be absorbed from soil per hour
@@ -158,7 +160,7 @@ public struct UnderGroundAgent : IPlantAgent
 	/// <summary>
 	/// Water amount in g which can be passed to the parent per hour
 	/// </summary>
-	[M(AI)]public readonly float WaterFlowToParentPerHour_g() => 4f * Radius * Radius * WaterTransportDistance * (2f - mWaterAbsorbtionFactor) * 1e6f;
+	[M(AI)]public readonly float WaterFlowToParentPerHour_g() => 4f * Radius * Radius * WaterTransportDistance * (2f - mWaterAbsorbtionFactor) * CubicMetersToGrammsOfWater;
 
 	/// <summary>
 	/// Water volume in g which can be passed to the parent per timestep
@@ -174,17 +176,17 @@ public struct UnderGroundAgent : IPlantAgent
 	/// <summary>
 	/// Volume ratio ∈ [0, 1] of the agent that can used for storing water
 	/// </summary>
-	const float WaterCapacityRatio = 0.75f;
+	internal const float WaterCapacityRatio = 0.75f;
 
 	/// <summary>
 	/// Water volume in gramms which can be stored in this agent
 	/// </summary>
-	[M(AI)]public readonly float WaterStorageCapacity_g() => Volume() * WaterCapacityRatio * 1e6f;
+	[M(AI)]public readonly float WaterStorageCapacity_g() => Volume() * WaterCapacityRatio * CubicMetersToGrammsOfWater;
 
 	/// <summary>
 	/// Water volume in g which can flow through per hour, or can be stored in this agent
 	/// </summary>
-	[M(AI)]public readonly float WaterTotalCapacityPerHour_g() => 4f * Radius * Radius * (Length * WaterCapacityRatio + WaterTransportDistance) * 16f;
+	[M(AI)]public readonly float WaterTotalCapacityPerHour_g() => 4f * Radius * Radius * (Length * WaterCapacityRatio + WaterTransportDistance) * CubicMetersToGrammsOfWater;
 
 	/// <summary>
 	/// Water volume in g which can flow through per tick, or can be stored in this agent
@@ -203,7 +205,8 @@ public struct UnderGroundAgent : IPlantAgent
 
 	public readonly float EnergyStorageCapacity() => EnergyCapacityFunc(Radius, Length);
 
-    [M(AI)]public readonly float LifeSupportPerHour() => 0.01f * Volume() * mWaterAbsorbtionFactor;
+    internal const float LifeSupportFactor = 0.01f;
+	[M(AI)]public readonly float LifeSupportPerHour() => LifeSupportFactor * Volume() * mWaterAbsorbtionFactor;
 
 	[M(AI)]public readonly float LifeSupportPerTick(AgroWorld world) => LifeSupportPerHour() * world.HoursPerTick;
 
@@ -332,14 +335,14 @@ public struct UnderGroundAgent : IPlantAgent
 			}
 
 			//Branching
-			if (children.Count != 0 && children.Count <= 8 && Radius > 1e-3f)
+			if (childrenCount > 0 && childrenCount < 8 && Radius > 1e-3f)
 			{
 				// const float yFactor = 0.5f;
 				// const float zFactor = 0.2f;
 				//Debug.WriteLine($"{plant.WaterBalance * species.RootsSparsity * MathF.Pow(childrenCount, childrenCount << 2) / (world.HoursPerTick * PreviousDayProductionInv)} = {plant.WaterBalance} * {species.RootsSparsity} * {MathF.Pow(childrenCount, childrenCount << 2)} / ({world.HoursPerTick * PreviousDayProductionInv})");
 				//Debug.WriteLine($"{PreviousDayEnvResourcesInv} {PreviousDayProductionInv}");
 				//Debug.WriteLine($"{PreviousDayProductionInv} / ({plant.WaterBalanceUG} * {species.RootsSparsity} * {BranchingByChildren[children.Count]}) = {PreviousDayProductionInv / (plant.WaterBalance * plant.WaterBalance * species.RootsSparsity * BranchingByChildren[children.Count])} -> {Utils.Pcg.AccumulatedProbability(PreviousDayProductionInv / (plant.WaterBalance * species.RootsSparsity * BranchingByChildren[childrenCount]), world.HoursPerTick)}");
-				if (plant.RNG.NextFloatAccum(resourcesAvailability * (100f * species.RootsDensity) / (plant.WaterBalanceUG * BranchingByChildren[childrenCount]), world.HoursPerTick))
+				if (plant.RNG.NextFloatAccum(resourcesAvailability * species.RootsDensity / (plant.WaterBalanceUG * BranchingByChildren[childrenCount]), world.HoursPerTick))
 				{
 					var energy = EnergyCapacityFunc(InitialRadius, InitialLength);
 					formation.Birth(new(plant, timestep, formationID, RandomOrientation(plant, species, Orientation), energy, initialResources: PreviousDayEnvResourcesInvariant, initialProduction: PreviousDayProductionInvariant));
@@ -408,7 +411,7 @@ public struct UnderGroundAgent : IPlantAgent
 		return orientation;
 	}
 
-	public bool NewDay(uint timestep, byte ticksPerDay)
+	public bool CompleteDay(uint timestep, byte ticksPerDay)
 	{
 		var complete = timestep - BirthTime >= ticksPerDay;
 		if (complete)

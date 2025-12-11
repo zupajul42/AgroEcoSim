@@ -82,7 +82,9 @@ public class AgroWorld : SimulationWorld
 		return ticks + (rem == 0 ? 0 : 1);
 	}
 
-	public readonly DateTime InitialTime = new(2022, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+	public DateTime InitialTime = new(2022, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+
+	public readonly bool VirtualRoots = false;
 
 	public AgroWorld(SimulationRequest? settings = null) : base()
 	{
@@ -119,6 +121,9 @@ public class AgroWorld : SimulationWorld
 
 			if (settings?.Seed.HasValue ?? false)
 				InitRNG(settings.Seed.Value);
+
+			if (settings?.InitialDate.HasValue ?? false)
+				InitialTime = new(settings.InitialDate.Value.Year, settings.InitialDate.Value.Month, settings.InitialDate.Value.Day, 0, 0, 0, DateTimeKind.Unspecified);
 		}
 
 		Irradiance = new IrradianceClient(Latitude, Longitude, settings?.RenderMode ?? 0, settings?.SamplesPerPixel ?? 512);

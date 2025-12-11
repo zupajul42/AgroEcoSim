@@ -180,7 +180,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// <summary>
 	/// Water amount in gramms which can be passed to the parent per hour
 	/// </summary>
-	[M(AI)]public readonly float WaterFlowToParentPerHour_g() => 4f * Radius * Radius * WaterTransportRatio * 1e6f;
+	[M(AI)]public readonly float WaterFlowToParentPerHour_g() => 4f * Radius * Radius * WaterTransportRatio * UnderGroundAgent.CubicMetersToGrammsOfWater;
 
 	/// <summary>
 	/// Water amount in gramms which can be passed to the parent per timestep
@@ -199,7 +199,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// <summary>
 	/// Water amount in gramms which can be stored in this agent
 	/// </summary>
-	[M(AI)]public static float WaterStorageCapacityFunction_g(float radius, float length) => 4f * radius * radius * length * WaterCapacityRatio * 1e6f;
+	[M(AI)]public static float WaterStorageCapacityFunction_g(float radius, float length) => 4f * radius * radius * length * WaterCapacityRatio * UnderGroundAgent.CubicMetersToGrammsOfWater;
 
 	/// <summary>
 	/// Water amount in gramms which can be stored in this agent
@@ -209,7 +209,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// <summary>
 	/// Water amount in gramms which can flow through per hour, or can be stored in this agent
 	/// </summary>
-	[M(AI)]public readonly float WaterTotalCapacityPerHour_g() => 4f * Radius * Radius * (Length * WaterCapacityRatio + WaterTransportRatio) * 1e6f;
+	[M(AI)]public readonly float WaterTotalCapacityPerHour_g() => 4f * Radius * Radius * (Length * WaterCapacityRatio + WaterTransportRatio) * UnderGroundAgent.CubicMetersToGrammsOfWater;
 
 	/// <summary>
 	/// Water amount in gramms which can flow through per tick, or can be stored in this agent
@@ -730,7 +730,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 		return orientation;
 	}
 
-	public bool NewDay(uint timestep, byte ticksPerDay)
+	public bool CompleteDay(uint timestep, byte ticksPerDay)
 	{
 		var complete = timestep - BirthTime >= ticksPerDay;
 

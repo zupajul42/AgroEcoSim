@@ -837,42 +837,50 @@ public class IrradianceClient
 
 				if (roots)
 				{
-					var ug = plant.UG;
-					count = ug.Count;
-					writer.WriteU32(count); //WRITE NUMBER OF UNDER-GROUND SURFACES in this plant
-					for (int i = 0; i < count; ++i)
+					writer.Write(plant.World.VirtualRoots);
+					if (plant.World.VirtualRoots)
 					{
-						var organ = ug.GetOrgan(i);
-						var center = ug.GetBaseCenterWorld(i);
-						var scale = ug.GetScale(i);
-						var orientation = ug.GetDirection(i);
-
-						var x = Vector3.Transform(Vector3.UnitX, orientation);
-						var y = Vector3.Transform(Vector3.UnitY, orientation);
-						var z = Vector3.Transform(Vector3.UnitZ, orientation);
-
-						var parentIndex = ug.GetParent(i);
-						writer.Write(parentIndex);
-
-						switch (organ)
+						writer.WriteV32(plant.UG.Size);
+					}
+					else
+					{
+						var ug = plant.UG as PlantSubFormation<UnderGroundAgent>;
+						count = ug.Count;
+						writer.WriteU32(count); //WRITE NUMBER OF UNDER-GROUND SURFACES in this plant
+						for (int i = 0; i < count; ++i)
 						{
-							case OrganTypes.Root:
-								{
-									writer.WriteU8(1); //ORGAN 1 root
-									writer.Write(scale.X); //length
-									writer.Write(scale.Z * 0.5f); //radius
-									writer.WriteM32(z, x, y, center);
-									writer.Write(Math.Clamp(ug.GetWater(i) / ug.GetWaterStorageCapacity(i), 0, 1));
-									//writer.Write(ug.GetWater(i));
-									writer.Write(Math.Clamp(ug.GetEnergy(i) / ug.GetEnergyCapacity(i), 0, 1));
-									writer.Write(Math.Clamp(ug.GetWoodRatio(i), 0, 1));
-									if (extended)
+							var organ = ug.GetOrgan(i);
+							var center = ug.GetBaseCenterWorld(i);
+							var scale = ug.GetScale(i);
+							var orientation = ug.GetDirection(i);
+
+							var x = Vector3.Transform(Vector3.UnitX, orientation);
+							var y = Vector3.Transform(Vector3.UnitY, orientation);
+							var z = Vector3.Transform(Vector3.UnitZ, orientation);
+
+							var parentIndex = ug.GetParent(i);
+							writer.Write(parentIndex);
+
+							switch (organ)
+							{
+								case OrganTypes.Root:
 									{
-										writer.Write(ug.GetDailyResourcesInv(i));
-										writer.Write(ug.GetDailyProductionInv(i));
+										writer.WriteU8(1); //ORGAN 1 root
+										writer.Write(scale.X); //length
+										writer.Write(scale.Z * 0.5f); //radius
+										writer.WriteM32(z, x, y, center);
+										writer.Write(Math.Clamp(ug.GetWater(i) / ug.GetWaterStorageCapacity(i), 0, 1));
+										//writer.Write(ug.GetWater(i));
+										writer.Write(Math.Clamp(ug.GetEnergy(i) / ug.GetEnergyCapacity(i), 0, 1));
+										writer.Write(Math.Clamp(ug.GetWoodRatio(i), 0, 1));
+										if (extended)
+										{
+											writer.Write(ug.GetDailyResourcesInv(i));
+											writer.Write(ug.GetDailyProductionInv(i));
+										}
 									}
-								}
-								break;
+									break;
+							}
 						}
 					}
 				}
