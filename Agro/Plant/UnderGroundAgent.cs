@@ -287,7 +287,7 @@ public struct UnderGroundAgent : IPlantAgent
 		var children = formation.GetChildren(formationID);
 		//Debug.WriteLine($"{timestep} / {formationID}  W {Water} E {Energy} L {Length} R {Radius}");
 		//var waterFactor = Math.Clamp(Water / WaterStorageCapacity(), 0f, 1f);
-		var resourcesAvailability = PreviousDayEnvResourcesInvariant / formation.DailyResourceMax;
+		var resourcesAvailability = formation.DailyResourceMax > 1e-6f ? PreviousDayEnvResourcesInvariant / formation.DailyResourceMax : 0f;
 		///////////////////////////
 		#region Growth
 		///////////////////////////
@@ -295,7 +295,7 @@ public struct UnderGroundAgent : IPlantAgent
 		{
 			var childrenCount = children.Count + 1;
 			//TDMI 2023-03-07 Incorporate water capacity factor
-			if (formation.DailyProductionMax > 0)
+			if (formation.DailyProductionMax > 1e-6f)
 			{
 				var growthBase = (PreviousDayProductionInvariant / formation.DailyProductionMax + resourcesAvailability) * 0.5f;
 				var radiusChildGrowth = childrenCount <= 1 ? 1 : MathF.Pow(childrenCount, GrowthDeclineByExpChildren / 2);

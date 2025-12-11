@@ -50,6 +50,12 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	///</sumary>
 	readonly int[] GroundAddr;
 	readonly ushort[] GroundLevels;
+
+	/// <summary>
+    /// Precomputed coefficiens for vertical diffusion: [diffusionDepth][realDepth][cefficients]
+    /// </summary>
+	float[][][] DiffusionCoefs;
+
 	/// <summary>
 	/// Cells count in all directions (x, depth, z)
 	/// </summary>
@@ -70,12 +76,17 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	/// <summary>
 	/// Water request in gramms
 	/// </summary>
-	readonly List<(PlantFormation2 Plant, float Amount_g)>[] WaterRequestsSeeds;
+	//readonly List<(PlantFormation2 Plant, float Amount_g)>[] WaterRequestsSeeds;
 
 	/// <summary>
 	/// Water request in gramms
 	/// </summary>
-	readonly List<(PlantSubFormation<UnderGroundAgent> Plant, int Part, float Amount_g)>[] WaterRequestsRoots;
+	//readonly List<(PlantSubFormation<UnderGroundAgent> Plant, int Part, float Amount_g)>[] WaterRequestsRoots;
+	readonly HashSet<int> RequestsPresent;
+	/// <summary>
+    /// Water request in gramms. For seed requests Part < 0
+    /// </summary>
+	readonly List<(PlantFormation2 Plant, int Part, float Amount_g)>[] WaterRequests;
 
 	public SoilFormationRegularVoxels(AgroWorld world, Vector3i size, Vector3 metricSize, Vector3 position = default)
 	{
@@ -149,6 +160,9 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 					MaxLevel = h;
 			}
 
+		if (World != null)
+			ComputeDiffusionCoefs();
+
 		//For a agiven x,z the ordering in Water and other compressed 1D arrays goes as: [floor, floor + 1, ... , ground -1, ground] and then goes the next (x,z) pair.
 
 		CoordsCache = new (ushort X, ushort D, ushort Z)[addr];
@@ -164,13 +178,17 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		Temperature = new float[Water_g.Length];
 		Steam = new float[Water_g.Length];
 
-		WaterRequestsSeeds = new List<(PlantFormation2, float)>[Water_g.Length];
-		WaterRequestsRoots = new List<(PlantSubFormation<UnderGroundAgent>, int, float)>[Water_g.Length];
+		// WaterRequestsSeeds = new List<(PlantFormation2, float)>[Water_g.Length];
+		// WaterRequestsRoots = new List<(PlantSubFormation<UnderGroundAgent>, int, float)>[Water_g.Length];
+		// for (int i = 0; i < Water_g.Length; ++i)
+		// {
+		// 	WaterRequestsSeeds[i] = [];
+		// 	WaterRequestsRoots[i] = [];
+		// }
+		RequestsPresent = new HashSet<int>(Water_g.Length);
+		WaterRequests = new List<(PlantFormation2, int, float)>[Water_g.Length];
 		for (int i = 0; i < Water_g.Length; ++i)
-		{
-			WaterRequestsSeeds[i] = [];
-			WaterRequestsRoots[i] = [];
-		}
+			WaterRequests[i] = [];
 
 		Array.Fill(Water_g, CellVolume * 100f * 1000); //some basic water (100 litres per m³ which is kind of normal soil saturation of loamy soils which retain the an average amount of water)
 		//Array.Fill(Water, 1e3f * CellVolume); //some basic steam
@@ -353,13 +371,14 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		//3. Soak the water from bottom to the top
 		for (int d = MaxLevel - 1; d > 0; --d)
 		{
+			int c = 0;
 			for (int z = 0; z < Size.Z; ++z) //should be in this order to keep adjacency
 				for (int x = 0; x < Size.X; ++x)
 				{
-					var depth = GroundLevel(x, z);
+					var depth = GroundLevels[c]; //GroundLevel(x, z);
 					if (d < depth)
 					{
-						var srcIdx = Index(x, d, z);
+						var srcIdx = GroundAddr[c] - d; //Index(x, d, z);
 						Debug.Assert(Coords(srcIdx).Y == d);
 						var distribute = Water_g[srcIdx] * evaporizationSoilFactorPerStep;
 
@@ -386,7 +405,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 				GravityDiffusion(srcIdx, distribute, GroundLevels[i], 0);
 		}
 
-		ProcessRequests();
+		HasUndeliveredPost = true; //enforcing ProcessRequests() this way, since it must wait until all other agents have made requests, it needs to be part of the post delivery
 	}
 
 	private void GravityDiffusion(int srcIdx, float distribute, ushort groundLevel, int currentDepth)
@@ -396,25 +415,9 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		{
 			//simple scaling of what portion of water can reach what depth
 			var length = Math.Min(cellsPerStep, groundLevel - currentDepth);
-			var factors = ArrayPool<float>.Shared.Rent(length);
-			if (length > 1)
-			{
-				factors[0] = 0.5f;
-				var factorsSum = 0.5f;
-				for (int f = 1; f < length; ++f)
-				{
-					var factor = factors[f - 1] * 0.5f;
-					factors[f] = factor;
-					factorsSum += factor;
-				}
-				for (int f = 0; f < length; ++f)
-					factors[f] /= factorsSum;
-			}
-			else
-				factors[0] = 1f;
 
 			var resolved = 0f;
-
+			var coefs = DiffusionCoefs[cellsPerStep][length];
 			for (int h = 0; h < length; ++h)
 			{
 				var target = srcIdx - h - 1;
@@ -422,7 +425,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 				if (occupied < WaterCapacityPerCell)
 				{
 					var available = WaterCapacityPerCell - occupied;
-					var requested = distribute * factors[h];
+					var requested = distribute * coefs[h];
 					if (requested < available)
 					{
 						Water_g[target] = occupied + requested;
@@ -436,7 +439,6 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 				}
 			}
 
-			ArrayPool<float>.Shared.Return(factors);
 			Water_g[srcIdx] -= resolved;
 			Debug.Assert(Water_g[srcIdx] >= 0f);
 		}
@@ -444,8 +446,13 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 
 	[M(AI)] void IFormation.Census() { }
 
-	[M(AI)] void IFormation.DeliverPost(uint timestep) { }
-	bool IFormation.HasUndeliveredPost => false;
+	[M(AI)] public void DeliverPost(uint timestep)
+    {
+		ProcessRequests();
+		HasUndeliveredPost = false;
+    }
+
+	public bool HasUndeliveredPost { get; private set; } = false;
 	///<summary>
 	///Number of agents in this formation
 	///</summary>
@@ -454,87 +461,57 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	[M(AI)]
 	public void RequestWater(int index, float amount_g, PlantSubFormation<UnderGroundAgent> plant, int part, int soilIndex = 0)
 	{
-		if (Water_g[index] > 0)
-			WaterRequestsRoots[index].Add((plant, part, amount_g));
+		lock(RequestsPresent) if (Water_g[index] > 0)
+		{
+			RequestsPresent.Add(index);
+			WaterRequests[index].Add((plant.Plant, part, amount_g));
+		}
 	}
 
 	[M(AI)]
 	public void RequestWater(int index, float amount_g, PlantFormation2 plant, int soilIndex = 0)
 	{
-		if (Water_g[index] > 0)
-			WaterRequestsSeeds[index].Add((plant, amount_g));
+		lock(RequestsPresent) if (Water_g[index] > 0)
+		{
+			RequestsPresent.Add(index);
+			WaterRequests[index].Add((plant, -1, amount_g));
+		}
 	}
 
 	public void ProcessRequests()
 	{
-		for (int i = 0; i < WaterRequestsRoots.Length; ++i)
+		foreach(var i in RequestsPresent)
 		{
-			double sum = 0;
-
-			if (WaterRequestsSeeds[i].Count > 0)
-			{
-				var reqs = WaterRequestsSeeds[i];
-				var limit = reqs.Count;
-				for (int j = 0; j < limit; ++j)
-					sum += reqs[j].Amount_g;
-			}
-
-			if (WaterRequestsRoots[i].Count > 0)
-			{
-				var reqs = WaterRequestsRoots[i];
-				var limit = reqs.Count;
-				for (int j = 0; j < limit; ++j)
-					sum += reqs[j].Amount_g;
-			}
+			var reqs = WaterRequests[i];
+			var limit = reqs.Count;
+			var sum = 0f;
+			for (int j = 0; j < limit; ++j)
+				sum += reqs[j].Amount_g;
 
 			if (sum > 0)
 			{
 				if (sum <= Water_g[i])
 				{
-					if (WaterRequestsSeeds[i].Count > 0)
-					{
-						var reqs = WaterRequestsSeeds[i];
-						var limit = reqs.Count;
-						for (int j = 0; j < limit; ++j)
+					for (int j = 0; j < limit; ++j)
+						if (reqs[j].Part < 0)
 							reqs[j].Plant.Send(0, new SeedAgent.WaterInc(reqs[j].Amount_g));
-						reqs.Clear();
-					}
-
-					if (WaterRequestsRoots[i].Count > 0)
-					{
-						var reqs = WaterRequestsRoots[i];
-						var limit = reqs.Count;
-						for (int j = 0; j < limit; ++j)
-						{
-							var (Plant, Part, Amount_g) = reqs[j];
-							Plant?.SendProtected(Part, new UnderGroundAgent.WaterInc(Amount_g));
-						}
-						reqs.Clear();
-					}
+						else
+							reqs[j].Plant?.UG?.SendProtected(reqs[j].Part, new UnderGroundAgent.WaterInc(reqs[j].Amount_g));
 				}
 				else
 				{
 					var factor = Water_g[i] / sum; //reduce all constributions so that the sum is exactly Water_g and not more
-					if (WaterRequestsSeeds[i].Count > 0)
-					{
-						var reqs = WaterRequestsSeeds[i];
-						var limit = reqs.Count;
-						for (int j = 0; j < limit; ++j)
-							reqs[j].Plant.Send(0, new SeedAgent.WaterInc((float)(reqs[j].Amount_g * factor)));
-						reqs.Clear();
-					}
-
-					if (WaterRequestsRoots[i].Count > 0)
-					{
-						var reqs = WaterRequestsRoots[i];
-						var limit = reqs.Count;
-						for (int j = 0; j < limit; ++j)
-							reqs[j].Plant.SendProtected(reqs[j].Part, new UnderGroundAgent.WaterInc(reqs[j].Amount_g, (float)factor));
-						reqs.Clear();
-					}
+					for (int j = 0; j < limit; ++j)
+						if (reqs[j].Part < 0)
+							reqs[j].Plant.Send(0, new SeedAgent.WaterInc(reqs[j].Amount_g * factor));
+						else
+							reqs[j].Plant?.UG?.SendProtected(reqs[j].Part, new UnderGroundAgent.WaterInc(reqs[j].Amount_g * factor));
 				}
+				reqs.Clear();
 			}
 		}
+
+		RequestsPresent.Clear();
 	}
 
 	public Vector3 GetRandomSeedPosition(Pcg rnd, int soilIndex = 0)
@@ -547,10 +524,68 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 	{
 		World = world;
 		if (World != null)
-			WaterCellsPerStep = WaterTravelDistPerTick() / CellSize.Y;
-	}
+        {
+            WaterCellsPerStep = WaterTravelDistPerTick() / CellSize.Y;
+            ComputeDiffusionCoefs();
+        }
+    }
 
-	public byte[] Serialize()
+    private void ComputeDiffusionCoefs()
+    {
+        var maxGroundLevel = 0;
+        for (int i = 0; i < GroundLevels.Length; ++i)
+            if (GroundLevels[i] > maxGroundLevel) maxGroundLevel = GroundLevels[i];
+
+        DiffusionCoefs = new float[maxGroundLevel + 1][][];
+        DiffusionCoefs[0] = [[]];
+        DiffusionCoefs[1] = [[], [1f]];
+
+        for (int targetTravel = 2; targetTravel <= maxGroundLevel; ++targetTravel)
+		{
+			DiffusionCoefs[targetTravel] = new float[targetTravel + 1][];
+			DiffusionCoefs[targetTravel][0] = [];
+			DiffusionCoefs[targetTravel][1] = [1f];
+			for (int allowedTravel = 2; allowedTravel <= targetTravel; ++allowedTravel)
+			{
+				var dc = new float[allowedTravel];
+				DiffusionCoefs[targetTravel][allowedTravel] = dc;
+
+				var factor = 0.5f;
+				dc[0] = factor;
+				var sum = factor;
+				for (int j = 1; j < dc.Length; ++j)
+				{
+					factor *= 0.5f;
+					dc[j] = factor;
+					sum += factor;
+				}
+
+				if (targetTravel > allowedTravel)
+				{
+					var rest = 0f;
+					for (int j = allowedTravel; j < targetTravel; ++j)
+					{
+						factor *= 0.5f;
+						rest += factor;
+					}
+					sum += rest;
+
+					//now assign the rest proportionally - the most to the deepest cell and the least to the top one
+					var restWeightSum = 0.5f * allowedTravel * (allowedTravel + 1); // sum of 1 .. allowedTravel
+					rest /= restWeightSum;
+					for(int j = allowedTravel - 1; j >= 0; --j)
+						dc[j] += rest * (j + 1);
+				}
+
+				for (int j = 0; j < dc.Length; ++j)
+					dc[j] /= sum;
+			}
+		}
+        //in case the ground was hit earlier distribute the rest among the cells
+
+    }
+
+    public byte[] Serialize()
 	{
 		using var stream = new MemoryStream();
 		using var writer = new BinaryWriter(stream);

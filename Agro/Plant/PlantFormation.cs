@@ -88,7 +88,7 @@ public partial class PlantFormation2 : IPlantFormation
 	{
 		if (Seed.Length > 0 && Seed.Length > recipient)
 		{
-			PostboxSeed.Add(new (msg, recipient));
+			lock(PostboxSeed) PostboxSeed.Add(new (msg, recipient));
 			return true;
 		}
 		else
@@ -317,16 +317,17 @@ public partial class PlantFormation2 : IPlantFormation
 		}
 		else
 		{
-			for(int i = World.HoursPerTick - 1; i >= 0; --i)
-			{
-				UG.Tick(timestep);
-				if (i > 0) //attention the loop decrements so this will not run for the last item
-				{
-					Soil.ProcessRequests();
-					UG.DeliverPost(timestep);
-					UG.Census();
-				}
-			}
+			UG.Tick(timestep);
+			// for(int i = World.HoursPerTick - 1; i >= 0; --i)
+			// {
+			// 	UG.Tick(timestep);
+			// 	if (i > 0) //attention the loop decrements so this will not run for the last item
+			// 	{
+			// 		Soil.ProcessRequests();
+			// 		UG.DeliverPost(timestep);
+			// 		UG.Census();
+			// 	}
+			// }
 
 			AG.Tick(timestep);
 			AG.Hormones(true);
