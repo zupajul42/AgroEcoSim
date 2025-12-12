@@ -24,7 +24,7 @@ public static class Initialize
 		}
 		else
 		{
-			if (settings.FieldModelData?.Faces?.Count > 0)
+			if (settings?.FieldModelData?.Faces?.Count > 0)
 				soil = new SoilFormationsList(world, settings.FieldModelData, 1f, settings.FieldItemRegex, settings.FieldItemRegexMaterial ?? false, world.FieldResolution);
 			else
 			{
