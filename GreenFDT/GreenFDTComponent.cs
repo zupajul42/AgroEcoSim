@@ -135,7 +135,7 @@ namespace GreenFDT
       try
       {
         var world = Initialize.World(request); //, terrain
-        world.Irradiance.SetAddress("", "", "", "", 0); //keep it simple for now
+        world.Irradiance.SetAddress("localhost", "8001", "localhost", "8002", 0); //keep it simple for now
 
         //var start = DateTime.UtcNow.Ticks;
         world.Run((uint)world.TimestepsTotal());
