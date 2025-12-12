@@ -139,7 +139,7 @@ namespace GreenFDT
 
         //var start = DateTime.UtcNow.Ticks;
         var timesteps = (uint)world.TimestepsTotal();
-        world.Run(timestepsTotal);
+        world.Run(timesteps);
         //var stop = DateTime.UtcNow.Ticks;
         //Debug.WriteLine($"Simulation time: {(stop - start) / TimeSpan.TicksPerMillisecond} ms");
 
