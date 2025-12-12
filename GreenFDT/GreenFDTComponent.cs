@@ -138,7 +138,8 @@ namespace GreenFDT
         world.Irradiance.SetAddress("localhost", "8001", "localhost", "8002", 0); //keep it simple for now
 
         //var start = DateTime.UtcNow.Ticks;
-        world.Run((uint)world.TimestepsTotal());
+        var timesteps = (uint)world.TimestepsTotal();
+        world.Run(timestepsTotal);
         //var stop = DateTime.UtcNow.Ticks;
         //Debug.WriteLine($"Simulation time: {(stop - start) / TimeSpan.TicksPerMillisecond} ms");
 
@@ -146,6 +147,8 @@ namespace GreenFDT
 
         var result = new List<GH_PlantsGroup>();
         int c = 0;
+        debugMessages.Add($"TIMESTEPS: {timesteps} -> {world.Timestep}");
+        debugMessages.Add($"PLANTS: {world.Count}");
         world.ForEach(formation =>
         {
           if (formation is PlantFormation2 plant)
