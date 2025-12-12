@@ -116,11 +116,11 @@
 
 <!--#if (RhinoVersion <= '7')-->
     <!-- Rhino 7 -->
-    <Exec Command="&quot;$(YakExecutable)&quot; spec" WorkingDirectory="$(OutputPath)net48\" Condition="$(BuildYakPackage) == 'True'" />
-    <Exec Command="&quot;$(YakExecutable)&quot; build" WorkingDirectory="$(OutputPath)net48\" Condition="$(BuildYakPackage) == 'True'" />
+    <Exec Command="&quot;$(YakExecutable)&quot; spec" WorkingDirectory="$(OutputPath)net8.0\" Condition="$(BuildYakPackage) == 'True'" />
+    <Exec Command="&quot;$(YakExecutable)&quot; build" WorkingDirectory="$(OutputPath)net8.0\" Condition="$(BuildYakPackage) == 'True'" />
 
     <ItemGroup>
-      <YakPackageToMove Include="$(BaseOutputPath)$(Configuration)\net48\*.yak" />
+      <YakPackageToMove Include="$(BaseOutputPath)$(Configuration)\net8.0\*.yak" />
     </ItemGroup>
     <Move SourceFiles="@(YakPackageToMove)" DestinationFolder="$(BaseOutputPath)$(Configuration)\" Condition="$(BuildYakPackage) == 'True'" />
 <!--#endif-->
