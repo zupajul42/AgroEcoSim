@@ -6,10 +6,10 @@ namespace GreenFDT;
 public class GH_TerrainItem
 {
     public string Name { get; set; }
-    public Point3 Position { get; set; }
-    public Vector3 Size { get; set; }
+    public Point3d Position { get; set; }
+    public Vector3d Size { get; set; }
 
-    public BoxGroup(string name, Point3 position, Vector3 size)
+    public GH_TerrainItem(string name, Point3d position, Vector3d size)
     {
         Name = name;
         Position = position;

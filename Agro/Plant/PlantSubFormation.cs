@@ -8,9 +8,22 @@ using System.Runtime.InteropServices;
 
 namespace Agro;
 
-public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAgent
+public interface IPlantSubFormation<T> : IFormation where T: struct, IPlantAgent
+{
+	bool Alive { get; }
+	Vector3 Size { get; }
+	float DailyProductionMax { get; }
+	void FirstDay();
+	void NewDay(uint timestep, byte ticksPerDay);
+	void Distribute(PlantGlobalStats stats);
+	PlantGlobalStats Gather();
+	bool SendProtected(int part, IMessage<T> msg) ;
+}
+
+public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struct, IPlantAgent
 {
 	readonly Action<T[], int[]> Reindex;
+	public Vector3 Size => throw new NotImplementedException();
 
 	public readonly PlantFormation2 Plant;
 	//Once GODOT supports C# 6.0: Make it a List and then for processing send System.Runtime.InteropServices.CollectionsMarshal.AsSpan(Stems);
@@ -32,7 +45,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 	}
 
 	internal float DailyResourceMax { get; private set; }
-	internal float DailyProductionMax { get; private set; }
+	public float DailyProductionMax { get; private set; }
 	internal float DailyEfficiencyMax { get; private set; }
 	internal float Height => TreeCache.Height;
 	readonly bool IsAboveGround;
@@ -499,7 +512,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 			dst[path[i].Index].IncAuxins(path[i].MetricDist * (maxSegDist - path[i].SegDist) * factor / path[i].BranchDist);
 	}
 
-	internal void Distribute(PlantGlobalStats stats)
+	public void Distribute(PlantGlobalStats stats)
 	{
 		var dst = Src();
 		for(int i = 0; i < dst.Length; ++i)
@@ -690,7 +703,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 
 			for(int i = 0; i < src.Length; ++i)
 			{
-				var complete = src[i].NewDay(timestep, ticksPerDay); //for all organs as non-leaves also need to be reset to zero
+				var complete = src[i].CompleteDay(timestep, ticksPerDay); //for all organs as non-leaves also need to be reset to zero
 				//assuming only leaves photosynthesize
 				if (src[i].Organ == OrganTypes.Leaf)
 				{
@@ -794,7 +807,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 		{
 			for(int i = 0; i < src.Length; ++i)
 			{
-				if (src[i].NewDay(timestep, ticksPerDay))
+				if (src[i].CompleteDay(timestep, ticksPerDay))
 				{
 					if (DailyResourceMax < src[i].PreviousDayEnvResourcesInvariant) DailyResourceMax = src[i].PreviousDayEnvResourcesInvariant;
 					if (DailyProductionMax < src[i].PreviousDayProductionInvariant) DailyProductionMax = src[i].PreviousDayProductionInvariant;

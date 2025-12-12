@@ -104,7 +104,7 @@ public class SpeciesSettings
     ///<summary>
     /// Maximum branch level that supports leaves (here level denotes the max. subtree depth)
     ///</summary>
-    public int LeafLevel { get; init; } = 2;
+    // public int LeafLevel { get; init; } = 2;
 
     ///<summary>
     /// Standard leaf length along its main axis (in meters)

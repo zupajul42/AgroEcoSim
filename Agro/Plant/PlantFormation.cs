@@ -24,7 +24,8 @@ public partial class PlantFormation2 : IPlantFormation
 	protected readonly PostBox<SeedAgent> PostboxSeed = new();
 	bool DeathSeed = false;
 
-	public readonly PlantSubFormation<UnderGroundAgent> UG;
+	//public readonly PlantSubFormation<UnderGroundAgent> UG;
+	public readonly IPlantSubFormation<UnderGroundAgent> UG;
 	public readonly PlantSubFormation<AboveGroundAgent> AG;
 
 	//public readonly List<Quaternion> SegmentOrientations;
@@ -49,7 +50,7 @@ public partial class PlantFormation2 : IPlantFormation
 	/// </summary>
 	internal float EnergyBalance = 0f;
 
-	internal float WaterProductionMax = 0f;
+	// internal float WaterProductionMax = 0f;
 	internal float EnergyProductionMax = 0f;
 
 	/// <summary>
@@ -73,7 +74,7 @@ public partial class PlantFormation2 : IPlantFormation
 		Position = seed.Center;
 
 		RNG = parentRNG.NextRNG();
-		UG = new(this, UnderGroundAgent.Reindex, false);
+		UG = world.VirtualRoots ? new VirtualRootsFormation(this) : new PlantSubFormation<UnderGroundAgent>(this, UnderGroundAgent.Reindex, false);
 		AG = new(this, AboveGroundAgent.Reindex, true);
 		//SegmentOrientations = new();
 	}
@@ -256,15 +257,16 @@ public partial class PlantFormation2 : IPlantFormation
 				WaterBalanceUG = WaterBalance;
 
 			WaterBalancePrev = WaterBalance;
+			WaterBalanceUG *= WaterBalanceUG;
 
 			EnergyBalance = energyRequirement > 1e-6 ? (float)(energy / energyRequirement) : 1;
-			Debug.WriteLine($"{timestep}\twater: {WaterBalance}\tP_roots: {1f / WaterBalanceUG}\tenergy: {EnergyBalance}");
+			//Debug.WriteLine($"{timestep}\twater: {WaterBalance}\tP_roots: {1f / WaterBalanceUG}\tenergy: {EnergyBalance}");
 
-			WaterProductionMax = UG.DailyProductionMax;
+			//WaterProductionMax = UG.DailyProductionMax;
 			EnergyProductionMax = AG.DailyProductionMax;
 
 			//take care to avoid division by zero
-			if (WaterProductionMax < 1e-6f) WaterProductionMax = 1f;
+			//if (WaterProductionMax < 1e-6f) WaterProductionMax = 1f;
 			if (EnergyProductionMax < 1e-6f) EnergyProductionMax = 1f;
 		}
 	}
@@ -449,6 +451,14 @@ public partial class PlantFormation2 : IPlantFormation
 
 	public bool HasUndeliveredPost => PostboxSeed.AnyMessages || UG.HasUndeliveredPost || AG.HasUndeliveredPost;// || NeedsGathering;
 	public int Count => SeedAlive ? 1 : UG.Count + AG.Count;
+
+	public void UGBirth(UnderGroundAgent agent)
+	{
+		if (World.VirtualRoots)
+			(UG as VirtualRootsFormation).Birth(agent.Water_g, agent.Energy);
+		else
+			(UG as PlantSubFormation<UnderGroundAgent>).Birth(agent);
+	}
 
 	///////////////////////////
 	#region glTF EXPORT

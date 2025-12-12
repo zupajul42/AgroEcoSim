@@ -5,6 +5,8 @@ using Grasshopper;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 
+using Agro;
+
 namespace GreenFDT
 {
   public class GreenFDTComponent : GH_Component
@@ -38,16 +40,16 @@ namespace GreenFDT
       // pManager.AddIntegerParameter("Turns", "T", "Number of turns between radii", GH_ParamAccess.item, 10);
 
       pManager.AddIntegerParameter("Step Duration", "Step", "Hours per step", GH_ParamAccess.item, 4);
-      pManager[^1].Optional = true;
+      pManager[pManager.ParamCount - 1].Optional = true;
 
-      pManager.AddIntegerParameter("Start Date", "Start", "Date to start the simulation", GH_ParamAccess.item, DateTime.Now);
-      pManager[^1].Optional = true;
+      pManager.AddTimeParameter("Start Date", "Start", "Date to start the simulation", GH_ParamAccess.item, DateTime.Now);
+      pManager[pManager.ParamCount - 1].Optional = true;
 
-      pManager.AddIntegerParameter("Simulation Duration", "Total hours to simulate", GH_ParamAccess.item, 744);
-      pManager[^1].Optional = true;
+      pManager.AddIntegerParameter("Duration", "Simulation Duration", "Total hours to simulate", GH_ParamAccess.item, 744);
+      pManager[pManager.ParamCount - 1].Optional = true;
 
-      pManager.AddVector3dParameter("Random Seed", "Seed", "Seed for the random numbers generator", GH_ParamAccess.Item, 42);
-      pManager[^1].Optional = true;
+      pManager.AddIntegerParameter("Random Seed", "Seed", "Seed for the random numbers generator", GH_ParamAccess.item, 42);
+      pManager[pManager.ParamCount - 1].Optional = true;
       // If you want to change properties of certain parameters,
       // you can use the pManager instance to access them by index:
       //pManager[0].Optional = true;
@@ -123,8 +125,14 @@ namespace GreenFDT
         return;
       }
 
-      var world = Initialize.World(request, terrain);
-      world.Irradiance.SetAddress(configuration["RendererIPMitsuba"], configuration["RendererPortMitsuba"], configuration["RendererIPTamashii"], configuration["RendererPortTamashii"], request?.RenderMode ?? 0);
+      var request = new SimulationRequest() {
+        HoursPerTick = hoursPerStep,
+        TotalHours = totalHours,
+        Seed = seed,
+      };
+
+      var world = Initialize.World(request); //, terrain
+      world.Irradiance.SetAddress("", "", "", "", 0); //keep it simple for now
 
       //var start = DateTime.UtcNow.Ticks;
       world.Run((uint)world.TimestepsTotal());

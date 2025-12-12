@@ -63,7 +63,7 @@ public interface IPlantAgent : ITreeAgent
 	Vector3 Scale();
 	float Volume();
 
-	bool NewDay(uint timestep, byte ticksPerDay);
+	bool CompleteDay(uint timestep, byte ticksPerDay);
 
 	void Distribute(float water, float energy);
 	void IncAuxins(float amount);
