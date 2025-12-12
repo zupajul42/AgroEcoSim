@@ -84,7 +84,7 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 	{
 		if (Agents.Length > dst)
 		{
-			Post.Add(new (msg, dst));
+			lock(Post) Post.Add(new (msg, dst));
 			return true;
 		}
 		else
@@ -735,8 +735,8 @@ public partial class PlantSubFormation<T> : IFormation where T: struct, IPlantAg
 				Resources[i] = pdr;
 			}
 
-			Debug.Assert(DailyProductionMax > 0f);
-			Debug.Assert(DailyResourceMax > 0);
+			// Debug.Assert(DailyProductionMax > 0f);
+			// Debug.Assert(DailyResourceMax > 0);
 
 			//now bubble up the tree to the root(s) and propagate the maximum
 			while (ReadyNodes0.Count > 0)

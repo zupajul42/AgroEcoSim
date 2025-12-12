@@ -2,6 +2,7 @@ using Rhino.Geometry;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 
+using Agro;
 namespace GreenFDT;
 public class GH_Plant
 {
