@@ -144,14 +144,17 @@ namespace GreenFDT
 
         List<string> debugMessages = [];
 
-        var result = new List<GH_Plant>();
+        var result = new List<GH_PlantsGroup>();
+        int c = 0;
         world.ForEach(formation =>
         {
-            if (formation is PlantFormation2 plant)
-            {
-                result.Add(new(plant));
-
-            }
+          if (formation is PlantFormation2 plant)
+          {
+            result.Add(new(new(plant)));
+            debugMessages.Add($"PLANT: {c++}");
+            debugMessages.Add($"    Volume: {plant.AG.GetVolume()}");
+            debugMessages.Add($"    Leaves: {plant.AG.GetLeaves().Count}");
+          }
         });
         // We're set to create the spiral now. To keep the size of the SolveInstance() method small,
         // The actual functionality will be in a different method:
@@ -162,7 +165,7 @@ namespace GreenFDT
 
         //TODO MI SetDataList
       }
-      catch (Exception e)
+      catch (Exception ex)
       {
         AddRuntimeMessage(GH_RuntimeMessageLevel.Error, ex.ToString());
         RhinoApp.WriteLine("GreenFDT exception: " + ex.ToString());
