@@ -162,6 +162,7 @@ namespace GreenFDT
 
         // Finally assign the spiral to the output parameter.
         DA.SetDataList(0, result);
+        DA.SetDataList(1, debugMessages);
 
         //TODO MI SetDataList
       }
