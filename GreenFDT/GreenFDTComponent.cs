@@ -168,7 +168,6 @@ namespace GreenFDT
       catch (Exception ex)
       {
         AddRuntimeMessage(GH_RuntimeMessageLevel.Error, ex.ToString());
-        RhinoApp.WriteLine("GreenFDT exception: " + ex.ToString());
       }
     }
 
