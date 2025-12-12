@@ -148,13 +148,15 @@ namespace GreenFDT
         var result = new List<GH_PlantsGroup>();
         int c = 0;
         debugMessages.Add($"TIMESTEPS: {timesteps} -> {world.Timestep}");
-        debugMessages.Add($"PLANTS: {world.Count}");
+        debugMessages.Add($"FORMATIONS: {world.Count}");
+        debugMessages.Add($"FIELD SIZE: {world.FieldSize}");
         world.ForEach(formation =>
         {
           if (formation is PlantFormation2 plant)
           {
             result.Add(new(new(plant)));
             debugMessages.Add($"PLANT: {c++}");
+            debugMessages.Add($"    Position: {plant.Position}");
             debugMessages.Add($"    Volume: {plant.AG.GetVolume()}");
             debugMessages.Add($"    Leaves: {plant.AG.GetLeaves().Count}");
           }
