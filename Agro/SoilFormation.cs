@@ -379,11 +379,14 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 					if (d < depth)
 					{
 						var srcIdx = GroundAddr[c] - d; //Index(x, d, z);
-						Debug.Assert(Coords(srcIdx).Y == d);
-						var distribute = Water_g[srcIdx] * evaporizationSoilFactorPerStep;
+						if (Water_g[srcIdx] > 0f)
+						{
+							Debug.Assert(Coords(srcIdx).Y == d);
+							var distribute = Water_g[srcIdx] * evaporizationSoilFactorPerStep;
 
-						if (distribute > MinimumWaterToDiffuse)
-							GravityDiffusion(srcIdx, distribute - MinimumWaterToDiffuse, depth, d);
+							if (distribute > MinimumWaterToDiffuse)
+								GravityDiffusion(srcIdx, distribute - MinimumWaterToDiffuse, depth, d);
+						}
 					}
 				}
 		}
@@ -400,9 +403,12 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		for (int i = 0; i < GroundAddr.Length; ++i)
 		{
 			var srcIdx = GroundAddr[i];
-			var distribute = Water_g[srcIdx] * evaporizationSurfaceFactorPerStep;
-			if (distribute > 0)
-				GravityDiffusion(srcIdx, distribute, GroundLevels[i], 0);
+			if (Water_g[srcIdx] > 0f)
+			{
+				var distribute = Water_g[srcIdx] * evaporizationSurfaceFactorPerStep;
+				if (distribute > 0)
+					GravityDiffusion(srcIdx, distribute, GroundLevels[i], 0);
+			}
 		}
 
 		HasUndeliveredPost = true; //enforcing ProcessRequests() this way, since it must wait until all other agents have made requests, it needs to be part of the post delivery
