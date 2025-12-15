@@ -33,5 +33,11 @@ public enum OrganTypes : byte {
     /// <summary>
     /// Tip of the stem where cells grow forward elongating the twig
     /// </summary>
-    Meristem
+    Meristem,
+    FlowerBud,   // Knospe
+    FlowerStem,  // kleiner Blütenstiel
+    FlowerPadel,       // eigentliche Blüte
+    FlowerPetiol,
+    FlowerMeristem,
+    RizomeMeristem
 };

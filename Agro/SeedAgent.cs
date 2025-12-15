@@ -92,7 +92,12 @@ public struct SeedAgent : IAgent
 				plant.UGBirth(new UnderGroundAgent(plant, timestep, -1, initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.5f * MathF.PI), Water_g * 0.4f, initialResources: 1f, initialProduction: 1f));
 
 				var baseStemOrientation = initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.5f * MathF.PI);
-				var meristem = new AboveGroundAgent(plant, -1, OrganTypes.Meristem, baseStemOrientation, Water_g * 0.4f, initialResources: 1f, initialProduction: 1f);
+                var rizomOrientation = initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.25f * MathF.PI);
+                var rizome = new AboveGroundAgent(plant, -1, OrganTypes.Stem, rizomOrientation, Water_g * 0.4f, initialResources: 1f, initialProduction: 1f, length: 0.001f, radius: 0.0025f);
+                rizome.isRizome = true;
+                rizome.rizomeInfo.test3 = true;
+                var rizomeIndex = plant.AG.Birth(rizome);
+                var meristem = new AboveGroundAgent(plant, rizomeIndex, OrganTypes.Meristem, baseStemOrientation, Water_g * 0.4f, initialResources: 1f, initialProduction: 1f);
 				var meristemIndex = plant.AG.Birth(meristem); //base stem
 
 				if (plant.Parameters.LateralsPerNode > 0)

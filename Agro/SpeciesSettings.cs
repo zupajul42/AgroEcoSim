@@ -61,6 +61,14 @@ public class SpeciesSettings
             DominanceFactors[i] = MathF.Pow(dominanceFactor, i);
     } }
 
+    /// <summary>Age (hours) when plant switches to deterministic sympodial growth.</summary>
+    public float SympodialStartAgeHours = 24f * 45f;
+
+    /// <summary>Age (hours) when flowering ends; growth stops afterwards.</summary>
+    public float FloweringEndAgeHours { get; internal set; } = 24f * 90f;
+    public float FloweringStartAgeHours { get; internal set; } = 24f * 45f;
+    public float FlowerLengthVar { get; internal set; }
+    public float FlowerRadiusVar { get; internal set; }
     ///<summary>
     /// Number of lateral branches emerging from a node
     ///</summary>
@@ -217,11 +225,40 @@ public class SpeciesSettings
 
     public static List<SpeciesSettings> Predefined = [];
 
+    [JsonPropertyName("WEM")]
+    public float WoodElasticModulus { get; init; } = 1e15f; // in Pa
+
+    [JsonPropertyName("GEM")]
+    public float GreenElasticModulus { get; init; } = 1e15f; // in Pa
+
     // public static SpeciesSettings Geranium_Macrorhizum;
     // public static SpeciesSettings Geranium_Cantabrigiense;
     // public static SpeciesSettings Bergonia_Cordifolia;
+    [JsonPropertyName("DF")]
+    public float DepthFactor { get; init; } = 0.01f; // in Pa
 
     public static SpeciesSettings Default => Predefined[0];
+    //-- custom parmeter Geranium & Bergania
+    #region GeraniumBergania
+    public float MaxLeaveAge { get; init; } = 100;
+    public float pNewCrown { get; init; } = 0.5f;
+    public float crownPitch { get; init; } = 0.4f;
+
+    public float growthFactor { get; init; } = 0.2f;
+
+    public float MaxRadius { get; init; } = 0.005f;
+    public float[] pChaningSeaonns { get; init; } = { 0.015f, 0.002f, 0.01f, 0f};
+    public float[] pFloweringSeaonns { get; init; } = { 0.0005f, 0.005f, 0.0003f, 0f };
+
+    public float pExpandRizome { get; init; } = 0.0005f;
+    public int RizomeMaxDepth { get; init; } = 3;
+    public float RizomeLength { get; init; } = 0.04f;
+    public float RizomeRadius { get; init; } = 0.0025f;
+    public float PetiolMoveDownMax { get; init; } = 0.3f;
+    public float PetiolMoveDown { get; init; } = 0.025f;
+
+    #endregion
+
 
     static SpeciesSettings()
     {

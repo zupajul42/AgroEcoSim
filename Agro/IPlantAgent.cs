@@ -21,7 +21,9 @@ public interface IPlantAgent : ITreeAgent
 	byte DominanceLevel { get; }
 
 
-	float Energy { get; }
+    bool isRizome { get; }
+
+    float Energy { get; }
 
 	/// <summary>
 	/// Water amount in gramms
@@ -71,4 +73,5 @@ public interface IPlantAgent : ITreeAgent
 	void DailyAdd(float resources, float production);
 	void DailySet(float resources, float production, float efficiency);
 	void DailyDiv(uint count);
+    void SetOrientation(Quaternion quaternion);
 }

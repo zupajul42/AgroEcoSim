@@ -21,11 +21,12 @@ public struct UnderGroundAgent : IPlantAgent
 	/// Simulation step when the agent was created
 	/// </summary>
 	readonly uint BirthTime;
+    public bool isRizome { get; private set; } = false;
 
-	/// <summary>
-	/// Orientation with respect to the parent. If there is no parent, this is the initial orientation.
-	/// </summary>
-	[JsonIgnore]
+    /// <summary>
+    /// Orientation with respect to the parent. If there is no parent, this is the initial orientation.
+    /// </summary>
+    [JsonIgnore]
 	public Quaternion Orientation { get; private set; }
 
 	/// <summary>
@@ -491,5 +492,10 @@ public struct UnderGroundAgent : IPlantAgent
         public bool Valid => Amount > 0f;
         public Transaction Type => Transaction.Increase;
         [M(AI)]public void Receive(ref UnderGroundAgent dstAgent, uint timestep) => dstAgent.IncWater(Amount);
+    }
+
+    public void SetOrientation(Quaternion quaternion)
+    {
+        return;
     }
 }

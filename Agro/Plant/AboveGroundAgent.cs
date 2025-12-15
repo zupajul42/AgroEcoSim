@@ -1,10 +1,12 @@
-using System;
-using System.Linq;
-using System.Diagnostics;
-using System.Numerics;
 using AgentsSystem;
-using System.Runtime.InteropServices;
+using Agro.Plant.Flower;
+using Microsoft.VisualBasic;
+using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using M = System.Runtime.CompilerServices.MethodImplAttribute;
 
 namespace Agro;
@@ -51,7 +53,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// <summary>
 	/// Priority of the branch, depends on banching type e.g. monopodial, GetIrradiance(ag, i) etc.
 	/// </summary>
-	public byte DominanceLevel { get; private set; } = 1;
+	public byte DominanceLevel { get;  set; } = 1;
 
 	/// <summary>
 	/// Non-uniform scale vector along the local axes
@@ -72,12 +74,12 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// <summary>
 	/// Agent energy (umbrella for mainly sugars created by photosynthesis, in custom units)
 	/// </summary>
-	public float Energy { get; private set; }
+	public float Energy { get;  set; }
 
 	/// <summary>
 	/// Water volume in gramms
 	/// </summary>
-	public float Water_g { get; private set; }
+	public float Water_g { get;  set; }
 
 	// /// <summary>
 	// /// Hormones level (in custom units)
@@ -142,7 +144,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// <summary>
 	/// Plant organ, e.g. stem, leaft, fruit
 	/// </summary>
-	public OrganTypes Organ { get; private set; }
+	public OrganTypes Organ { get;  set; }
 
 	/// <summary>
 	/// Index of the parent agent. -1 represents the root of the hierarchy.
@@ -150,7 +152,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 	public int Parent { get; private set; }
 
 	//TODO This is probably hte lateral pitch with respect to the parent, but since Roll is also assigned once this should be checked
-	public float LateralAngle { get; private set; } = 0f;
+	public float LateralAngle { get;  set; } = 0f;
 
 	/// <summary>
 	/// Recommended initial length of the agent at birth in m.
@@ -168,11 +170,28 @@ public partial struct AboveGroundAgent : IPlantAgent
 	//So far same as for undergrounds
 	public const float WaterTransportRatio = 1.8f;
 
-	#region Variances
-	/// <summary>
-	/// Precomputed random variance of maximm length for this agent
-	/// </summary>
-	float LengthVar;
+    public bool isRizome { get; set; } = false;
+
+	public bool trySpawn { get; set; } = true;
+    
+	public class rizomeInfos
+	{
+        public bool test { get; set; } = true;
+        public bool test2 { get; set; } = true;
+        public bool test4 { get; set; } = true;
+        public bool test3 { get; set; } = false;
+        public int rizomeDepth { get; set; } = 0;
+    }
+
+	public rizomeInfos rizomeInfo { get; set; } = new rizomeInfos();
+
+	public Flower FlowerAgent { get; set; } = new Flower();
+
+    #region Variances
+    /// <summary>
+    /// Precomputed random variance of maximm length for this agent
+    /// </summary>
+    float LengthVar;
 	float RadiusVar;
 	float GrowthTimeVar;
 	#endregion
@@ -298,11 +317,21 @@ public partial struct AboveGroundAgent : IPlantAgent
 			break;
 
 			case OrganTypes.Stem:
-			{
-				LengthVar = 0f;
-				RadiusVar = 0f;
-				GrowthTimeVar = plant.World.HoursPerTick / (species.WoodGrowthTime + plant.RNG.NextFloatVar(species.WoodGrowthTimeVar));
-			}
+				{
+					if (isRizome)
+					{
+						LengthVar = 0.1f;
+						RadiusVar = 0.01f;
+					}
+					else
+					{
+
+						LengthVar = 0f;
+						RadiusVar = 0f;
+						GrowthTimeVar = plant.World.HoursPerTick / (species.WoodGrowthTime + plant.RNG.NextFloatVar(species.WoodGrowthTimeVar));
+
+					}
+				}
 			break;
 
 			default:
@@ -335,8 +364,21 @@ public partial struct AboveGroundAgent : IPlantAgent
 	public const float LeafThickness = 0.0001f;
 	public void Tick(IFormation _formation, int agentID, uint timestep)
 	{
-		var formation = (PlantSubFormation<AboveGroundAgent>)_formation;
-		var plant = formation.Plant;
+        var formation = (PlantSubFormation<AboveGroundAgent>)_formation;
+        switch (formation.Plant.Parameters.Behavior)
+        {
+            case Behavior.Geranium_Sanguineum: GeraniumSanguineum.TickGeraniumSanguineum(ref this, formation, agentID, timestep); break;
+            case Behavior.Geranium_Macrorrhizum: case Behavior.Geranium_x_Cantabrigiense: case Behavior.Bergenia_Cordifolia: Bergania.Tick(ref this, formation, agentID, timestep); break;
+            default: TickDefault(_formation, agentID, timestep); break;
+
+        };
+    }
+
+    public void TickDefault(IFormation _formation, int agentID, uint timestep)
+	{
+        var formation = (PlantSubFormation<AboveGroundAgent>)_formation;
+
+        var plant = formation.Plant;
 		var species = plant.Parameters;
 		var world = plant.World;
 		var ageHours = (timestep - BirthTime) * world.HoursPerTick; //age in hours
@@ -661,13 +703,19 @@ public partial struct AboveGroundAgent : IPlantAgent
     [M(AI)]private void MakeBud(PlantSubFormation<AboveGroundAgent> formation, IList<int>? children)
     {
         Organ = OrganTypes.Bud;
-        ParentRadiusAtBirth = formation.GetBaseRadius(Parent);
+        ParentRadiusAtBirth = !formation.GetIsRizome(Parent) ? formation.GetBaseRadius(Parent) : float.MaxValue; ;
         Length = 2.8f * Radius;
         if (children != null)
             foreach (var child in children)
                 formation.Death(child);
     }
-
+    [M(AI)]
+    private void MakeFlowerBud(PlantSubFormation<AboveGroundAgent> formation)
+    {
+        Organ = OrganTypes.FlowerBud;
+        ParentRadiusAtBirth = formation.GetBaseRadius(Parent);
+        Length = 2.8f * Radius;
+    }
     [M(AI)]internal static void CreateFirstLeaves(AboveGroundAgent parent, PlantFormation2 plant, float lateralAngle, int meristem) => CreateLeavesBase(parent, plant, lateralAngle, meristem, 1f, 1f);
 	[M(AI)]internal readonly void CreateLeaves(AboveGroundAgent parent, PlantFormation2 plant, float lateralAngle, int meristem) => CreateLeavesBase(parent, plant, lateralAngle, meristem, PreviousDayEnvResourcesInvariant, PreviousDayProductionInvariant);
     static void CreateLeavesBase(AboveGroundAgent parent, PlantFormation2 plant, float lateralAngle, int meristem, float initialResources, float initialProduction)
@@ -691,7 +739,7 @@ public partial struct AboveGroundAgent : IPlantAgent
         }
     }
 
-    private static Quaternion TurnUpwards(Quaternion orientation)
+    public  Quaternion TurnUpwards(Quaternion orientation)
     {
 		//determines a rotation that maintains the main direction (x-axis of the matrix)
 		//while rotating the secondary direction (y-axis) as much upwards as possible
@@ -714,7 +762,7 @@ public partial struct AboveGroundAgent : IPlantAgent
         return orientation;
     }
 
-	private readonly Quaternion RandomOrientation(PlantFormation2 plant, SpeciesSettings species, Quaternion orientation)
+	public readonly Quaternion RandomOrientation(PlantFormation2 plant, SpeciesSettings species, Quaternion orientation)
 	{
 		var range = 0.2f * MathF.PI * (species.TwigsBendingLevel * DominanceLevel - species.TwigsBendingApical);
 		var factor = species.TwigsBending * range;
@@ -780,4 +828,30 @@ public partial struct AboveGroundAgent : IPlantAgent
 		PreviousDayEnvResourcesInvariant /= count;
 		PreviousDayProductionInvariant /= count;
 	}
+
+    [M(AI)] public void SetOrientation(Quaternion orientation)
+    {
+        Orientation = orientation;
+    }
+    [StructLayout(LayoutKind.Auto)]
+    [Message]
+    public readonly struct OrientationSet : IMessage<AboveGroundAgent>
+    {
+        public readonly Quaternion Orientation;
+        public OrientationSet(Quaternion orientation)
+        {
+            Orientation = orientation;
+           
+        }
+        bool IMessage<AboveGroundAgent>.Valid => true;
+
+        Transaction IMessage<AboveGroundAgent>.Type => Transaction.Unknown;
+
+        void IMessage<AboveGroundAgent>.Receive(ref AboveGroundAgent agent, uint timestep)
+        {
+            agent.SetOrientation(Orientation);
+        }
+    }
+
+
 }
