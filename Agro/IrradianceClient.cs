@@ -109,7 +109,8 @@ public class IrradianceClient
 	public IrradianceClient(float latitude, float longitude, int _mode, ushort spp = 512)
 	{
 		var mode = (Mode)_mode;
-		Client = new() { BaseAddress = new Uri($"http://localhost:{9001 + Math.Clamp(_mode - 1, 0, 8)}"), Timeout = TimeSpan.FromHours(1) };
+		var port = 9001 + Math.Clamp(_mode - 1, 0, 8);
+		Client = new() { BaseAddress = new Uri($"http://localhost:{port}"), Timeout = TimeSpan.FromHours(1) };
 		Client.DefaultRequestHeaders.Add("La", latitude.ToString(CultureInfo.InvariantCulture));
 		Client.DefaultRequestHeaders.Add("Lo", longitude.ToString(CultureInfo.InvariantCulture));
 		GlobalIllumination = mode != Mode.Constant;

@@ -74,6 +74,7 @@ namespace GreenFDT
       //pManager.AddCurveParameter("Spiral", "S", "Spiral curve", GH_ParamAccess.item);
 
       pManager.AddParameter(new Param_PlantsGroup(), "Groups", "G", "Plants", GH_ParamAccess.list);
+      pManager.AddTextParameter("Debug", "D", "Debug Informationlants", GH_ParamAccess.list);
 
       // Sometimes you want to hide a specific parameter from the Rhino preview.
       // You can use the HideParameter() method as a quick way:
@@ -97,7 +98,7 @@ namespace GreenFDT
       var hoursPerStep = 4;
       var startDate = DateTime.Now;
       var totalHours = 744;
-      ulong seed = 42;
+      var seed = 42;
 
       // Then we need to access the input parameters individually.
       // When data cannot be extracted from a parameter, we should abort this method.
@@ -128,30 +129,53 @@ namespace GreenFDT
       var request = new SimulationRequest() {
         HoursPerTick = hoursPerStep,
         TotalHours = totalHours,
-        Seed = seed,
+        Seed = (ulong)seed,
       };
 
-      var world = Initialize.World(request); //, terrain
-      world.Irradiance.SetAddress("", "", "", "", 0); //keep it simple for now
+      try
+      {
+        //var world = Initialize.World(request); //, terrain
+        var world = Initialize.World();
+        world.Irradiance.SetAddress("localhost", "8001", "localhost", "8002", 0); //keep it simple for now
 
-      //var start = DateTime.UtcNow.Ticks;
-      world.Run((uint)world.TimestepsTotal());
-      //var stop = DateTime.UtcNow.Ticks;
-      //Debug.WriteLine($"Simulation time: {(stop - start) / TimeSpan.TicksPerMillisecond} ms");
+        //var start = DateTime.UtcNow.Ticks;
+        var timesteps = (uint)world.TimestepsTotal();
+        world.Run(timesteps);
+        //var stop = DateTime.UtcNow.Ticks;
+        //Debug.WriteLine($"Simulation time: {(stop - start) / TimeSpan.TicksPerMillisecond} ms");
 
-      var result = new List<GH_Plant>();
-      foreach(var formation in world)
+        List<string> debugMessages = [];
+
+        var result = new List<GH_PlantsGroup>();
+        int c = 0;
+        debugMessages.Add($"TIMESTEPS: {timesteps} -> {world.Timestep}");
+        debugMessages.Add($"FORMATIONS: {world.Count}");
+        debugMessages.Add($"FIELD SIZE: {world.FieldSize}");
+        world.ForEach(formation =>
+        {
           if (formation is PlantFormation2 plant)
-              //response.Plants.Add(new() { Volume = plant.AG.GetVolume() });
-              result.Add(new(plant));
-      // We're set to create the spiral now. To keep the size of the SolveInstance() method small,
-      // The actual functionality will be in a different method:
-      //Curve spiral = CreateSpiral(plane, radius0, radius1, turns);
+          {
+            result.Add(new(new(plant)));
+            debugMessages.Add($"PLANT: {c++}");
+            debugMessages.Add($"    Position: {plant.Position}");
+            debugMessages.Add($"    Volume: {plant.AG.GetVolume()}");
+            debugMessages.Add($"    Leaves: {plant.AG.GetLeaves().Count}");
+          }
+        });
+        // We're set to create the spiral now. To keep the size of the SolveInstance() method small,
+        // The actual functionality will be in a different method:
+        //Curve spiral = CreateSpiral(plane, radius0, radius1, turns);
 
-      // Finally assign the spiral to the output parameter.
-      DA.SetDataList(0, result);
+        // Finally assign the spiral to the output parameter.
+        DA.SetDataList(0, result);
+        DA.SetDataList(1, debugMessages);
 
-      //TODO MI SetDataList
+        //TODO MI SetDataList
+      }
+      catch (Exception ex)
+      {
+        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, ex.ToString());
+      }
     }
 
     Curve CreateSpiral(Plane plane, double r0, double r1, Int32 turns)
