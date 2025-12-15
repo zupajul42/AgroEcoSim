@@ -3,6 +3,9 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Types;
 using System.Collections.Generic;
 
+using Agro;
+using AgentsSystem;
+
 namespace GreenFDT;
 public class GH_Plant
 {
@@ -18,14 +21,55 @@ public class GH_Plant
             Boxes = new (boxes);
     }
 
-    public GH_Plant(PlantFormation2 src)
+    public GH_Plant(PlantFormation2 plant)
     {
+        Boxes = [];
+        var shoots = plant.AG;
+		var count = shoots.Count;
+        for(int i = 0; i < count; ++i)
+        {
+            var organ = ag.GetOrgan(i);
+            var center = ag.GetBaseCenterWorld(i);
+            var scale = ag.GetScale(i);
+            var orientation = ag.GetDirection(i);
 
+            var x = Vector3.Transform(Vector3.UnitX, orientation);
+            var y = Vector3.Transform(Vector3.UnitY, orientation);
+            var z = Vector3.Transform(Vector3.UnitZ, orientation);
+
+            switch (organ)
+            {
+                case OrganTypes.Leaf:
+                {
+                    var ax = x * scale.X * 0.5f;
+                    var ay = -z * scale.Z * 0.5f;
+                    var az = y * scale.Y * 0.5f;
+                    var c = center + ax;
+                    //now the matrix is (ax, ay, az, c) - it includes scaling already
+
+                    //TDMI Boxes.Add(new(...));
+                }
+                break;
+                case OrganTypes.Stem: case OrganTypes.Petiole: case OrganTypes.Meristem:
+                {
+                    writer.Write(scale.X); //length
+                    writer.Write(scale.Z * 0.5f); //radius
+                    writer.WriteM32(z, x, y, center);
+
+                    //length = scale.X
+                    //diameter = scale.Z
+                    //and the matrix is (z, x, y, center) - excluding scaling
+
+                    //TDMI Cylinders.Add(new(...));
+                }
+                break;
+            }
+        }
     }
 
     public override string ToString()
     {
-        return $"{Name} ({Boxes.Count} boxes)";
+        return $"{Name} ({Boxes.Count} objects)";
     }
 }
 
