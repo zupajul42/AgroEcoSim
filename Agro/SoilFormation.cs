@@ -379,14 +379,11 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 					if (d < depth)
 					{
 						var srcIdx = GroundAddr[c] - d; //Index(x, d, z);
-						if (Water_g[srcIdx] > 0f)
-						{
-							Debug.Assert(Coords(srcIdx).Y == d);
-							var distribute = Water_g[srcIdx] * evaporizationSoilFactorPerStep;
+						Debug.Assert(Coords(srcIdx).Y == d);
+						var distribute = Water_g[srcIdx] * evaporizationSoilFactorPerStep;
 
-							if (distribute > MinimumWaterToDiffuse)
-								GravityDiffusion(srcIdx, distribute - MinimumWaterToDiffuse, depth, d);
-						}
+						if (distribute > MinimumWaterToDiffuse)
+							GravityDiffusion(srcIdx, distribute - MinimumWaterToDiffuse, depth, d);
 					}
 				}
 		}
@@ -403,12 +400,9 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		for (int i = 0; i < GroundAddr.Length; ++i)
 		{
 			var srcIdx = GroundAddr[i];
-			if (Water_g[srcIdx] > 0f)
-			{
-				var distribute = Water_g[srcIdx] * evaporizationSurfaceFactorPerStep;
-				if (distribute > 0)
-					GravityDiffusion(srcIdx, distribute, GroundLevels[i], 0);
-			}
+			var distribute = Water_g[srcIdx] * evaporizationSurfaceFactorPerStep;
+			if (distribute > 0)
+				GravityDiffusion(srcIdx, distribute, GroundLevels[i], 0);
 		}
 
 		HasUndeliveredPost = true; //enforcing ProcessRequests() this way, since it must wait until all other agents have made requests, it needs to be part of the post delivery
@@ -430,9 +424,9 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 				var occupied = Water_g[target];
 				if (occupied < WaterCapacityPerCell)
 				{
-					var available = WaterCapacityPerCell - occupied;
+					var targetFreeCapacity = WaterCapacityPerCell - occupied;
 					var requested = distribute * coefs[h];
-					if (requested < available)
+					if (requested < targetFreeCapacity)
 					{
 						Water_g[target] = occupied + requested;
 						resolved += requested;
@@ -440,7 +434,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 					else
 					{
 						Water_g[target] = WaterCapacityPerCell;
-						resolved += available;
+						resolved += targetFreeCapacity;
 					}
 				}
 			}
