@@ -73,7 +73,10 @@ namespace GreenFDT
       // Output parameters do not have default values, but they too must have the correct access type.
       //pManager.AddCurveParameter("Spiral", "S", "Spiral curve", GH_ParamAccess.item);
 
-      pManager.AddParameter(new Param_PlantsGroup(), "Groups", "G", "Plants", GH_ParamAccess.list);
+      //pManager.AddParameter(new Param_PlantsGroup(), "Groups", "G", "Plants", GH_ParamAccess.list);
+
+
+      pManager.AddBoxParameter("Box", "B", "Bounding box", GH_ParamAccess.item);
       pManager.AddTextParameter("Debug", "D", "Debug Informationlants", GH_ParamAccess.list);
 
       // Sometimes you want to hide a specific parameter from the Rhino preview.
@@ -151,6 +154,9 @@ namespace GreenFDT
         debugMessages.Add($"TIMESTEPS: {timesteps} -> {world.Timestep}");
         debugMessages.Add($"FORMATIONS: {world.Count}");
         debugMessages.Add($"FIELD SIZE: {world.FieldSize}");
+
+        Box debugBox = null;
+
         world.ForEach(formation =>
         {
           if (formation is PlantFormation2 plant)
@@ -160,6 +166,22 @@ namespace GreenFDT
             debugMessages.Add($"    Position: {plant.Position}");
             debugMessages.Add($"    Volume: {plant.AG.GetVolume()}");
             debugMessages.Add($"    Leaves: {plant.AG.GetLeaves().Count}");
+
+            var plane = Plane.WorldXY;
+            plane.Origin = plant.Position;
+
+            var x = new Interval()
+    double hx = sizeX / 2.0;
+    double hy = sizeY / 2.0;
+    double hz = sizeZ / 2.0;
+
+    // Define intervals along each axis
+    Interval xInterval = new Interval(-hx, hx);
+    Interval yInterval = new Interval(-hy, hy);
+    Interval zInterval = new Interval(-hz, hz);
+
+    // Construct the box
+    Box box = new Box(plane, xInterval, yInterval, zInterval);
           }
         });
         // We're set to create the spiral now. To keep the size of the SolveInstance() method small,
@@ -167,7 +189,8 @@ namespace GreenFDT
         //Curve spiral = CreateSpiral(plane, radius0, radius1, turns);
 
         // Finally assign the spiral to the output parameter.
-        DA.SetDataList(0, result);
+        //DA.SetDataList(0, result);
+        DA.SetData(0, box);
         DA.SetDataList(1, debugMessages);
 
         //TODO MI SetDataList
@@ -178,30 +201,30 @@ namespace GreenFDT
       }
     }
 
-    Curve CreateSpiral(Plane plane, double r0, double r1, Int32 turns)
-    {
-      Line l0 = new Line(plane.Origin + r0 * plane.XAxis, plane.Origin + r1 * plane.XAxis);
-      Line l1 = new Line(plane.Origin - r0 * plane.XAxis, plane.Origin - r1 * plane.XAxis);
+    // Curve CreateSpiral(Plane plane, double r0, double r1, Int32 turns)
+    // {
+    //   Line l0 = new Line(plane.Origin + r0 * plane.XAxis, plane.Origin + r1 * plane.XAxis);
+    //   Line l1 = new Line(plane.Origin - r0 * plane.XAxis, plane.Origin - r1 * plane.XAxis);
 
-      Point3d[] p0;
-      Point3d[] p1;
+    //   Point3d[] p0;
+    //   Point3d[] p1;
 
-      l0.ToNurbsCurve().DivideByCount(turns, true, out p0);
-      l1.ToNurbsCurve().DivideByCount(turns, true, out p1);
+    //   l0.ToNurbsCurve().DivideByCount(turns, true, out p0);
+    //   l1.ToNurbsCurve().DivideByCount(turns, true, out p1);
 
-      PolyCurve spiral = new PolyCurve();
+    //   PolyCurve spiral = new PolyCurve();
 
-      for (int i = 0; i < p0.Length - 1; i++)
-      {
-        Arc arc0 = new Arc(p0[i], plane.YAxis, p1[i + 1]);
-        Arc arc1 = new Arc(p1[i + 1], -plane.YAxis, p0[i + 1]);
+    //   for (int i = 0; i < p0.Length - 1; i++)
+    //   {
+    //     Arc arc0 = new Arc(p0[i], plane.YAxis, p1[i + 1]);
+    //     Arc arc1 = new Arc(p1[i + 1], -plane.YAxis, p0[i + 1]);
 
-        spiral.Append(arc0);
-        spiral.Append(arc1);
-      }
+    //     spiral.Append(arc0);
+    //     spiral.Append(arc1);
+    //   }
 
-      return spiral;
-    }
+    //   return spiral;
+    // }
 
     /// <summary>
     /// The Exposure property controls where in the panel a component icon
