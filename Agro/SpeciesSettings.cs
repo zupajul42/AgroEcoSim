@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Text.Json.Serialization;
+using Agro.Plant.Flower;
 using Agro.Species;
 
 namespace Agro;
@@ -69,6 +70,8 @@ public class SpeciesSettings
     public float FloweringStartAgeHours { get; internal set; } = 24f * 45f;
     public float FlowerLengthVar { get; internal set; }
     public float FlowerRadiusVar { get; internal set; }
+
+    public FlowerSettings FlowerSettings { get; set; } = new FlowerSettings();
     ///<summary>
     /// Number of lateral branches emerging from a node
     ///</summary>
@@ -240,22 +243,22 @@ public class SpeciesSettings
     public static SpeciesSettings Default => Predefined[0];
     //-- custom parmeter Geranium & Bergania
     #region GeraniumBergania
-    public float MaxLeaveAge { get; init; } = 100;
-    public float pNewCrown { get; init; } = 0.5f;
-    public float crownPitch { get; init; } = 0.4f;
+    public float MaxLeaveAge { get; set; } = 100;
+    public float pNewCrown { get; set; } = 0.5f;
+    public float crownPitch { get; set; } = 0.5f;
 
-    public float growthFactor { get; init; } = 0.2f;
+    public float growthFactor { get; set; } = 0.2f;
 
-    public float MaxRadius { get; init; } = 0.005f;
-    public float[] pChaningSeaonns { get; init; } = { 0.015f, 0.002f, 0.01f, 0f};
-    public float[] pFloweringSeaonns { get; init; } = { 0.0005f, 0.005f, 0.0003f, 0f };
+    public float MaxRadius { get; set; } = 0.005f;
+    public float[] pChaningSeaonns { get; set; } = [ 0.0015f, 0.0005f, 0.001f, 0f];
+    public float[] pFloweringSeaonns { get; set; } = [ 0.0005f, 0.005f, 0.0003f, 0f ];
 
-    public float pExpandRizome { get; init; } = 0.0005f;
-    public int RizomeMaxDepth { get; init; } = 3;
-    public float RizomeLength { get; init; } = 0.04f;
-    public float RizomeRadius { get; init; } = 0.0025f;
-    public float PetiolMoveDownMax { get; init; } = 0.3f;
-    public float PetiolMoveDown { get; init; } = 0.025f;
+    public float pExpandRizome { get; set; } = 0.005f;
+    public int RizomeMaxDepth { get; set; } = 15;
+    public float RizomeLength { get; set; } = 0.01f;
+    public float RizomeRadius { get; set; } = 0.0025f;
+    public float PetiolMoveDownMax { get; set; } = 0.3f;
+    public float PetiolMoveDown { get; set; } = 0f;
 
     #endregion
 
@@ -282,7 +285,7 @@ public class SpeciesSettings
         Predefined.Add(Geranium_Macrorrhizum.Init());
         Predefined.Add(Geranium_x_Cantabrigiense.Init());
         Predefined.Add(Bergonia_Cordifolia.Init());
-
+        
         // Campanula;
         // Heuchera;
         // Fragaria;

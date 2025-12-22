@@ -39,5 +39,7 @@ public enum OrganTypes : byte {
     FlowerPadel,       // eigentliche Blüte
     FlowerPetiol,
     FlowerMeristem,
+    FlowerBaseBud,
     RizomeMeristem
+
 };

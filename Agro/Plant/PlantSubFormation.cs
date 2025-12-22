@@ -681,7 +681,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
         var direction = Vector3.Transform(Vector3.UnitX, dst[index].Orientation); // Local X axis
         return GetBaseCenter(index) + direction * dst[index].Length;
     }
-    private bool BranchIntersect(int index1, int index2)
+    public bool BranchIntersect(int index1, int index2)
     {
         if (index1 == index2)
             return false;
@@ -1014,6 +1014,10 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
     public bool GetIsRizome(int index) => ReadTMP
            ? (AgentsTMP.Length > index ? AgentsTMP[index].isRizome : false)
            : (Agents.Length > index ? Agents[index].isRizome : false);
+
+    public Vector3 GetBaseOffset(int index) => ReadTMP
+    ? (AgentsTMP.Length > index ? AgentsTMP[index].BaseOffset : Vector3.Zero)
+    : (Agents.Length > index ? Agents[index].BaseOffset : Vector3.Zero);
 
     public Vector3 GetBaseCenter(int index) => TreeCache.GetBaseCenter(index);
 	public Vector3 GetBaseCenterWorld(int index) => TreeCache.GetBaseCenter(index) + Plant.Soil.GetFieldOrigin(Plant.SoilIndex);

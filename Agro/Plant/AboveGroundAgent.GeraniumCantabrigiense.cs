@@ -84,18 +84,7 @@ namespace Agro
 
                     case OrganTypes.Meristem: wasMeristem = true; break;
 
-                    case OrganTypes.FlowerBud:
-                        {
-                            // shorter pre-anthesis; modest default size
-                            if (ageHours >= 36f)
-                            {
-                                agent.Organ = OrganTypes.Flower;
-                                agent.LengthVar = 0.08f + plant.RNG.NextFloatVar(species.FlowerLengthVar);
-                                agent.RadiusVar = 0.08f + plant.RNG.NextFloatVar(species.FlowerRadiusVar);
-                                agent.Radius = 0.08f;
-                            }
-                        }
-                        break;
+
                 }
 
                 // --- Spring recruitment from rhizome buds (once each spring) ---
@@ -232,12 +221,7 @@ namespace Agro
                                 }
                                 break;
 
-                            case OrganTypes.Flower:
-                                {
-                                    // Optionally add a gentle post-anthesis drain; keep small to preserve semi-evergreen look
-                                    agent.Energy -= 0.05f * agent.LifeSupportPerHour() * world.HoursPerTick;
-                                }
-                                break;
+
 
                             case OrganTypes.FlowerStem:
                                 {
@@ -298,6 +282,7 @@ namespace Agro
 
                                 case SeasonalPhase.Flowering:
                                     {
+                                        /*
                                         // One scape (flower stem) per mature rosette, once per season
                                         if (agent.trySpawn) // reuse flag for "flower this season?"
                                         {
@@ -315,7 +300,7 @@ namespace Agro
                                             agent.Energy *= 0.84f;
                                             agent.Water_g *= 0.84f;
                                             agent.trySpawn = false; // only once this season
-                                        }
+                                        }*/
                                     }
                                     break;
 
@@ -359,10 +344,7 @@ namespace Agro
                             formation.Death(agentID);
                             if (agent.Parent >= 0) formation.Death(agent.Parent);
                             break;
-                        case OrganTypes.Flower:
-                            formation.Death(agentID);
-                            if (agent.Parent >= 0) formation.Death(agent.Parent);
-                            break;
+                        
                         case OrganTypes.Stem:
                             if (formation.GetIsRizome(agent.Parent)) agent.MakeBud(formation, children);
                             else formation.Death(agentID);

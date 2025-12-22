@@ -108,13 +108,15 @@ public struct UnderGroundAgent : IPlantAgent
 	/// Index of the parent agent. -1 represents the root of the hierarchy.
 	/// </summary>
 	public int Parent { get; private set; }
-	#endregion
 
-	#region Variances
-	/// <summary>
-	/// Precomputed random variance of maximum length for this agent
-	/// </summary>
-	readonly float LengthVar;
+    public Vector3 BaseOffset => throw new NotImplementedException();
+    #endregion
+
+    #region Variances
+    /// <summary>
+    /// Precomputed random variance of maximum length for this agent
+    /// </summary>
+    readonly float LengthVar;
 	#endregion
 
 	///////////////////////////

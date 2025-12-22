@@ -38,12 +38,12 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// <summary>
 	/// Length of the agent in meters.
 	/// </summary>
-	public float Length { get; private set; }
+	public float Length { get;  set; }
 
 	/// <summary>
 	/// Radius of the bottom face in meters.
 	/// </summary>
-	public float Radius { get; private set; }
+	public float Radius { get;  set; }
 
 	/// <summary>
 	/// Length ratio (0..1) where the leaf reaches its maximum radius
@@ -71,10 +71,12 @@ public partial struct AboveGroundAgent : IPlantAgent
 		_ => Length * 4f * Radius* Radius
 	};
 
-	/// <summary>
-	/// Agent energy (umbrella for mainly sugars created by photosynthesis, in custom units)
-	/// </summary>
-	public float Energy { get;  set; }
+
+	public Vector3 BaseOffset { get; set; } = new Vector3(0, 0, 0);
+    /// <summary>
+    /// Agent energy (umbrella for mainly sugars created by photosynthesis, in custom units)
+    /// </summary>
+    public float Energy { get;  set; }
 
 	/// <summary>
 	/// Water volume in gramms
@@ -187,6 +189,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 
 	public Flower FlowerAgent { get; set; } = new Flower();
 
+
     #region Variances
     /// <summary>
     /// Precomputed random variance of maximm length for this agent
@@ -283,6 +286,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 		CurrentDayEnvResourcesInv = 0f;
 		PreviousDayEnvResources = initialResources * Length * Radius * 2f;
 		CurrentDayEnvResources = 0f;
+
 
 		//FirstSegmentIndex = plant.InsertSegments(SegmentsCount, orientation);
 
@@ -736,10 +740,33 @@ public partial struct AboveGroundAgent : IPlantAgent
 
             plant.AG.Birth(new(plant, petioleIdx, OrganTypes.Leaf, orientation, parent.Energy * 0.1f, initialResources: initialResources, initialProduction: initialProduction) { DominanceLevel = parent.DominanceLevel, ParentRadiusAtBirth = float.MaxValue }); //leaf
             parent.Energy *= 0.9f;
+
         }
     }
+    [M(AI)] internal static void CreateFirstFlowerBaseLeaves(AboveGroundAgent parent, PlantFormation2 plant, float lateralAngle, int meristem) => CreateFlowerBaseLeavesBase(parent, plant, lateralAngle, meristem, 1f, 1f);
+    [M(AI)] internal readonly void CreateFlowerBaseLeaves(AboveGroundAgent parent, PlantFormation2 plant, float lateralAngle, int meristem) => CreateFlowerBaseLeavesBase(parent, plant, lateralAngle, meristem, PreviousDayEnvResourcesInvariant, PreviousDayProductionInvariant);
+    static void CreateFlowerBaseLeavesBase(AboveGroundAgent parent, PlantFormation2 plant, float lateralAngle, int meristem, float initialResources, float initialProduction)
+    {
+        var species = plant.Parameters;
+        var angleStep = 2f * MathF.PI / species.LateralsPerNode;
+        for (int l = 0; l < species.LateralsPerNode; ++l)
+        {
+            var roll = plant.RNG.NextFloatVar(species.LateralRollVar);
+            var pitch = plant.RNG.NextFloatVar(species.LateralPitchVar);
+            var orientation = parent.Orientation * Quaternion.CreateFromAxisAngle(Vector3.UnitX, l * angleStep + lateralAngle) * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -plant.Parameters.LateralPitch);
+            orientation = TurnUpwards(orientation) * Quaternion.CreateFromAxisAngle(Vector3.UnitX, roll) * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, pitch);
+            var petioleIdx = plant.AG.Birth(new(plant, meristem, OrganTypes.Petiole, orientation, parent.Energy * 0.1f, initialResources: initialResources, initialProduction: initialProduction) { DominanceLevel = parent.DominanceLevel, ParentRadiusAtBirth = parent.Radius,FlowerAgent=new Flower() { flowerBase = true } }); //leaf stem
+            parent.Energy *= 0.9f;
 
-    public  Quaternion TurnUpwards(Quaternion orientation)
+            var leafPitchVar = plant.RNG.NextFloatVar(species.LateralPitchVar);
+            orientation *= Quaternion.CreateFromAxisAngle(Vector3.UnitZ, leafPitchVar - species.LeafPitch);
+
+            plant.AG.Birth(new(plant, petioleIdx, OrganTypes.Leaf, orientation, parent.Energy * 0.1f, initialResources: initialResources, initialProduction: initialProduction) { DominanceLevel = parent.DominanceLevel, ParentRadiusAtBirth = float.MaxValue, FlowerAgent = new Flower() { flowerBase = true }, LengthVar = 0.001f,RadiusVar = 0.0005f}); //leaf
+            parent.Energy *= 0.9f;
+
+        }
+    }
+    public static  Quaternion TurnUpwards(Quaternion orientation)
     {
 		//determines a rotation that maintains the main direction (x-axis of the matrix)
 		//while rotating the secondary direction (y-axis) as much upwards as possible

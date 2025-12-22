@@ -1,4 +1,5 @@
 ﻿using AgentsSystem;
+using Agro.Plant.Flower;
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
@@ -107,17 +108,7 @@ namespace Agro
                     //a marker to later indicate transformation
                     case OrganTypes.Meristem: wasMeristem = true; break;
 
-                    case OrganTypes.FlowerBud:
-
-                        if (ageHours >= 48f)
-                        {
-                            agent.Organ = OrganTypes.Flower;
-                            //Console.WriteLine("yeh");
-                            agent.LengthVar = 0.1f + plant.RNG.NextFloatVar(species.FlowerLengthVar);
-                            agent.RadiusVar = 0.1f + plant.RNG.NextFloatVar(species.FlowerRadiusVar);
-                            agent.Radius = 0.1f;
-                        }
-                        break;
+                    
                 }
 
                 //new Branches in spring
@@ -131,7 +122,7 @@ namespace Agro
                             var initialYaw = Quaternion.CreateFromAxisAngle(Vector3.UnitY, initialYawAngle);
                             var baseStemOrientation = agent.Orientation * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, species.crownPitch * MathF.PI);
                             agent.Organ = OrganTypes.Meristem;
-                           
+                            agent.Orientation = baseStemOrientation;
                             agent.DominanceLevel = 1;
                             agent.Radius = 0.005f;
                             agent.LengthVar = species.NodeDistance + plant.RNG.NextFloatVar(species.NodeDistanceVar);
@@ -139,7 +130,7 @@ namespace Agro
                             agent.Energy = agent.EnergyStorageCapacity();
                             if (species.LateralsPerNode > 0)
                                 agent.CreateLeaves(agent, plant, agent.LateralAngle + species.LateralRoll, agentID);
-                            agent.Orientation = baseStemOrientation;
+                           
                         }
                         else agent.trySpawn = false;
                     }
@@ -148,9 +139,15 @@ namespace Agro
                         agent.trySpawn = true;
 
                     }
-
+                    
                 }
-
+                var flowerOrgans = new List<OrganTypes>() { OrganTypes.FlowerStem, OrganTypes.FlowerPadel, OrganTypes.FlowerPetiol, OrganTypes.FlowerMeristem };
+                if(flowerOrgans.Contains(agent.Organ))
+                {
+                    var flowerHelper = new FlowerHelper(species.FlowerSettings);
+                    flowerHelper.handleAgent(ref agent, agentID, formation, timestep);
+                    return;
+                }
                 if (agent.Energy > enoughEnergyState && !agent.isRizome) //maybe make it a factor storedEnergy/lifeSupport so that it grows fast when it has full storage
                 {
                     //Growth and branching
@@ -166,7 +163,7 @@ namespace Agro
                                     //TDMI take env res efficiency into account
                                     //TDMI thickness of the parent and parent-parent decides the max. leaf size,
                                     //  also the energy consumption of the siblings beyond the node should have effect
-                                    var sizeLimit = new Vector2(species.LeafLength + agent.LengthVar, species.LeafRadius + agent.RadiusVar);
+                                    var sizeLimit = !agent.FlowerAgent.flowerBase ? new Vector2(species.LeafLength + agent.LengthVar, species.LeafRadius + agent.RadiusVar): new Vector2(species.FlowerSettings.LeafLength , species.FlowerSettings.LeafRadius );
                                     if (currentSize.X < sizeLimit.X && currentSize.Y < sizeLimit.Y)
                                     {
                                         //HoursPerTick are included in GrowthTimeVar
@@ -182,7 +179,7 @@ namespace Agro
                                 {
 
 
-                                    var sizeLimit = new Vector2(species.PetioleLength + agent.LengthVar, species.PetioleRadius + agent.RadiusVar);
+                                    var sizeLimit = !agent.FlowerAgent.flowerBase ? new Vector2(species.PetioleLength + agent.LengthVar, species.PetioleRadius + agent.RadiusVar) : new Vector2(species.FlowerSettings.LeavePetioleLength , species.FlowerSettings.LeavePetioleRadius );
                                     if (currentSize.X < sizeLimit.X && currentSize.Y < sizeLimit.Y)
                                     {
                                         //HoursPerTick are included in GrowthTimeVar
@@ -241,60 +238,15 @@ namespace Agro
                                     }
                                 }
                                 break;
-                            case OrganTypes.Flower:
-                                {
-
-                                    /* var sizeLimit = new Vector2(species.LeafLength + agent.LengthVar, species.LeafRadius + agent.RadiusVar);
-                                     if (currentSize.X < sizeLimit.X && currentSize.Y < sizeLimit.Y && ageHours < (5f * 24f))
-                                     {
-                                         //HoursPerTick are included in GrowthTimeVar
-                                         var growth = Math.Min(1f, plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar * (agent.PreviousDayProductionInv / formation.DailyProductionMax);
-                                         var resultingSize = Vector2.Min(currentSize + growth, sizeLimit);
-                                         growth = resultingSize - currentSize;
-                                         agent.Length += growth.X;
-                                         agent.Radius += growth.Y;
-                                     }
-                                     var maxAge = species.FloweringEndAgeHours;
-                                     var window = 72f; // 3 days default
-                                     //Console.WriteLine("flower2");
-                                     if (ageHours > (5f * 24f))
-                                     {
-                                         var t = Math.Clamp((ageHours - maxAge) / window, 0f, 1f);
-
-                                         var baseDrainPerHour = 0.25f * agent.LifeSupportPerHour();
-
-                                         var eased = 0.25f + 0.75f * t;
-                                         agent.Energy -= baseDrainPerHour * eased * world.HoursPerTick;
-
-                                         var shrink = 1f - (0.98f + 0.02f * (t * t));
-                                         agent.Radius *= (1f - shrink);
-
-
-                                         agent.WoodFactor = Math.Min(agent.WoodFactor + 0.25f, 1f);
-                                     }*/
+                            case OrganTypes.FlowerStem: case OrganTypes.FlowerPadel:
+                            case OrganTypes.FlowerPetiol:
+                            case OrganTypes.FlowerMeristem:
+                            {
+                                    
+                                    
                                 }
-                                break;
-                            case OrganTypes.FlowerStem:
-                                {
-                                    /* var sizeLimit = new Vector2(species.PetioleLength + agent.LengthVar, species.PetioleRadius + agent.RadiusVar);
-                                     if (currentSize.X < sizeLimit.X && currentSize.Y < sizeLimit.Y)
-                                     {
-                                         //HoursPerTick are included in GrowthTimeVar
-                                         var growth = Math.Min(1f, plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar * (agent.PreviousDayProductionInv / formation.DailyProductionMax);
-                                         var resultingSize = Vector2.Min(currentSize + growth, sizeLimit);
-                                         growth = resultingSize - currentSize;
-
-                                         //assure not to outgrow the parent
-                                         var parentRadius = (agent.Parent >= 0 && !formation.GetIsRizome(agent.Parent)) ? formation.GetBaseRadius(agent.Parent) : float.MaxValue;
-                                         if (currentSize.Y + growth.Y > parentRadius)
-                                             growth.Y = parentRadius - currentSize.Y;
-                                         agent.Length += growth.X;
-                                         agent.Radius += growth.Y;
-                                     }
-                                    */
-
-                                }
-                                break;
+                                return;
+                         
                         }
                         ;
 
@@ -327,7 +279,7 @@ namespace Agro
 
                             
 
-                            if (agent.Organ == OrganTypes.Meristem && agent.Length > agent.LengthVar )
+                            if (agent.Organ == OrganTypes.Meristem && agent.Length > agent.LengthVar && plant.RNG.NextFloat(0, 1) < pchaning)
                             {
 
                                 agent.Organ = OrganTypes.Stem;
@@ -346,11 +298,14 @@ namespace Agro
                                     //Debug.WriteLine($"PREV res {prevResources} prod {prevProduction}");
                                 }
 
-                                bool doDichotomous = species.MonopodialFactor < 1f;
-                                if(plant.RNG.NextFloat(0, 1) < pchaning)
+                                if(phase.Equals(SeasonalPhase.PreFlower))
                                 {
-                                    doChaning(agent,formation,agentID,prevResources,prevProduction);
+                                    commitToFlower(agent, formation, agentID, prevResources, prevProduction);
+                                    doChaning(agent, formation, agentID, prevResources, prevProduction);
                                 }
+                                else
+                                    doChaning(agent,formation,agentID,prevResources,prevProduction);
+                                
                                 
                                 
                                 var parent = agent.Parent;
@@ -409,12 +364,7 @@ namespace Agro
                                 formation.Death(agent.Parent); //remove the petiole as well
                             }
                             break;
-                        case OrganTypes.Flower:
-                            {
-                                formation.Death(agentID);
-                                formation.Death(agent.Parent); //remove the petiole as well
-                            }
-                            break;
+
                         case OrganTypes.Stem:
                             {
                                 if (formation.GetIsRizome(agent.Parent))
@@ -447,13 +397,17 @@ namespace Agro
                 }
                 else if (agent.isRizome)
                 {
-                    if ((phase.Equals(SeasonalPhase.PostFlower) || phase.Equals(SeasonalPhase.Flowering)) && agent.rizomeInfo.test3 && agent.rizomeInfo.rizomeDepth < species.RizomeMaxDepth)
+
+                    
+                    if ((!phase.Equals(SeasonalPhase.ResetPending) ) && agent.rizomeInfo.test3 && agent.rizomeInfo.rizomeDepth < species.RizomeMaxDepth)
                     {
-                        if (plant.RNG.NextFloat(0, 1) < species.pExpandRizome && agent.rizomeInfo.test)
+
+                         if (plant.RNG.NextFloat(0, 1) < species.pExpandRizome && agent.rizomeInfo.test)
                         {
                             var rizomOrientation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0f * MathF.PI);
                             if (agentID > 0)
                                 rizomOrientation = agent.Orientation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI / 4f);
+                            if (formation.b)
                             CreateRizome(plant, agentID, rizomOrientation, agent, formation);
                             agent.rizomeInfo.test = false;
                         }
@@ -482,13 +436,19 @@ namespace Agro
                 agent.Auxins = wasMeristem || agent.Organ == OrganTypes.Meristem ? species.AuxinsProduction : 0;
             }
 
-            private static void commitToFlower()
+            private static void commitToFlower(AboveGroundAgent agent, PlantSubFormation<AboveGroundAgent> formation, int agentID, float prevResources, float prevProduction)
             {
-                throw new NotImplementedException();
+                var lateralPitch = agent.LateralAngle + formation.Plant.Parameters.LateralRoll;
+                var meristem = formation.Birth(new(formation.Plant, agentID, OrganTypes.FlowerMeristem, TurnUpwards(agent.RandomOrientation(formation.Plant, formation.Plant.Parameters, agent.Orientation)), 0.1f * agent.Energy, initialResources: prevResources, initialProduction: prevProduction) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel, Length = 0.1f, Radius = 0.0015f, FlowerAgent = new Flower() { debth = 0, flowerBase = true } });
+                agent.Energy *= 0.9f;
+                agent.Water_g *= 0.9f;
+
+
             }
 
             static void CreateRizome(PlantFormation2 plant, int agentID, Quaternion rizomOrientation, AboveGroundAgent agent, PlantSubFormation<AboveGroundAgent> formation)
             {
+
                 var rizome = new AboveGroundAgent(plant, agentID, OrganTypes.Stem, rizomOrientation, 0, length: plant.Parameters.RizomeLength, radius: plant.Parameters.RizomeRadius);
                 rizome.isRizome = true;
                 rizome.rizomeInfo.rizomeDepth = agent.rizomeInfo.rizomeDepth + 1;
@@ -505,11 +465,11 @@ namespace Agro
 
                 if (formation.Plant.Parameters.LateralsPerNode > 0)
                     agent.CreateLeaves(agent, formation.Plant, lateralPitch, meristem);
+
             }
 
             static void bendPetiol(PlantSubFormation<AboveGroundAgent> formation, int agentID) {
                 float maxAngle = formation.Plant.Parameters.PetiolMoveDownMax * MathF.PI;   // max. Winkel zwischen Parent- und Child-Stängel
-
                 // Parent-Orientierung → Parent-Richtung (im Worldspace)
                 var parentRot = formation.GetDirection(formation.GetParent(agentID));
                 var parentDir = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, parentRot));
@@ -537,6 +497,8 @@ namespace Agro
                         var worldRot = Quaternion.CreateFromAxisAngle(axis, delta);
                         var or = formation.GetDirection(agentID);
                         formation.SendProtected(agentID,new AboveGroundAgent.OrientationSet(Quaternion.Normalize(worldRot * or)));
+
+                        formation.SendProtected(formation.GetChildren(agentID).First(), new AboveGroundAgent.OrientationSet(Quaternion.Normalize(worldRot * formation.GetDirection(formation.GetChildren(agentID).First()))));
                     }
                 }
             }

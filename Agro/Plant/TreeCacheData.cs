@@ -81,7 +81,7 @@ internal class TreeCacheData
 	internal ushort GetAbsDepth(int index) => DepthNodes[index];
 	internal ushort GetAbsInvDepth(int index) => (ushort)(MaxDepth - DepthNodes[index]);
 	internal float GetRelDepth(int index) => MaxDepth > 0 ? (DepthNodes[index] + 1) / (float)MaxDepth : 1f;
-	internal Vector3 GetBaseCenter(int index) => PointNodes[index];
+	internal Vector3 GetBaseCenter(int index) => PointNodes[index] ;
 
 	internal void UpdateBases<T>(PlantSubFormation<T> formation) where T : struct, IPlantAgent
 	{

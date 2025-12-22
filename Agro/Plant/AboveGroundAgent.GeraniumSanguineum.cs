@@ -108,16 +108,6 @@ namespace Agro
                     //a marker to later indicate transformation
                     case OrganTypes.Meristem: wasMeristem = true; break;
 
-                    case OrganTypes.FlowerBud:
-
-                        if (ageHours >= 48f)
-                        {
-                            agent.Organ = OrganTypes.Flower;
-                            //Console.WriteLine("yeh");
-                            agent.LengthVar = 0.1f + plant.RNG.NextFloatVar(species.FlowerLengthVar);
-                            agent.RadiusVar = 0.1f + plant.RNG.NextFloatVar(species.FlowerRadiusVar);
-                            agent.Radius = 0.1f;
-                        }
                     break;
                 }
 
@@ -265,39 +255,7 @@ namespace Agro
                                     }
                                 }
                                 break;
-                            case OrganTypes.Flower:
-                                {
-
-                                    /* var sizeLimit = new Vector2(species.LeafLength + agent.LengthVar, species.LeafRadius + agent.RadiusVar);
-                                     if (currentSize.X < sizeLimit.X && currentSize.Y < sizeLimit.Y && ageHours < (5f * 24f))
-                                     {
-                                         //HoursPerTick are included in GrowthTimeVar
-                                         var growth = Math.Min(1f, plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar * (agent.PreviousDayProductionInv / formation.DailyProductionMax);
-                                         var resultingSize = Vector2.Min(currentSize + growth, sizeLimit);
-                                         growth = resultingSize - currentSize;
-                                         agent.Length += growth.X;
-                                         agent.Radius += growth.Y;
-                                     }
-                                     var maxAge = species.FloweringEndAgeHours;
-                                     var window = 72f; // 3 days default
-                                     //Console.WriteLine("flower2");
-                                     if (ageHours > (5f * 24f))
-                                     {
-                                         var t = Math.Clamp((ageHours - maxAge) / window, 0f, 1f);
-
-                                         var baseDrainPerHour = 0.25f * agent.LifeSupportPerHour();
-
-                                         var eased = 0.25f + 0.75f * t;
-                                         agent.Energy -= baseDrainPerHour * eased * world.HoursPerTick;
-
-                                         var shrink = 1f - (0.98f + 0.02f * (t * t));
-                                         agent.Radius *= (1f - shrink);
-
-
-                                         agent.WoodFactor = Math.Min(agent.WoodFactor + 0.25f, 1f);
-                                     }*/
-                                }
-                                break;
+                           
                             case OrganTypes.FlowerStem:
                                 {
                                     /* var sizeLimit = new Vector2(species.PetioleLength + agent.LengthVar, species.PetioleRadius + agent.RadiusVar);
@@ -406,7 +364,7 @@ namespace Agro
 
                                                 var meristemVeg = formation.Birth(new(plant, agentID, OrganTypes.Meristem, agent.RandomOrientation(plant, species, orientationv), 0.1f * agent.Energy, initialResources: prevResources, initialProduction: prevProduction) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel });
                                                 var florwerstem = formation.Birth(new(plant, agentID, OrganTypes.FlowerStem, agent.RandomOrientation(plant, species, orientationf), 0.1f * agent.Energy, initialResources: prevResources, initialProduction: prevProduction) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel, ParentRadiusAtBirth = agent.Radius });
-                                                formation.Birth(new(plant, florwerstem, OrganTypes.Flower, agent.RandomOrientation(plant, species, orientationv), 0.1f * agent.Energy, initialResources: prevResources, initialProduction: prevProduction) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel,  ParentRadiusAtBirth = float.MaxValue });
+                                                //formation.Birth(new(plant, florwerstem, OrganTypes.Flower, agent.RandomOrientation(plant, species, orientationv), 0.1f * agent.Energy, initialResources: prevResources, initialProduction: prevProduction) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel,  ParentRadiusAtBirth = float.MaxValue });
                                                 agent.Energy *= 0.8f;
                                                 agent.Water_g *= 0.8f;
 
@@ -494,12 +452,7 @@ namespace Agro
                                 formation.Death(agent.Parent); //remove the petiole as well
                             }
                             break;
-                        case OrganTypes.Flower:
-                            {
-                                formation.Death(agentID);
-                                formation.Death(agent.Parent); //remove the petiole as well
-                            }
-                            break;
+                       
                         case OrganTypes.Stem:
                             {
                                 if (formation.GetIsRizome(agent.Parent))

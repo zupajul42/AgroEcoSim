@@ -758,7 +758,7 @@ public class IrradianceClient
 				for (int i = 0; i < count; ++i)
 				{
 					var organ = ag.GetOrgan(i);
-					var center = ag.GetBaseCenterWorld(i);
+					var center = ag.GetBaseCenterWorld(i) + ag.GetBaseOffset(i);
 					var scale = ag.GetScale(i);
 					var orientation = ag.GetDirection(i);
 
@@ -771,7 +771,8 @@ public class IrradianceClient
 					switch (organ)
 					{
 						case OrganTypes.Leaf:
-							{
+                        case OrganTypes.FlowerPadel:
+                            {
 								writer.WriteU8(1); //ORGAN 1 leaf
 								var ax = x * scale.X * 0.5f;
 								var ay = -z * scale.Z * 0.5f;
@@ -791,7 +792,10 @@ public class IrradianceClient
 							}
 							break;
 						case OrganTypes.Stem: case OrganTypes.Petiole: case OrganTypes.Meristem: case OrganTypes.FlowerStem:
-							{
+                        case OrganTypes.FlowerMeristem:
+                        case OrganTypes.FlowerPetiol:
+                        case OrganTypes.FlowerBud:
+                            {
 								writer.WriteU8(2); //ORGAN 2 stem
 								writer.Write(scale.X); //length
 								writer.Write(scale.Z * 0.5f); //radius
@@ -819,7 +823,7 @@ public class IrradianceClient
 							}
 							break;
 						case OrganTypes.Bud:
-							{
+                            {
 								writer.WriteU8(3); //ORGAN 3 bud
 								writer.WriteV32(center);
 								writer.Write(scale.X); //radius
@@ -828,34 +832,9 @@ public class IrradianceClient
 							}
 							break;
 
-                                case OrganTypes.FlowerBud:
-                            {
+ 
 
-                                writer.WriteU8(4); // ORGAN 3 bud
-                                writer.WriteV32(center);
-
-                                float budR = MathF.Max(1e-4f, scale.X);
-                                writer.Write(budR);
-                                writer.Write(Math.Clamp(ag.GetWater(i) / ag.GetWaterEfficientCapacity(world, i), 0, 1));
-                                writer.Write(Math.Clamp(ag.GetEnergy(i) / ag.GetEnergyCapacity(i), 0, 1));
-                            }
-                            break;
-
-                        case OrganTypes.Flower:
-                            {
-
-                                writer.WriteU8(5); // ORGAN 3 bud (placeholder for flower)
-                                var ax = x * scale.X * 0.5f;
-                                var ay = -z * scale.Z * 0.5f;
-                                var az = y * scale.Y * 0.5f;
-                                var c = center;
-                                writer.WriteM32(ax, ay, az, c);
-                                writer.Write(Math.Clamp(ag.GetWater(i) / ag.GetWaterEfficientCapacity(world, i), 0, 1));
-                                writer.Write(Math.Clamp(ag.GetEnergy(i) / ag.GetEnergyCapacity(i), 0, 1));
-                                writer.Write(Math.Clamp(ag.GetWoodRatio(i), 0, 1));
-                                writer.WriteV32(1f, 0.35f, 0.78f);
-                            }
-                            break;
+                        
                         default: throw new NotImplementedException();
 					}
 					if (extended)

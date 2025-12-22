@@ -22,6 +22,7 @@ public interface IPlantAgent : ITreeAgent
 
 
     bool isRizome { get; }
+	Vector3 BaseOffset { get; }
 
     float Energy { get; }
 
