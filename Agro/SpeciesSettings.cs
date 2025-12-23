@@ -244,12 +244,12 @@ public class SpeciesSettings
     //-- custom parmeter Geranium & Bergania
     #region GeraniumBergania
     public float MaxLeaveAge { get; set; } = 100;
-    public float pNewCrown { get; set; } = 0.5f;
+    public float pNewCrown { get; set; } = 1f;
     public float crownPitch { get; set; } = 0.5f;
 
     public float growthFactor { get; set; } = 0.2f;
 
-    public float MaxRadius { get; set; } = 0.005f;
+    public float MaxRadius { get; set; } = 0.0005f;
     public float[] pChaningSeaonns { get; set; } = [ 0.0015f, 0.0005f, 0.001f, 0f];
     public float[] pFloweringSeaonns { get; set; } = [ 0.0005f, 0.005f, 0.0003f, 0f ];
 

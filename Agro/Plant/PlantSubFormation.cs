@@ -37,7 +37,12 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 
 	readonly TreeCacheData TreeCache = new();
 
-	public PlantSubFormation(PlantFormation2 plant, Action<T[], int[]> reindex, bool isAboveGround)
+    internal Bvh CollisionBvh { get; } = new();
+    readonly List<Quaternion> PendingGravityRotations = new();
+    bool HasPendingGravityRotations = false;
+
+
+    public PlantSubFormation(PlantFormation2 plant, Action<T[], int[]> reindex, bool isAboveGround)
 	{
 		Plant = plant;
 		Reindex = reindex;
@@ -446,6 +451,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
             float elasticity = (MathF.Max(1e20f, baseDebthstiffness * depthAttenuation)) * (1 - woodiness) + 1e20f * woodiness;
 			//Console.WriteLine($"e = {elasticity}, b*d = {baseDebthstiffness * depthAttenuation}, w = {woodiness}, we = {Weights[i]}");
 			Quaternion rotation = Quaternion.Identity;
+            var effectiveOrientation = GetEffectiveOrientationForCollision(i);
             if (length > 0f && radius > 0f && totalWeight > 0f)
             {
                 var bendingMoment = totalWeight * length * 0.5f;
@@ -455,7 +461,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 
 
 
-                var dir = Vector3.Transform(Vector3.UnitX, agent.Orientation);
+                var dir = Vector3.Transform(Vector3.UnitX, effectiveOrientation);
 
                 float angleToDown = MathF.Acos(Math.Clamp(Vector3.Dot(dir, Vector3.UnitY), -1f, 1f));
                 float maxAllowedBend = MathF.PI - angleToDown;
@@ -474,6 +480,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
                         grid[key] = list = new();
                     grid[key].Add(i);
                     agentCellMap[i] = key;
+                    PendingGravityRotations[i] = Quaternion.Normalize(rotation * PendingGravityRotations[i]);
                 }
 
             }

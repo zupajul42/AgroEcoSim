@@ -124,7 +124,7 @@ namespace Agro
                             agent.Organ = OrganTypes.Meristem;
                             agent.Orientation = baseStemOrientation;
                             agent.DominanceLevel = 1;
-                            agent.Radius = 0.005f;
+                            agent.Radius = AboveGroundAgent.InitialRadius;
                             agent.LengthVar = species.NodeDistance + plant.RNG.NextFloatVar(species.NodeDistanceVar);
 
                             agent.Energy = agent.EnergyStorageCapacity();
@@ -370,6 +370,7 @@ namespace Agro
                                 if (formation.GetIsRizome(agent.Parent))
                                 {
                                     agent.MakeBud(formation, children);
+                                    agent.SetOrientation(formation.GetDirection(agent.Parent));
                                 }
                                 else
                                 {
@@ -384,6 +385,7 @@ namespace Agro
                             if (formation.GetIsRizome(agent.Parent) && !agent.Organ.Equals(OrganTypes.Bud))
                             {
                                 agent.MakeBud(formation, children);
+                                agent.SetOrientation(formation.GetDirection(agent.Parent));
                             }
                             else
                             {
@@ -407,7 +409,7 @@ namespace Agro
                             var rizomOrientation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0f * MathF.PI);
                             if (agentID > 0)
                                 rizomOrientation = agent.Orientation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI / 4f);
-                            if (formation.b)
+                            
                             CreateRizome(plant, agentID, rizomOrientation, agent, formation);
                             agent.rizomeInfo.test = false;
                         }
@@ -439,7 +441,7 @@ namespace Agro
             private static void commitToFlower(AboveGroundAgent agent, PlantSubFormation<AboveGroundAgent> formation, int agentID, float prevResources, float prevProduction)
             {
                 var lateralPitch = agent.LateralAngle + formation.Plant.Parameters.LateralRoll;
-                var meristem = formation.Birth(new(formation.Plant, agentID, OrganTypes.FlowerMeristem, TurnUpwards(agent.RandomOrientation(formation.Plant, formation.Plant.Parameters, agent.Orientation)), 0.1f * agent.Energy, initialResources: prevResources, initialProduction: prevProduction) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel, Length = 0.1f, Radius = 0.0015f, FlowerAgent = new Flower() { debth = 0, flowerBase = true } });
+                var meristem = formation.Birth(new(formation.Plant, agentID, OrganTypes.FlowerMeristem, TurnUpwards(agent.RandomOrientation(formation.Plant, formation.Plant.Parameters, agent.Orientation)), 0.1f * agent.Energy, initialResources: prevResources, initialProduction: prevProduction) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel, Length = 0.09f, Radius = 0.00025f, FlowerAgent = new Flower() { debth = 0, flowerBase = true } });
                 agent.Energy *= 0.9f;
                 agent.Water_g *= 0.9f;
 
@@ -454,7 +456,8 @@ namespace Agro
                 rizome.rizomeInfo.rizomeDepth = agent.rizomeInfo.rizomeDepth + 1;
                 var lateralPitch = agent.LateralAngle + formation.Plant.Parameters.LateralRoll;
                 var rizomeIndex = formation.Birth(rizome);
-                var bud = new AboveGroundAgent(plant, rizomeIndex, OrganTypes.Bud, rizomOrientation, 0, initialResources: 1f, initialProduction: 1f) { LateralAngle = lateralPitch };
+                var bud = new AboveGroundAgent(plant, rizomeIndex, OrganTypes.Bud, rizomOrientation, 0, initialResources: 1f, initialProduction: 1f) { LateralAngle = lateralPitch, Radius = 0f,RadiusVar=0f };
+
                 formation.Birth(bud);
             }
             static void doChaning(AboveGroundAgent agent, PlantSubFormation<AboveGroundAgent> formation, int agentID, float prevResources, float prevProduction) {
