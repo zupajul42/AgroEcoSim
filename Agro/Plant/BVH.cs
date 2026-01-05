@@ -6,7 +6,7 @@ namespace Agro;
 /// <summary>
 /// A lightweight bounding volume hierarchy suitable for quick overlap tests.
 /// </summary>
-public sealed class Bvh
+public class Bvh
 {
     public readonly struct BoundingBox
     {
@@ -66,7 +66,7 @@ public sealed class Bvh
         root = -1;
     }
 
-    public void Build(IReadOnlyList<(int agentIndex, BoundingBox bounds)> leaves)
+    public void Build(List<(int agentIndex, BoundingBox bounds)> leaves)
     {
         Clear();
         if (leaves.Count == 0)
@@ -155,17 +155,28 @@ public sealed class Bvh
             return result;
 
         var uniquePairs = new HashSet<(int, int)>();
-        var stack = new Stack<(int left, int right)>();
+        var internalStack = new Stack<int>();
+        internalStack.Push(root);
 
-        var rootNode = nodes[root];
-        if (!rootNode.IsLeaf)
-            stack.Push((rootNode.Left, rootNode.Right));
+        var pairStack = new Stack<(int a, int b)>();
 
-        while (stack.Count > 0)
+        while (internalStack.Count > 0)
         {
-            var (aIndex, bIndex) = stack.Pop();
-            var a =  nodes[aIndex];
-            var b =  nodes[bIndex];
+            int idx = internalStack.Pop();
+            var n = nodes[idx];
+
+            if (n.IsLeaf)
+                continue;
+
+            pairStack.Push((n.Left, n.Right));
+            internalStack.Push(n.Left);
+            internalStack.Push(n.Right);
+        }
+        while (pairStack.Count > 0)
+        {
+            var (aIndex, bIndex) = pairStack.Pop();
+            var a = nodes[aIndex];
+            var b = nodes[bIndex];
 
             if (!a.Bounds.Intersects(in b.Bounds))
                 continue;
@@ -180,28 +191,125 @@ public sealed class Bvh
                     : (b.AgentIndex, a.AgentIndex);
 
                 if (uniquePairs.Add(pair))
-                    result.Add(pair);
+                    result.Add((pair.Item1, pair.Item2));
             }
             else if (aLeaf)
             {
-                stack.Push((aIndex, b.Left));
-                stack.Push((aIndex, b.Right));
+                pairStack.Push((aIndex, b.Left));
+                pairStack.Push((aIndex, b.Right));
             }
             else if (bLeaf)
             {
-                stack.Push((a.Left, bIndex));
-                stack.Push((a.Right, bIndex));
+                pairStack.Push((a.Left, bIndex));
+                pairStack.Push((a.Right, bIndex));
             }
             else
             {
-                stack.Push((a.Left, b.Left));
-                stack.Push((a.Left, b.Right));
-                stack.Push((a.Right, b.Left));
-                stack.Push((a.Right, b.Right));
+                pairStack.Push((a.Left, b.Left));
+                pairStack.Push((a.Left, b.Right));
+                pairStack.Push((a.Right, b.Left));
+                pairStack.Push((a.Right, b.Right));
             }
         }
 
+
         return result;
+    }
+
+    public void AddLeaf(int agentIndex, BoundingBox bounds)
+    {
+        if (leafLookup.ContainsKey(agentIndex))
+        {
+            RefitLeaf(agentIndex, bounds);
+            return;
+        }
+
+        if (IsEmpty)
+        {
+            root = 0;
+            nodes.Add(new Node(bounds, -1, -1, -1, agentIndex));
+            leafLookup[agentIndex] = 0;
+            return;
+        }
+
+        int sibling = ChooseBestSibling(bounds);
+        int oldParent = nodes[sibling].Parent;
+
+        int leafIndex = nodes.Count;
+        var leafNode = new Node(bounds, -1, -1, -1, agentIndex);
+        nodes.Add(leafNode);
+        leafLookup[agentIndex] = leafIndex;
+
+        int newParentIndex = nodes.Count;
+        var siblingNode = nodes[sibling];
+        var newParentBounds = BoundingBox.Merge(bounds, siblingNode.Bounds);
+        var newParent = new Node(newParentBounds, sibling, leafIndex, oldParent, -1);
+        nodes.Add(newParent);
+
+        // Fix sibling parent link
+        nodes[sibling] = new Node(siblingNode.Bounds, siblingNode.Left, siblingNode.Right, newParentIndex, siblingNode.AgentIndex);
+
+        if (oldParent >= 0)
+        {
+            var parentNode = nodes[oldParent];
+            if (parentNode.Left == sibling)
+                nodes[oldParent] = new Node(parentNode.Bounds, newParentIndex, parentNode.Right, parentNode.Parent, parentNode.AgentIndex);
+            else
+                nodes[oldParent] = new Node(parentNode.Bounds, parentNode.Left, newParentIndex, parentNode.Parent, parentNode.AgentIndex);
+        }
+        else
+        {
+            root = newParentIndex;
+        }
+
+        FixUpwardsBounds(oldParent >= 0 ? oldParent : newParentIndex);
+    }
+
+    void FixUpwardsBounds(int startNode)
+    {
+        int nodeIndex = startNode;
+        while (nodeIndex >= 0)
+        {
+            var node = nodes[nodeIndex];
+            if (node.IsLeaf)
+            {
+                nodeIndex = node.Parent;
+                continue;
+            }
+
+            var merged = BoundingBox.Merge(nodes[node.Left].Bounds, nodes[node.Right].Bounds);
+            nodes[nodeIndex] = node.WithBounds(merged);
+            nodeIndex = node.Parent;
+        }
+    }
+
+    int ChooseBestSibling(BoundingBox bounds)
+    {
+        int index = root;
+        while (!nodes[index].IsLeaf)
+        {
+            var node =  nodes[index];
+            var left =  nodes[node.Left];
+            var right =  nodes[node.Right];
+
+            float currentArea = BoundsVolume(node.Bounds);
+            float mergeLeft = BoundsVolume(BoundingBox.Merge(left.Bounds, bounds)) - BoundsVolume(left.Bounds);
+            float mergeRight = BoundsVolume(BoundingBox.Merge(right.Bounds, bounds)) - BoundsVolume(right.Bounds);
+
+            if (mergeLeft < mergeRight)
+                index = node.Left;
+            else if (mergeRight < mergeLeft)
+                index = node.Right;
+            else
+                index = BoundsVolume(left.Bounds) < BoundsVolume(right.Bounds) ? node.Left : node.Right;
+        }
+        return index;
+    }
+
+    static float BoundsVolume(BoundingBox bounds)
+    {
+        var extents = bounds.Max - bounds.Min;
+        return extents.X * extents.Y * extents.Z;
     }
 
     public List<int> QueryOverlaps(int agentIndex)
@@ -236,7 +344,36 @@ public sealed class Bvh
 
         return result;
     }
+    public List<int> QueryOverlaps(BoundingBox bounds)
+    {
+        var result = new List<int>();
+        if (IsEmpty)
+            return result;
 
+        var stack = new Stack<int>();
+        stack.Push(root);
+
+        while (stack.Count > 0)
+        {
+            var nodeIndex = stack.Pop();
+            var node = nodes[nodeIndex];
+
+            if (!bounds.Intersects(in node.Bounds))
+                continue;
+
+            if (node.IsLeaf)
+            {
+                result.Add(node.AgentIndex);
+            }
+            else
+            {
+                stack.Push(node.Left);
+                stack.Push(node.Right);
+            }
+        }
+
+        return result;
+    }
     public bool TryGetBounds(int agentIndex, out BoundingBox bounds)
     {
         if (leafLookup.TryGetValue(agentIndex, out var leaf))

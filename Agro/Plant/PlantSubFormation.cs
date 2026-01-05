@@ -37,7 +37,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 
 	readonly TreeCacheData TreeCache = new();
 
-    internal Bvh CollisionBvh { get; } = new();
+    public Bvh CollisionBvh { get; set; } = new();
     readonly List<Quaternion> PendingGravityRotations = new();
     bool HasPendingGravityRotations = false;
 
@@ -273,6 +273,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 		}
 		else
 			TreeCache.UpdateBases(this);
+		BuildBvh();
 	}
 
 	public void Tick(uint timestep)
@@ -380,8 +381,6 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
         var dst = Src(); //since Tick already swapped them
         var count = dst.Length;
 
-        Dictionary<Vector3, List<int>> grid = new();
-        Dictionary<int, Vector3> agentCellMap = new();
         
 
         if (count == 0)
@@ -451,7 +450,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
             float elasticity = (MathF.Max(1e20f, baseDebthstiffness * depthAttenuation)) * (1 - woodiness) + 1e20f * woodiness;
 			//Console.WriteLine($"e = {elasticity}, b*d = {baseDebthstiffness * depthAttenuation}, w = {woodiness}, we = {Weights[i]}");
 			Quaternion rotation = Quaternion.Identity;
-            var effectiveOrientation = GetEffectiveOrientationForCollision(i);
+            var effectiveOrientation = agent.Orientation;
             if (length > 0f && radius > 0f && totalWeight > 0f)
             {
                 var bendingMoment = totalWeight * length * 0.5f;
@@ -473,14 +472,8 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
                     axis /= len;
                     rotation = Quaternion.CreateFromAxisAngle(axis, -safeDelta);
                     agent.SetOrientation(Quaternion.Normalize(rotation * agent.Orientation));
-                    Vector3 start = GetBaseCenter(i);
-                    Vector3 center = start + Vector3.Transform(Vector3.UnitX, GetDirection(i)) * (agent.Length / 2);
-                    Vector3 key = GridKey(center, cellSize);
-                    if (!grid.TryGetValue(key, out var list))
-                        grid[key] = list = new();
-                    grid[key].Add(i);
-                    agentCellMap[i] = key;
-                    PendingGravityRotations[i] = Quaternion.Normalize(rotation * PendingGravityRotations[i]);
+
+                    //PendingGravityRotations[i] = Quaternion.Normalize(rotation * PendingGravityRotations[i]);
                 }
 
             }
@@ -491,119 +484,129 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
                 if (rotation != Quaternion.Identity)
                     c.SetOrientation(Quaternion.Normalize(rotation * c.Orientation));
 
-                if (agentCellMap.TryGetValue(child, out var oldKey))
-                {
-                    if (grid.TryGetValue(oldKey, out var oldList))
-                    {
-                        oldList.Remove(child);
-                    }
-                }
-
-                Vector3 newStart = GetBaseCenter(child);
-                Vector3 newCenter = newStart + Vector3.Transform(Vector3.UnitX, GetDirection(child)) * (c.Length / 2f);
-                Vector3 newKey = GridKey(newCenter, cellSize);
-                if (!grid.TryGetValue(newKey, out var list))
-                {
-                    list = new List<int>();
-                    grid[newKey] = list;
-                }
-                list.Add(child);
-                grid[newKey] = list;
-                agentCellMap[child] = newKey;
                 nodesToVisit.Enqueue(child);
             }
         }
-        //collisionHandling(grid);
+		TreeCache.UpdateBases(this);
+		refitChildrens(0);
+        collisionHandling();
     }
-    internal Vector3 GridKey(Vector3 pos, float cellSize) => new((int)(pos.X / cellSize), (int)(pos.Y / cellSize), (int)(pos.Z / cellSize));
-
-    [StructLayout(LayoutKind.Auto)]
-    readonly struct DirtyCell
+    bool PairFilter(int a, int b)
     {
-        public readonly Vector3 Key;
-        public readonly HashSet<int> BranchesToCheck;
-
-        //public readonly bool Dir;
-
-        public DirtyCell(Vector3 key, HashSet<int> branchesToCheck)
-        {
-            Key = key;
-            BranchesToCheck = branchesToCheck;
-        }
+        return GetParent(a) != b &&
+               GetParent(b) != a &&
+               GetParent(a) != GetParent(b) &&
+               !GetIsRizome(a) &&
+               !GetIsRizome(b) &&
+               GetOrgan(a) != OrganTypes.Leaf &&
+               GetOrgan(b) != OrganTypes.Leaf;
     }
-    internal void collisionHandling(Dictionary<Vector3, List<int>> grid)
+    internal void collisionHandling()
     {
         var dst = Src();
-        float cellSize = dst.Max(a => Math.Max(a.Radius, a.Length)) * 1.5f;
-        Queue<DirtyCell> dirtyCells = new();
-        foreach (var key in grid.Keys)
-        {
-            dirtyCells.Enqueue(new DirtyCell(key, new HashSet<int>()));
-        }
-        while (dirtyCells.Count > 0)
-        {
-            var cell = dirtyCells.Dequeue();
-            if (!grid.TryGetValue(cell.Key, out var cellCollisions) || cellCollisions.Count < 2)
-                continue;
-            for (int i = 0; i < cellCollisions.Count; ++i)
-            {
-                if (cell.BranchesToCheck.Count() > 0)
-                {
-                    if (!cell.BranchesToCheck.Contains(i))
-                        continue;
-                }
-                for (int j = i + 1; j < cellCollisions.Count; ++j)
-                {
-                    int index1 = cellCollisions[i];
-                    int index2 = cellCollisions[j];
+        if (dst.Length == 0 || CollisionBvh.IsEmpty)
+            return;
 
-                    if (BranchIntersect(index1, index2))
-                    {
-                        bool isParentChild = isDescendant(index1, index2) || isDescendant(index2, index1);
-                        var closestPoints = ClosestPointBetweenBranches(index1, index2);
+        var overlapping = CollisionBvh.GetOverlappingPairs().Where(c=> GetParent(c.first) != c.second && GetParent(c.second) != c.first && GetParent(c.first) != GetParent(c.second) && !GetIsRizome(c.first) && !GetIsRizome(c.second) && !GetOrgan(c.first).Equals(OrganTypes.Leaf)&& !GetOrgan(c.second).Equals(OrganTypes.Leaf));
+        var possibleCollisions =  new Queue<(int first, int second)>(overlapping);
+        var seenCollisions = new HashSet<(int, int)>();
+        while ( possibleCollisions.Count > 0)
+		{
+            var overlap = possibleCollisions.Dequeue();
+
+            int index1 = overlap.first;
+			int index2 = overlap.second;
+            //Console.WriteLine($"{index1} {index2}");
+            if (!BranchIntersect(index1, index2))
+				continue;
+
+            bool isParentChild = isDescendant(index1, index2) || isDescendant(index2, index1);
+			var closestPoints = ClosestPointBetweenBranches(index1, index2);
 
 
 
-                        if (isParentChild)
-                        {
-                            Vector3 Point1;
-                            Vector3 Point2;
-                            int index;
+			if (isParentChild)
+			{
+				Vector3 Point1;
+				Vector3 Point2;
+				int index;
 
-                            if (isDescendant(index1, index2))
-                            {
-                                Point1 = closestPoints.point1 + Vector3.Normalize(closestPoints.Point2 - closestPoints.point1) * dst[index1].Radius;
-                                Point2 = closestPoints.Point2 + Vector3.Normalize(closestPoints.point1 - closestPoints.Point2) * dst[index2].Radius;
-                                index = index2;
-                            }
-                            else
-                            {
-                                Point1 = closestPoints.point1 + Vector3.Normalize(closestPoints.point1 - closestPoints.Point2) * dst[index2].Radius;
-                                Point2 = closestPoints.Point2 + Vector3.Normalize(closestPoints.Point2 - closestPoints.point1) * dst[index1].Radius;
-                                index = index1;
-                            }
-                            RotateCellTowardPoints(index, Point1, Point2, ref dirtyCells, cellSize);
-                            continue;
-                        }
-
-
-                        Vector3 adjustedPoint1 = closestPoints.point1 + Vector3.Normalize(closestPoints.Point2 - closestPoints.point1) * dst[index1].Radius;
-                        Vector3 adjustedPoint2 = closestPoints.Point2 + Vector3.Normalize(closestPoints.point1 - closestPoints.Point2) * dst[index2].Radius;
-
-                        if (Vector3.Distance(closestPoints.point1, GetBaseCenter(index1)) < (dst[index1].Length * 0.25f)) index1 = GetParent(index1);
-                        if (Vector3.Distance(closestPoints.Point2, GetBaseCenter(index2)) < (dst[index2].Length * 0.25f)) index2 = GetParent(index2);
-
-                        Vector3 weightedMidPoint = ((adjustedPoint1 * Weights[index1] + adjustedPoint2 * Weights[index2]) / (Weights[index1] + Weights[index2]));
-
-                        RotateCellTowardPoints(index1, adjustedPoint1, weightedMidPoint, ref dirtyCells, cellSize, false);
-                        RotateCellTowardPoints(index2, adjustedPoint2, weightedMidPoint, ref dirtyCells, cellSize, false);
-                    }
-                }
-                TryResolveGroundByRotation(cellCollisions[i], groundHeight: 0f, cellSize);
+				if (isDescendant(index1, index2))
+				{
+					Point1 = closestPoints.point1 + Vector3.Normalize(closestPoints.Point2 - closestPoints.point1) * dst[index1].Radius;
+					Point2 = closestPoints.Point2 + Vector3.Normalize(closestPoints.point1 - closestPoints.Point2) * dst[index2].Radius;
+					index = index2;
+				}
+				else
+				{
+					Point1 = closestPoints.point1 + Vector3.Normalize(closestPoints.point1 - closestPoints.Point2) * dst[index2].Radius;
+					Point2 = closestPoints.Point2 + Vector3.Normalize(closestPoints.Point2 - closestPoints.point1) * dst[index1].Radius;
+					index = index1;
+				}
+				RotateCellTowardPoints(index, Point1, Point2);
+				TreeCache.UpdateBases(this, new List<int> { index });
+				CollisionBvh.RefitLeaf(index, ComputeBounds(index));
+				refitChildrens(index);
+				getSubtreeCollisions(index, ref possibleCollisions);
+				continue;
             }
+
+
+            Vector3 adjustedPoint1 = closestPoints.point1 + Vector3.Normalize(closestPoints.Point2 - closestPoints.point1) * dst[index1].Radius;
+			Vector3 adjustedPoint2 = closestPoints.Point2 + Vector3.Normalize(closestPoints.point1 - closestPoints.Point2) * dst[index2].Radius;
+
+			if (Vector3.Distance(closestPoints.point1, GetBaseCenter(index1)) < (dst[index1].Length * 0.25f)) index1 = GetParent(index1);
+			if (Vector3.Distance(closestPoints.Point2, GetBaseCenter(index2)) < (dst[index2].Length * 0.25f)) index2 = GetParent(index2);
+
+			Vector3 weightedMidPoint = ((adjustedPoint1 * Weights[index1] + adjustedPoint2 * Weights[index2]) / (Weights[index1] + Weights[index2]));
+
+			RotateCellTowardPoints(index1, adjustedPoint1, weightedMidPoint, false);
+			RotateCellTowardPoints(index2, adjustedPoint2, weightedMidPoint, false);
+            TreeCache.UpdateBases(this, new List<int>{ index1, index2 });
+			refitChildrens(index2);
+			refitChildrens(index1);
+            getSubtreeCollisions(index1, ref possibleCollisions);
+            getSubtreeCollisions(index2, ref possibleCollisions);
+            //TryResolveGroundByRotation(cellCollisions[i], groundHeight: 0f, cellSize);
+
         }
     }
-    private void RotateCellTowardPoints(int index, Vector3 point1, Vector3 point2, ref Queue<DirtyCell> dirtyCells, float cellSize, bool flipAxis = false)
+	private void refitChildrens(int i)
+	{
+        
+        var children = new Queue<int>(i);
+        while (children.Count > 0)
+        {
+			var index = children.Dequeue();
+            foreach (var child in GetChildren(index))
+            {
+                children.Enqueue(child);
+                CollisionBvh.RefitLeaf(child, ComputeBounds(child));
+            }
+
+        }
+    }
+    private void getSubtreeCollisions(int i,ref Queue<(int, int)> overlaps)
+    {
+
+        var children = new Queue<int>(i);
+        while (children.Count > 0)
+        {
+            var index = children.Dequeue();
+            foreach (var child in GetChildren(index))
+            {
+                children.Enqueue(child);
+                var col = CollisionBvh.QueryOverlaps(child);
+				foreach(var overlap in col)
+				{
+					if(PairFilter(child,overlap))
+						overlaps.Enqueue((child,overlap));
+				}
+            }
+
+        }
+    }
+    private void RotateCellTowardPoints(int index, Vector3 point1, Vector3 point2, bool flipAxis = false)
     {
         var dst = Src();
         Vector3 ab = Vector3.Normalize(point2 - GetBaseCenter(index));
@@ -617,29 +620,10 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
         {
             var rot = Quaternion.CreateFromAxisAngle(Vector3.Normalize(axis), angle);
             dst[index].SetOrientation(Quaternion.Normalize(rot * dst[index].Orientation));
-            markChildCellsDirty(ref dirtyCells, index, cellSize);
+            
         }
     }
-    HashSet<Vector3> seenCells = new();
-    private void markChildCellsDirty(ref Queue<DirtyCell> dirtyCells, int index, float size)
-    {
-        var dst = Src();
-        Vector3 start = GetBaseCenter(index);
-        Vector3 center = start + Vector3.Transform(Vector3.UnitX, GetDirection(index)) * (dst[index].Length / 2);
-        Vector3 key = GridKey(center, size);
-        if (seenCells.Add(key))
-        {
-            var cell = new DirtyCell(key, new HashSet<int>());
-            cell.BranchesToCheck.Add(index);
-            dirtyCells.Enqueue(cell);
-        }
-        foreach (var child in GetChildren(index))
-        {
-            if (dst[child].Organ == OrganTypes.Leaf || dst[child].Organ == OrganTypes.Petiole)
-                continue;
-            markChildCellsDirty(ref dirtyCells, child, size);
-        }
-    }
+    
     private bool isDescendant(int index, int indexDescendant)
     {
         int i = indexDescendant;
@@ -682,7 +666,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 
         return (cp1, cp2, distance);
     }
-    private Vector3 GetTipPosition(int index)
+    public Vector3 GetTipPosition(int index)
     {
         var dst = Src();
         var direction = Vector3.Transform(Vector3.UnitX, dst[index].Orientation); // Local X axis
@@ -1101,7 +1085,55 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 	readonly List<float> Resources = [];
 	List<int> ReadyNodes0 = [], ReadyNodes1 = [];
 	readonly List<int> NewDayIncomplete = [];
-	public void NewDay(uint timestep, byte ticksPerDay)
+
+	public void BuildBvh()
+	{
+        var dst = Src();
+        if (dst.Length == 0)
+        {
+            CollisionBvh.Clear();
+            return;
+        }
+        var leaves = new List<(int agentIndex, Bvh.BoundingBox bounds)>(dst.Length);
+        for (int i = 0; i < dst.Length; ++i)
+        {
+            leaves.Add((i, ComputeBounds(i)));
+        }
+
+        CollisionBvh.Build(leaves);
+    }
+    public Bvh.BoundingBox ComputeBoundsFromParameters(Vector3 baseCenter, Quaternion orientation, float length, float radius)
+    {
+        var direction = Vector3.Transform(Vector3.UnitX, orientation);
+        if (direction.LengthSquared() < 1e-6f)
+            direction = Vector3.UnitX;
+
+        var tip = baseCenter + Vector3.Normalize(direction) * length;
+        var radiusVec = new Vector3(radius);
+        var min = Vector3.Min(baseCenter, tip) - radiusVec;
+        var max = Vector3.Max(baseCenter, tip) + radiusVec;
+        return new Bvh.BoundingBox(min, max);
+    }
+
+    public Bvh.BoundingBox ComputeBounds(int index, bool usePendingOrientation = false)
+    {
+        var dst = Src();
+        if (index < 0 || index >= dst.Length)
+            return new Bvh.BoundingBox(Vector3.Zero, Vector3.Zero);
+
+        var baseCenter = GetBaseCenter(index);
+        Quaternion orientation =  GetDirection(index);
+        var direction = Vector3.Transform(Vector3.UnitX, orientation);
+        if (direction.LengthSquared() < 1e-6f)
+            direction = Vector3.UnitX;
+
+        var tip = baseCenter + Vector3.Normalize(direction) * dst[index].Length;
+        var radiusVec = new Vector3(dst[index].Radius);
+        var min = Vector3.Min(baseCenter, tip) - radiusVec;
+        var max = Vector3.Max(baseCenter, tip) + radiusVec;
+        return new Bvh.BoundingBox(min, max);
+    }
+    public void NewDay(uint timestep, byte ticksPerDay)
 	{
 		var src = Src();
 

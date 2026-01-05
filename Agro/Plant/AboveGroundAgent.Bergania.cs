@@ -455,9 +455,19 @@ namespace Agro
                 rizome.isRizome = true;
                 rizome.rizomeInfo.rizomeDepth = agent.rizomeInfo.rizomeDepth + 1;
                 var lateralPitch = agent.LateralAngle + formation.Plant.Parameters.LateralRoll;
+                var test = formation.CollisionBvh.QueryOverlaps(formation.ComputeBoundsFromParameters(formation.GetTipPosition(agentID),rizomOrientation,rizome.Length,rizome.Radius));
+                if (test != null) { 
+                    foreach(var colission in  test) { 
+                        
+                        if((agentID != colission && !formation.GetChildren(agentID).Contains(colission))&& formation.GetIsRizome(colission)) { 
+                            return;
+                        }
+                        if (plant.Soil.IntersectPoint(formation.GetBaseCenterWorld(agentID) + Vector3.Transform(Vector3.UnitX, formation.GetDirection(agentID)) * agent.Length + Vector3.Transform(Vector3.UnitX, rizome.Orientation )* rizome.Length, plant.SoilIndex) < 0) { return; }
+                    }
+                }
                 var rizomeIndex = formation.Birth(rizome);
                 var bud = new AboveGroundAgent(plant, rizomeIndex, OrganTypes.Bud, rizomOrientation, 0, initialResources: 1f, initialProduction: 1f) { LateralAngle = lateralPitch, Radius = 0f,RadiusVar=0f };
-
+                
                 formation.Birth(bud);
             }
             static void doChaning(AboveGroundAgent agent, PlantSubFormation<AboveGroundAgent> formation, int agentID, float prevResources, float prevProduction) {

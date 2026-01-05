@@ -89,12 +89,12 @@ namespace Agro.Plant.Flower
             if ((agent.Organ.Equals(OrganTypes.FlowerMeristem) || agent.Organ.Equals(OrganTypes.FlowerBaseBud)) && agent.Length > _settings.stemLengthVar)
             {
                 agent.Organ = OrganTypes.FlowerStem;
-                Console.WriteLine($"ttt{agent.FlowerAgent.debth}< {_settings.flowerDebth}");
+                //Console.WriteLine($"ttt{agent.FlowerAgent.debth}< {_settings.flowerDebth}");
                 if (agent.FlowerAgent.flowerBase)
                 {
                     if (agent.FlowerAgent.debth < _settings.flowerBaseDebth)
                     {
-                        Console.WriteLine("base");
+                        //Console.WriteLine("base");
                         var or = AboveGroundAgent.TurnUpwards(agent.Orientation);
                         var floweragent = new Flower() { BirthTime = agent.FlowerAgent.BirthTime, debth = agent.FlowerAgent.debth + 1, FlowerStartTime = agent.FlowerAgent.FlowerStartTime, flowerBase = true };
                         var mari = new AboveGroundAgent(formation.Plant, agentID, OrganTypes.FlowerMeristem, or, 0.1f * agent.Energy, initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { Water_g = 0.1f * agent.Water_g, LateralAngle = _settings.LateralAngle, DominanceLevel = agent.DominanceLevel, FlowerAgent = floweragent, Length = 0.0015f, Radius = 0.00025f };
@@ -129,7 +129,7 @@ namespace Agro.Plant.Flower
                 var debth = agent.FlowerAgent.flowerBase ? 0 : agent.FlowerAgent.debth;
                 if (debth < _settings.flowerDebth)
                 {
-                    Console.WriteLine("flower");
+                    //Console.WriteLine("flower");
                     if (true)
                     {
                         if (_settings.internodeFlowerWithStem)
@@ -152,7 +152,7 @@ namespace Agro.Plant.Flower
                     }
                     else
                     {
-                        Console.WriteLine($"up {agentID}");
+                        //Console.WriteLine($"up {agentID}");
                         var lateralPitch = _settings.LateralAngle + _settings.LateralRoll;
 
                         var or = AboveGroundAgent.TurnUpwards(agent.Orientation);
@@ -163,7 +163,7 @@ namespace Agro.Plant.Flower
                     }
                     if (_settings.LateralsPerNode > 0)
                     {
-                        Console.WriteLine($"lat{agentID}");
+                        //Console.WriteLine($"lat{agentID}");
                         for (var lat = 0; lat < _settings.LateralsPerNode; lat++)
                         {
                             float t = (_settings.flowerDebth <= 0f) ? 1f : Math.Clamp(debth / _settings.flowerDebth, 0, 1);
