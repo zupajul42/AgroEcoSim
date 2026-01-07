@@ -17,8 +17,11 @@ public interface IPlantAgent : ITreeAgent
 	/// Orientation with respect to the parent. If there is no parent, this is the initial orientation.
 	/// </summary>
 	Quaternion Orientation { get; }
+    Quaternion baseOrientation { get; set; }
+    Quaternion restOrientation { get; set; }
+    Quaternion targetOrientation { get; set; }
 
-	byte DominanceLevel { get; }
+    byte DominanceLevel { get; }
 
 
     bool isRizome { get; }

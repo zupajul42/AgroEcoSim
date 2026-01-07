@@ -229,10 +229,10 @@ public class SpeciesSettings
     public static List<SpeciesSettings> Predefined = [];
 
     [JsonPropertyName("WEM")]
-    public float WoodElasticModulus { get; init; } = 1e15f; // in Pa
+    public float WoodElasticModulus { get; init; } = 1e6f; // in Pa
 
     [JsonPropertyName("GEM")]
-    public float GreenElasticModulus { get; init; } = 1e15f; // in Pa
+    public float GreenElasticModulus { get; init; } = 1e8f; // in Pa
 
     // public static SpeciesSettings Geranium_Macrorhizum;
     // public static SpeciesSettings Geranium_Cantabrigiense;

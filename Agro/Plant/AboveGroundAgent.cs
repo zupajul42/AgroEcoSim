@@ -189,6 +189,11 @@ public partial struct AboveGroundAgent : IPlantAgent
 
 	public Flower FlowerAgent { get; set; } = new Flower();
 
+	//gravity
+	public Quaternion baseOrientation { get; set; }
+    public Quaternion restOrientation { get; set; }
+    public Quaternion targetOrientation { get; set; }
+
 
     #region Variances
     /// <summary>
@@ -272,6 +277,9 @@ public partial struct AboveGroundAgent : IPlantAgent
 		LeafMaxRadiusRatio = InitialMaxRadiusRatio; //TDMI For initial testing, just a constant
 		Length = length;
 		Orientation = orientation;
+		baseOrientation = orientation;
+		restOrientation = orientation;
+		targetOrientation = orientation;
 
 		Organ = organ;
 

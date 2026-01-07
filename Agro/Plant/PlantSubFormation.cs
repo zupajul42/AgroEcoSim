@@ -445,22 +445,23 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
             float woodiness = agent.WoodRatio();
             float depthAttenuation = MathF.Exp(-GetAbsDepth(i) * depthFactor);
 
-            float baseDebthstiffness = 1e20f;
+            float baseDebthstiffness = 1e8f;
 
-            float elasticity = (MathF.Max(1e20f, baseDebthstiffness * depthAttenuation)) * (1 - woodiness) + 1e20f * woodiness;
+            float elasticity = (MathF.Max(1e5f, baseDebthstiffness * depthAttenuation)) * (1 - woodiness) + 1e6f * woodiness;
 			//Console.WriteLine($"e = {elasticity}, b*d = {baseDebthstiffness * depthAttenuation}, w = {woodiness}, we = {Weights[i]}");
 			Quaternion rotation = Quaternion.Identity;
-            var effectiveOrientation = agent.Orientation;
+            var effectiveOrientation = agent.baseOrientation;
+			Quaternion appliedDelta = Quaternion.Identity;
             if (length > 0f && radius > 0f && totalWeight > 0f)
             {
                 var bendingMoment = totalWeight * length * 0.5f;
                 var inertia = MathF.PI * MathF.Pow(radius, 4) / 4f;
                 var curvature = bendingMoment / (elasticity * inertia);
-                var deltaTheta = curvature * length * tickSpeed;
+                var deltaTheta = curvature * length;
 
 
 
-                var dir = Vector3.Transform(Vector3.UnitX, effectiveOrientation);
+                var dir = Vector3.Transform(Vector3.UnitX, agent.baseOrientation);
 
                 float angleToDown = MathF.Acos(Math.Clamp(Vector3.Dot(dir, Vector3.UnitY), -1f, 1f));
                 float maxAllowedBend = MathF.PI - angleToDown;
@@ -471,7 +472,13 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
                 {
                     axis /= len;
                     rotation = Quaternion.CreateFromAxisAngle(axis, -safeDelta);
-                    agent.SetOrientation(Quaternion.Normalize(rotation * agent.Orientation));
+					agent.targetOrientation = Quaternion.Normalize(rotation * agent.baseOrientation);
+					var newOr = Quaternion.Slerp(agent.Orientation, agent.targetOrientation, 0.05f);
+					agent.restOrientation = Quaternion.Slerp(agent.Orientation, agent.targetOrientation, 0.005f);
+                    appliedDelta = newOr * Quaternion.Inverse(agent.Orientation);
+
+                    agent.SetOrientation(newOr);
+                    //agent.SetOrientation(Quaternion.Normalize(rotation * agent.Orientation));
 
                     //PendingGravityRotations[i] = Quaternion.Normalize(rotation * PendingGravityRotations[i]);
                 }
@@ -481,9 +488,12 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
             foreach (var child in GetChildren(i))
             {
                 ref var c = ref dst[child];
-                if (rotation != Quaternion.Identity)
-                    c.SetOrientation(Quaternion.Normalize(rotation * c.Orientation));
+				if (appliedDelta != Quaternion.Identity)
+				{
+					c.SetOrientation(Quaternion.Normalize(appliedDelta * c.Orientation));
+                    c.baseOrientation = Quaternion.Normalize(appliedDelta * c.baseOrientation);
 
+                }
                 nodesToVisit.Enqueue(child);
             }
         }

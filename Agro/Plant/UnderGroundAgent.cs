@@ -109,6 +109,12 @@ public struct UnderGroundAgent : IPlantAgent
 	/// </summary>
 	public int Parent { get; private set; }
 
+
+    //gravity - not used in undergroundAgent
+    public Quaternion baseOrientation { get; set; }
+    public Quaternion restOrientation { get; set; }
+    public Quaternion targetOrientation { get; set; }
+
     public Vector3 BaseOffset => throw new NotImplementedException();
     #endregion
 
