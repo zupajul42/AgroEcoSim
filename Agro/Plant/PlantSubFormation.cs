@@ -473,8 +473,9 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
                     axis /= len;
                     rotation = Quaternion.CreateFromAxisAngle(axis, -safeDelta);
 					agent.targetOrientation = Quaternion.Normalize(rotation * agent.baseOrientation);
-					var newOr = Quaternion.Slerp(agent.Orientation, agent.targetOrientation, 0.05f);
-					agent.restOrientation = Quaternion.Slerp(agent.Orientation, agent.targetOrientation, 0.005f);
+                    agent.restOrientation = Quaternion.Slerp(agent.restOrientation, agent.targetOrientation, 0.005f);
+                    var newOr = Quaternion.Slerp(agent.Orientation, agent.targetOrientation, 0.05f);
+					
                     appliedDelta = newOr * Quaternion.Inverse(agent.Orientation);
 
                     agent.SetOrientation(newOr);
