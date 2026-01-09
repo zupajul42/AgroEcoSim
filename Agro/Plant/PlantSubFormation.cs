@@ -450,7 +450,6 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
             float elasticity = (MathF.Max(1e5f, baseDebthstiffness * depthAttenuation)) * (1 - woodiness) + 1e6f * woodiness;
 			//Console.WriteLine($"e = {elasticity}, b*d = {baseDebthstiffness * depthAttenuation}, w = {woodiness}, we = {Weights[i]}");
 			Quaternion rotation = Quaternion.Identity;
-            var effectiveOrientation = agent.baseOrientation;
 			Quaternion appliedDelta = Quaternion.Identity;
             if (length > 0f && radius > 0f && totalWeight > 0f)
             {
@@ -461,20 +460,25 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 
 
 
-                var dir = Vector3.Transform(Vector3.UnitX, agent.baseOrientation);
+                var dir = Vector3.Transform(Vector3.UnitX, agent.Orientation);
+                var restDir = Vector3.Transform(Vector3.UnitX, agent.restOrientation);
+                var baseDir = Vector3.Transform(Vector3.UnitX, agent.baseOrientation);
 
-                float angleToDown = MathF.Acos(Math.Clamp(Vector3.Dot(dir, Vector3.UnitY), -1f, 1f));
+                float angleToDown = MathF.Acos(Math.Clamp(Vector3.Dot(baseDir, Vector3.UnitY), -1f, 1f));
+                float rest = MathF.Acos(Math.Clamp(Vector3.Dot(baseDir, restDir), -1f, 1f));
+                var axis = Vector3.Cross(baseDir, Vector3.UnitY);
                 float maxAllowedBend = MathF.PI - angleToDown;
-                float safeDelta = Math.Clamp(deltaTheta, -maxAllowedBend, maxAllowedBend);
-                var axis = Vector3.Cross(dir, Vector3.UnitY);
+
+                float safeDelta = Math.Clamp(deltaTheta, rest, maxAllowedBend);
+
                 var len = axis.Length();
                 if (len > 1e-6f)
                 {
                     axis /= len;
                     rotation = Quaternion.CreateFromAxisAngle(axis, -safeDelta);
 					agent.targetOrientation = Quaternion.Normalize(rotation * agent.baseOrientation);
-                    agent.restOrientation = Quaternion.Slerp(agent.restOrientation, agent.targetOrientation, 0.005f);
-                    var newOr = Quaternion.Slerp(agent.Orientation, agent.targetOrientation, 0.05f);
+                    agent.restOrientation = Quaternion.Slerp(agent.restOrientation, agent.targetOrientation, 0.002f);
+                    var newOr = Quaternion.Slerp(agent.Orientation, agent.targetOrientation, 0.005f);
 					
                     appliedDelta = newOr * Quaternion.Inverse(agent.Orientation);
 
@@ -493,12 +497,12 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 				{
 					c.SetOrientation(Quaternion.Normalize(appliedDelta * c.Orientation));
                     c.baseOrientation = Quaternion.Normalize(appliedDelta * c.baseOrientation);
-
+                    c.restOrientation = Quaternion.Normalize(appliedDelta * c.restOrientation);
                 }
                 nodesToVisit.Enqueue(child);
             }
         }
-		TreeCache.UpdateBases(this);
+		TreeCache.UpdateBases(this); 
 		refitChildrens(0);
         collisionHandling();
     }
