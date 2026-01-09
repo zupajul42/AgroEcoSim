@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { neutralColor } from "./Selection";
 import appstate from "../appstate";
 import { BaseRequestObject, ReqObjMaterials } from "./BaseRequestObject";
+import { BoxTerrainItem } from "./Terrain";
 
 const seedColor = new THREE.Color("#008");
 const dodecahedron = new THREE.DodecahedronGeometry(0.03);
@@ -43,7 +44,7 @@ export class Seed extends BaseRequestObject
             if (appstate.terrainList?.length > 0)
             {
                 const terrain = appstate.terrainList[this.fieldIndex.value];
-                offset.set(terrain.px(), terrain.py(), terrain.pz());
+                offset.set(terrain.posx(), terrain instanceof BoxTerrainItem ? terrain.posy() : terrain.posy() + terrain.sy(), terrain.posz());
             }
             this.mesh.position.set(this.px.value + offset.x, this.py.value + offset.y, this.pz.value + offset.z);
             appstate.needsRender.value = true;

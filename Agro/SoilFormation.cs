@@ -56,6 +56,8 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
     /// </summary>
 	float[][][] DiffusionCoefs;
 
+	public string ID { get; private set; }
+
 	/// <summary>
 	/// Cells count in all directions (x, depth, z)
 	/// </summary>
@@ -88,9 +90,10 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
     /// </summary>
 	readonly List<(PlantFormation2 Plant, int Part, float Amount_g)>[] WaterRequests;
 
-	public SoilFormationRegularVoxels(AgroWorld world, Vector3i size, Vector3 metricSize, Vector3 position = default)
+	public SoilFormationRegularVoxels(AgroWorld world, string id, Vector3i size, Vector3 metricSize, Vector3 position = default)
 	{
 		World = world;
+		ID = id;
 		if (size.X >= ushort.MaxValue - 1 || size.Y >= ushort.MaxValue - 1 || size.Z >= ushort.MaxValue - 1)
 			throw new Exception($"Grid resolution in any direction may not exceed {ushort.MaxValue - 1}");
 		//Z is depth
@@ -601,6 +604,7 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 
 	public void Write(BinaryWriter writer, int i)
 	{
+		writer.Write((byte)0); //type
 		var metricSize = Size * CellSize;
 		//write position
 		writer.WriteV32(Position);
@@ -608,6 +612,8 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 		writer.WriteV32(metricSize);
 		//write orientation
 		writer.WriteQ32(Quaternion.Identity);
+		//write ID
+		writer.Write(ID);
 	}
 }
 

@@ -86,7 +86,7 @@ public struct SeedAgent : IAgent
 		{
 			if (Water_g >= GerminationThreshold) //GERMINATION
 			{
-				Debug.WriteLine($"GERMINATION at {timestep}");
+				//Debug.WriteLine($"GERMINATION at {timestep}");
 				var initialYawAngle = plant.RNG.NextFloat(-MathF.PI, MathF.PI);
 				var initialYaw = Quaternion.CreateFromAxisAngle(Vector3.UnitY, initialYawAngle);
 				plant.UGBirth(new UnderGroundAgent(plant, timestep, -1, initialYaw * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.5f * MathF.PI), Water_g * 0.4f, initialResources: 1f, initialProduction: 1f));

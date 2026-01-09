@@ -1,6 +1,9 @@
+import { ConsoleLogger } from "@microsoft/signalr/dist/esm/Utils";
 import { Obstacle } from "./Obstacle";
 import { Primitive, Primitives } from "./Primitives";
-import { BoxTerrainItem } from "./Terrain";
+import { BoxTerrainItem, ITerrainItem, MeshTerrainItem } from "./Terrain";
+
+const decoder = new TextDecoder("utf-8");
 
 export default class BinaryReader {
     source: Uint8Array;
@@ -61,6 +64,25 @@ export default class BinaryReader {
         for(let i = 0; i < n; ++i)
             result[i] = this.readInt32();
         return result;
+    }
+
+    read7BitEncodedInt() {
+        let result = 0, shift = 0;
+        let b;
+        do {
+            b = this.source[this.pos++];
+            result |= (b & 0x7F) << shift;
+            shift += 7;
+        } while (b & 0x80);
+        return result;
+    }
+
+    readString() {
+        //assuming a C# 7bit encoded length first
+        const byteLength = this.read7BitEncodedInt();
+        const slice = this.source.subarray(this.pos, this.pos + byteLength);
+        this.pos += byteLength;
+        return decoder.decode(slice);
     }
 
     isEnd() {
@@ -230,13 +252,28 @@ export default class BinaryReader {
         return result;
     }
 
-    readBoxTerrain() {
-        const terrains : BoxTerrainItem[] = [];
-        const version = this.readUInt8(); //assuming 0 for now
+    readTerrain() {
+        const terrains : ITerrainItem[] = [];
+        const version = this.readUInt8();
         const entitiesCount = this.readInt32();
         for(let i = 0; i < entitiesCount; ++i) {
-            const data = this.readFloat32Vector(3 + 3 + 4);
-            terrains.push(new BoxTerrainItem(data));
+            const type = this.readUInt8();
+            if (type == 0)
+            {
+                const data = this.readFloat32Vector(3 + 3 + 4);
+                const id = this.readString();
+                terrains.push(new BoxTerrainItem(id, data));
+            }
+            else if (type == 1)
+            {
+                const id = this.readString();
+                const position = this.readFloat32Vector(3);
+                const pointsCount = this.readInt32();
+                const points = this.readFloat32Vector(pointsCount * 3);
+                const trianglesCount = this.readInt32();
+                const triangles = this.readInt32Array(trianglesCount * 3);
+                terrains.push(new MeshTerrainItem(id, position[0], position[1], position[2], points, triangles));
+            }
         }
 
         const obstacles : Obstacle[] = [];

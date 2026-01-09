@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { neutralColor } from "./Selection";
 import { BaseRequestObject, ReqObjMaterials } from "./BaseRequestObject";
 
-const color = new THREE.Color("#bbb");
+const color = new THREE.Color("#999");
 const box = new THREE.BoxGeometry().translate(0, 0.5, 0);
 const disk = new THREE.CircleGeometry().rotateX(-Math.PI * 0.5);
 const defaultMaterial = new THREE.MeshLambertMaterial({
@@ -12,10 +12,11 @@ const defaultMaterial = new THREE.MeshLambertMaterial({
     polygonOffset: true,
     polygonOffsetFactor: -2,
     side: THREE.DoubleSide,
+    flatShading: true,
     name: "obstacleDefault"
 });
-const hoverMaterial = new THREE.MeshStandardMaterial({ color: color.clone().lerpHSL(neutralColor, 0.1), name: "obstacleHover "});
-const selectMaterial = new THREE.MeshStandardMaterial({ color: color.clone().lerpHSL(neutralColor, 0.2), name: "obstacleSelect" });
+const hoverMaterial = new THREE.MeshLambertMaterial({ ...defaultMaterial, color: color.clone().lerpHSL(neutralColor, 0.1), name: "obstacleHover "});
+const selectMaterial = new THREE.MeshLambertMaterial({ ...defaultMaterial, color: color.clone().lerpHSL(neutralColor, 0.2), name: "obstacleSelect" });
 //disabled when using the gizmo
 //const grabMaterial = new THREE.MeshStandardMaterial({ color: color.clone().lerpHSL(new THREE.Color("#06a"), 0.5) });
 //const selectHoverMaterial = new THREE.MeshStandardMaterial({ color: grabMaterial.color.clone().lerpHSL(selectMaterial.color, 0.5) });
@@ -177,7 +178,7 @@ export class Obstacle extends BaseRequestObject
             t: this.thickness.peek(),
             ax: this.angleX.peek(),
             ay: this.angleY.peek(),
-            vt: this.vertices.buffer,
+            vt: Array.from(this.vertices),
             fc: this.faces
         }
     }

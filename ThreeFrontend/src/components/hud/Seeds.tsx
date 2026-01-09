@@ -23,13 +23,14 @@ export class Seeds extends Component
     render() {
         return <>
             <button name="seeds" onClick={() => appstate.pushRndSeed()}>Add new seed</button>
+            <button name="clear-seeds" onClick={() => appstate.clearSeeds()}>Clear seeds</button>
             <br/>
             <input type="number" min={1} step={1} name={"seeds-per-field"} value={+appstate.seedsPerField.value.toFixed(0)} onChange={e => appstate.seedsPerField.value = parseInt(e.currentTarget.value)}/>
             <button name="seeds-count" onClick={() => appstate.pushRndSeed(appstate.seedsPerField.value)}>Many seeds</button>
             <br/>
             <input type="number" min={0} step={0.01} name={"seeds-optimal-distance"} value={+appstate.seedsOptimalDistance.value.toFixed(3)} onChange={e => appstate.seedsOptimalDistance.value = parseFloat(e.currentTarget.value)}/>
             <button name="seeds-dist" onClick={() => appstate.pushSeedRaster(appstate.seedsOptimalDistance.value)}>Evenly distributed seeds</button>
-            <ul class="plants-listing">
+            <ul class="scrollable-listing">
                 {appstate.seeds.value.sort(compareSeeds).map((x: Seed, i: number) => (<li style={{backgroundColor: this.color(x.state.value)}} onMouseEnter={() => appstate.seeds.value[i].hover()} onMouseLeave={() => appstate.seeds.value[i].unhover()}>
                     <div>
                         <span>{i}.</span>
