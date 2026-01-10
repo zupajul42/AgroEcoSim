@@ -23,13 +23,23 @@ namespace Agro.Plant.Flower
         {
             //birth flowerstemm
         }
-        public void grow(ref AboveGroundAgent agent, int agentID)
+        public void grow(ref AboveGroundAgent agent, int agentID, PlantSubFormation<AboveGroundAgent> formation)
         {
+
             switch (agent.Organ)
             {
                 case OrganTypes.FlowerStem:
                     {
+                        var energyReserve = Math.Clamp(agent.Energy / agent.EnergyStorageCapacity(), 0f, 1f);
+                        var growth = 2e-5f * energyReserve * Math.Min(formation.Plant.WaterBalance, energyReserve) * formation.Plant.World.HoursPerTick;
+                        var currentSize = new Vector2(agent.Length, agent.Radius);
+                        //assure not to outgrow the parent
+                        var parentRadius = (agent.Parent >= 0 && !formation.GetIsRizome(agent.Parent)) ? formation.GetBaseRadius(agent.Parent) : float.MaxValue;
+                        if (currentSize.Y + growth > parentRadius)
+                            growth = parentRadius - currentSize.Y;
 
+                        if (agent.Radius < _settings.fStemRadius)
+                            agent.Radius += growth;
 
 
 
@@ -38,7 +48,19 @@ namespace Agro.Plant.Flower
                 case OrganTypes.FlowerPetiol: { } break;
                 case OrganTypes.FlowerPadel: { } break;
                 case OrganTypes.FlowerBud: { } break;
-                case OrganTypes.FlowerMeristem: { } break;
+                case OrganTypes.FlowerMeristem: {
+                        var energyReserve = Math.Clamp(agent.Energy / agent.EnergyStorageCapacity(), 0f, 1f);
+                        var growth = new Vector2(1e-3f, 2e-5f) * (  energyReserve * Math.Min(formation.Plant.WaterBalance, energyReserve) * formation.Plant.World.HoursPerTick);
+                        var currentSize = new Vector2(agent.Length, agent.Radius);
+                        //assure not to outgrow the parent
+                        var parentRadius = (agent.Parent >= 0 && !formation.GetIsRizome(agent.Parent)) ? formation.GetBaseRadius(agent.Parent) : float.MaxValue;
+                        if (currentSize.Y + growth.Y > parentRadius)
+                            growth.Y = parentRadius - currentSize.Y;
+                        agent.Length += agent.Length <= 0.01f ? growth.X : 0f;
+
+                        if (agent.Radius < _settings.fStemRadius)
+                            agent.Radius += growth.Y;
+                    } break;
 
             }
         }
@@ -74,7 +96,7 @@ namespace Agro.Plant.Flower
                     formation.Death(agentID);
                     return;
                 }
-                grow(ref agent, agentID);
+                //grow(ref agent, agentID, formation);
                 chaning(ref agent, agentID, formation);
             }
             else

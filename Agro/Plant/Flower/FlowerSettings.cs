@@ -41,6 +41,7 @@ namespace Agro.Plant.Flower
         public float LeafRadiusVar { get; internal set; }
         public float LeavePetioleLength { get; set; } = 0.005f;
         public float LeavePetioleRadius { get; set; } = 0.001f;
+        public float fStemRadius { get; set; } = 0.00025f;
     }
 
     
