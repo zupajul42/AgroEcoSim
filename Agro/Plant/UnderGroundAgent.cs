@@ -21,11 +21,12 @@ public struct UnderGroundAgent : IPlantAgent
 	/// Simulation step when the agent was created
 	/// </summary>
 	readonly uint BirthTime;
+    public bool isRizome { get; private set; } = false;
 
-	/// <summary>
-	/// Orientation with respect to the parent. If there is no parent, this is the initial orientation.
-	/// </summary>
-	[JsonIgnore]
+    /// <summary>
+    /// Orientation with respect to the parent. If there is no parent, this is the initial orientation.
+    /// </summary>
+    [JsonIgnore]
 	public Quaternion Orientation { get; private set; }
 
 	/// <summary>
@@ -107,13 +108,21 @@ public struct UnderGroundAgent : IPlantAgent
 	/// Index of the parent agent. -1 represents the root of the hierarchy.
 	/// </summary>
 	public int Parent { get; private set; }
-	#endregion
 
-	#region Variances
-	/// <summary>
-	/// Precomputed random variance of maximum length for this agent
-	/// </summary>
-	readonly float LengthVar;
+
+    //gravity - not used in undergroundAgent
+    public Quaternion baseOrientation { get; set; }
+    public Quaternion restOrientation { get; set; }
+    public Quaternion targetOrientation { get; set; }
+
+    public Vector3 BaseOffset => throw new NotImplementedException();
+    #endregion
+
+    #region Variances
+    /// <summary>
+    /// Precomputed random variance of maximum length for this agent
+    /// </summary>
+    readonly float LengthVar;
 	#endregion
 
 	///////////////////////////
@@ -491,5 +500,10 @@ public struct UnderGroundAgent : IPlantAgent
         public bool Valid => Amount > 0f;
         public Transaction Type => Transaction.Increase;
         [M(AI)]public void Receive(ref UnderGroundAgent dstAgent, uint timestep) => dstAgent.IncWater(Amount);
+    }
+
+    public void SetOrientation(Quaternion quaternion)
+    {
+        return;
     }
 }

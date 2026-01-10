@@ -81,7 +81,7 @@ internal class TreeCacheData
 	internal ushort GetAbsDepth(int index) => DepthNodes[index];
 	internal ushort GetAbsInvDepth(int index) => (ushort)(MaxDepth - DepthNodes[index]);
 	internal float GetRelDepth(int index) => MaxDepth > 0 ? (DepthNodes[index] + 1) / (float)MaxDepth : 1f;
-	internal Vector3 GetBaseCenter(int index) => PointNodes[index];
+	internal Vector3 GetBaseCenter(int index) => PointNodes[index] ;
 
 	internal void UpdateBases<T>(PlantSubFormation<T> formation) where T : struct, IPlantAgent
 	{
@@ -121,4 +121,58 @@ internal class TreeCacheData
 				Height = Math.Max(Height, PointNodes[next].Y);
 		}
 	}
+    internal void UpdateBases<T>(PlantSubFormation<T> formation, IEnumerable<int> indexes) where T : struct, IPlantAgent
+    {
+        if (indexes == null)
+            return;
+
+        var targets = new HashSet<int>();
+        foreach (var index in indexes)
+        {
+            if (index >= 0 && index < Count)
+                targets.Add(index);
+        }
+
+        if (targets.Count == 0)
+            return;
+
+        var startNodes = new HashSet<int>();
+        foreach (var index in targets)
+        {
+            var current = index;
+            var parent = formation.GetParent(current);
+            while (parent >= 0 && targets.Contains(parent))
+            {
+                current = parent;
+                parent = formation.GetParent(current);
+            }
+            startNodes.Add(current);
+        }
+
+        var stack = new Stack<int>();
+        foreach (var start in startNodes)
+        {
+            var parent = formation.GetParent(start);
+            PointNodes[start] = parent >= 0
+                ? PointNodes[parent] + Vector3.Transform(Vector3.UnitX, formation.GetDirection(parent)) * formation.GetLength(parent)
+                : formation.Plant.Position;
+
+            stack.Push(start);
+            while (stack.Count > 0)
+            {
+                var node = stack.Pop();
+                var children = GetChildren(node);
+                if (children.Count == 0)
+                    continue;
+
+                var point = PointNodes[node] + Vector3.Transform(Vector3.UnitX, formation.GetDirection(node)) * formation.GetLength(node);
+                foreach (var child in children)
+                {
+                    PointNodes[child] = point;
+                    stack.Push(child);
+                }
+            }
+        }
+
+    }
 }

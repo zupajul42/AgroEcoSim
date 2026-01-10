@@ -11,6 +11,7 @@ using Utils;
 
 namespace Agro;
 
+public enum SeasonalPhase { PreFlower, Flowering, PostFlower, ResetPending };
 public partial class PlantFormation2 : IPlantFormation
 {
 	internal readonly AgroWorld World;

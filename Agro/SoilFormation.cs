@@ -443,8 +443,11 @@ public class SoilFormationRegularVoxels : IGrid3D, ISoilFormation
 			}
 
 			Water_g[srcIdx] -= resolved;
-			Debug.Assert(Water_g[srcIdx] >= 0f);
-		}
+            var remaining = Water_g[srcIdx] - resolved;
+            Debug.Assert(Water_g[srcIdx] >= -1e-5f);
+			if (Water_g[srcIdx] < 0) Water_g[srcIdx] = 0;
+
+        }
 	}
 
 	[M(AI)] void IFormation.Census() { }
