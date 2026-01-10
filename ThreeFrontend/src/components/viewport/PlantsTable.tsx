@@ -66,5 +66,14 @@ export function PlantsTable()
         </>) : (<></>);
     }
 
+    const terrainPick = appstate.terrainPick.value;
+    if (terrainPick >= 0 && terrainPick < appstate.terrainList.length)
+    {
+        const terrain = appstate.terrainList[terrainPick];
+        return (<>
+            <p>Terrain: {terrain.id}</p>
+        </>);
+    }
+
     return <></>;
 }

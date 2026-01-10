@@ -463,7 +463,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 					if (plant.RNG.NextFloatAccum(p, world.HoursPerTick))
 					{
 						Energy = 0f;
-						Debug.WriteLine($"DEL STEM {agentID} % {p} @ {timestep}");
+						//Debug.WriteLine($"DEL STEM {agentID} % {p} @ {timestep}");
 					}
 				}
 				break;

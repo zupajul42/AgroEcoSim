@@ -13,7 +13,7 @@ import { scene } from "./components/viewport/ThreeSceneFn";
 import { VisualMappingOptions } from "./helpers/Plant";
 import { Species } from "./helpers/Species";
 import { IObjImport, Parse } from "./helpers/ObjParser";
-import { BoxTerrainItem } from "./helpers/Terrain";
+import { BoxTerrainItem, ITerrainItem, MeshTerrainItem } from "./helpers/Terrain";
 
 interface RetryContext {
     readonly previousRetryCount: number; //The number of consecutive failed tries so far.
@@ -104,7 +104,7 @@ hubConnection.on("preview", (result: ISimPreview) => {
 hubConnection.on("terrain", (response: Uint8Array) => {
     const binaryTerrain = base64ToArrayBuffer(response);
     const reader = new BinaryReader(binaryTerrain);
-    const result = reader.readBoxTerrain();
+    const result = reader.readTerrain();
     st.terrainList = result.terrains;
     st.obstacles.value = [...st.obstacles.value.filter(x => x.type.value !== 'mesh'), ...result.obstacles];
     st.terrainTimestamp.value = Date.now();
@@ -177,7 +177,7 @@ class State {
     fieldCellsX = computed(() => Math.ceil(this.fieldSizeX.value / this.fieldResolution.value));
     fieldCellsZ = computed(() => Math.ceil(this.fieldSizeZ.value / this.fieldResolution.value));
     fieldCellsD = computed(() => Math.ceil(this.fieldSizeD.value / this.fieldResolution.value));
-    terrainList: BoxTerrainItem[] = [];
+    terrainList: ITerrainItem[] = [];
     terrainTimestamp = signal(Date.now());
     initNumber = signal(42);
     randomize = signal(false);
@@ -207,6 +207,7 @@ class State {
     visualMapping = signal(VisualMappingOptions.Natural);
     plantPick = signal("");
     seedPick = signal(-1);
+    terrainPick = signal(-1);
 
     transformControls: TransformControls | undefined;
     downloadRoots = signal(false);
@@ -289,7 +290,7 @@ class State {
 
             if (hubConnection.state == SignalR.HubConnectionState.Connected)
             {
-                //console.log(this.requestBody());
+                console.log(this.requestBody());
                 const prepared = await fetch(`${location.protocol}//${BackendURI}/simulation/upload`, {
                     body: JSON.stringify(this.requestBody()),
                     method: 'post',
@@ -329,6 +330,10 @@ class State {
             this.playing.value = PlayState.ForwardWaiting;
     }
 
+    clearSeeds = () => {
+        this.seeds.value = [ ];
+    }
+
     pushRndSeed = (count?: number) => {
         if (count >= 1)
         {
@@ -353,37 +358,65 @@ class State {
     pushSeedRaster = (dist: number) => {
         const result : Seed[] = [];
         const species = this.species.peek();
-        if (this.terrainList?.length > 0)
-        {
-            for(let i = 0; i < this.terrainList.length; ++i)
+        batch(() => {
+            if (this.terrainList?.length > 0)
             {
-                const terrain = this.terrainList[i];
-                const sx = terrain.sx();
-                const sz = terrain.sz();
-                const xCount = Math.max(1, Math.round(sx / dist));
-                const zCount = Math.max(1, Math.round(sz / dist));
-                const xDist = sx / xCount;
-                const zDist = sz / zCount;
+                for(let i = 0; i < this.terrainList.length; ++i)
+                {
+                    const terrain = this.terrainList[i];
+
+                    if (terrain instanceof MeshTerrainItem)
+                    {
+                        const principatDir = terrain.principalDir;
+                        const secondaryDir = terrain.secondaryDir;
+                        const sx = terrain.principalSize;
+                        const sz = terrain.secondarySize;
+                        const xCount = Math.max(1, Math.round(sx / dist));
+                        const zCount = Math.max(1, Math.round(sz / dist));
+                        const xDist = sx / xCount;
+                        const zDist = sz / zCount;
+                        const xStart = xDist * 0.5;
+                        const start = new THREE.Vector2(principatDir.x * xStart, principatDir.y * xStart).addScaledVector(secondaryDir, zDist * 0.5);
+                        for(let x = 0; x < xCount; ++x)
+                        {
+                            const mx = x * xDist;
+                            for(let z = 0; z < zCount; ++z)
+                            {
+                                const pos = new THREE.Vector2(principatDir.x * mx, principatDir.y * mx).addScaledVector(secondaryDir, z * zDist).add(start);
+                                result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), pos.x, -0.02, pos.y, i));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        const sx = terrain.sx();
+                        const sz = terrain.sz();
+                        const xCount = Math.max(1, Math.round(sx / dist));
+                        const zCount = Math.max(1, Math.round(sz / dist));
+                        const xDist = sx / xCount;
+                        const zDist = sz / zCount;
+                        const xStart = xDist * 0.5;
+                        const zStart = zDist * 0.5;
+                        for(let x = 0; x < xCount; ++x)
+                            for(let z = 0; z < zCount; ++z)
+                                result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xStart + x * xDist, -0.02, zStart + z * zDist, i));
+                    }
+                }
+            }
+            else
+            {
+                const xCount = Math.max(1, Math.round(this.fieldSizeX.value / dist));
+                const zCount = Math.max(1, Math.round(this.fieldSizeZ.value / dist));
+                const xDist = this.fieldSizeX.value / xCount;
+                const zDist = this.fieldSizeZ.value / zCount;
                 const xHalf = xDist * 0.5;
                 const zHalf = zDist * 0.5;
                 for(let x = 0; x < xCount; ++x)
                     for(let z = 0; z < zCount; ++z)
-                        result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, i));
+                        result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0));
             }
-        }
-        else
-        {
-            const xCount = Math.max(1, Math.round(this.fieldSizeX.value / dist));
-            const zCount = Math.max(1, Math.round(this.fieldSizeZ.value / dist));
-            const xDist = this.fieldSizeX.value / xCount;
-            const zDist = this.fieldSizeZ.value / zCount;
-            const xHalf = xDist * 0.5;
-            const zHalf = zDist * 0.5;
-            for(let x = 0; x < xCount; ++x)
-                for(let z = 0; z < zCount; ++z)
-                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0));
-        }
-        this.seeds.value = [ ...this.seeds.value, ...result];
+            this.seeds.value = [ ...this.seeds.value, ...result];
+        });
     }
 
     removeSeedAt = (i : number) => {
@@ -410,7 +443,7 @@ class State {
     };
 
     clearHovers = (src: BaseRequestObject[], except: BaseRequestObject | undefined) => {
-        src.forEach((x : Seed) => {
+        src.forEach((x : BaseRequestObject) => {
             if (x !== except)
             {
                 switch (x.state.peek()) {
@@ -423,10 +456,10 @@ class State {
 
     clearSeedHovers = (except: Seed | undefined) => this.clearHovers(this.seeds.peek(), except);
     clearObstacleHovers = (except: Obstacle | undefined) => this.clearHovers(this.obstacles.peek(), except);
+    clearTerrainHovers = (except: ITerrainItem | undefined) => this.clearHovers(this.terrainList, except);
 
-
-    clearSelects = (src: BaseRequestObject[], except: Seed | Obstacle | undefined) => {
-        src.forEach((s : Seed) => {
+    clearSelects = (src: BaseRequestObject[], except: Seed | Obstacle | ITerrainItem | undefined) => {
+        src.forEach((s : BaseRequestObject) => {
             if (s !== except)
                 switch(s.state.peek()) {
                     case "select":
@@ -437,9 +470,10 @@ class State {
 
     clearSeedSelects = (except: Seed | undefined) => this.clearSelects(this.seeds.peek(), except);
     clearObstacleSelects = (except: Obstacle | undefined) => this.clearSelects(this.obstacles.peek(), except);
+    clearTerrainSelects = (except: ITerrainItem | undefined) => this.clearSelects(this.terrainList, except);
 
     clearGrabs = (src: BaseRequestObject[], except: Seed | Obstacle | undefined) => {
-        src.forEach((s : Seed) => {
+        src.forEach((s : BaseRequestObject) => {
             if (s !== except)
                 if (s.state.peek() == "grab")
                     s.ungrab("select");
@@ -472,25 +506,40 @@ class State {
             fieldSizeX: this.fieldSizeX.peek(),
             fieldSizeZ: this.fieldSizeZ.peek(),
             fieldSizeD: this.fieldSizeD.peek(),
-            fieldModelData: this.fieldModelData,
-            fieldModelPath: this.fieldModelPath.peek(),
-            fieldItemRegex: this.fieldItemRegex.peek(),
+            terrainList: this.terrainList.map(item => item.save()),
+            terrainTimestamp: this.terrainTimestamp.value,
             initNumber: this.initNumber.peek(),
             randomize: this.randomize.peek(),
-            constantLight: this.renderMode.peek(),
+            renderMode: this.renderMode.peek(),
             downloadRoots: this.downloadRoots.peek(),
             exactPreview: this.exactPreview.peek(),
+
+            species: this.species.value.map(s => s.save()),
+            behaviors: this.behaviors.value,
+
+            seedsPerField: this.seedsPerField.peek(),
+            seedsOptimalDistance: this.seedsOptimalDistance.peek(),
+            seeds: this.seeds.value.map(s => s.save()),
+
+            obstacles: this.obstacles.value.map(o => o.save()),
+
             visualMapping: this.visualMapping.peek(),
             debugDisplayOrientations: this.debugBoxes.peek(),
             showLeaves: this.showLeaves.peek(),
-            seeds: this.seeds.value.map(s => s.save()),
-            obstacles: this.obstacles.value.map(o => o.save()),
-            species: this.species.value.map(s => s.save()),
+            showTerrain: this.showTerrain.peek(),
+            showRoots: this.showRoots.peek(),
+            showObstacles: this.showObstacles.peek(),
+            showSeeds: this.showSeeds.peek(),
 
             plants: this.plants.peek(),
-            history: this.history,
             historySize: this.historySize.peek(),
+            history: this.history,
             simHoursPerTick: this.simHoursPerTick,
+
+            fieldModelPath: this.fieldModelPath.peek(),
+            fieldItemRegex: this.fieldItemRegex.peek(),
+            fieldItemRegexMaterial: this.fieldItemRegexMaterial.peek(),
+            fieldModelData: this.fieldModelData,
         };
 
         this.saveTextFile(JSON.stringify(data), 'json');
@@ -527,23 +576,41 @@ class State {
                     self.fieldSizeX.value = data.fieldSizeX;
                     self.fieldSizeZ.value = data.fieldSizeZ;
                     self.fieldSizeD.value = data.fieldSizeD;
-                    self.fieldModelData = data.fieldModelData;
-                    self.fieldModelPath.value = data.fieldModelPath;
-                    self.fieldItemRegex.value = data.fieldItemRegex;
+                    self.terrainList = data.terrainList?.map(item => item.hasOwnProperty('points') ? MeshTerrainItem.load(item) : BoxTerrainItem.load(item)) ?? [];
+                    self.terrainTimestamp.value = data.terrainTimestamp;
                     self.initNumber.value = data.initNumber;
                     self.randomize.value = data.randomize;
-                    self.renderMode.value = data.constantLight;
+                    self.renderMode.value = data.renderMode;
                     self.downloadRoots.value = data.downloadRoots;
                     self.exactPreview.value = data.exactPreview;
+
+                    self.species.value = data.species.map(s => new Species().load(s));
+                    self.behaviors.value = data.behaviors;
+
+                    self.seedsPerField.value = data.seedsPerField;
+                    self.seedsOptimalDistance.value = data.seedsOptimalDistance;
+                    self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz, s.fi));
+
+                    self.obstacles.value = data.obstacles.map(o => new Obstacle(o.type, o.px, o.py, o.pz, o.ax, o.ay, o.l, o.h, o.t, new Float32Array(o.vt), o.fc));
+
                     self.visualMapping.value = data.visualMapping;
                     self.debugBoxes.value = data.debugDisplayOrientations;
                     self.showLeaves.value = data.showLeaves;
-                    self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz, s.fi));
-                    self.obstacles.value = data.obstacles.map(o => new Obstacle(o.type, o.px, o.py, o.pz, o.ax, o.ay, o.l, o.h, o.t, new Float32Array(o.vt), o.fc));
-                    self.species.value = data.species.map(s => new Species().load(s));
+                    self.showTerrain.value = data.showTerrain;
+                    self.showRoots.value = data.showRoots;
+                    self.showObstacles.value = data.showObstacles;
+                    self.showSeeds.value = data.showSeeds;
 
                     self.plants.value = data.plants;
                     self.historySize.value = data.historySize;
+                    self.history = data.history;
+                    self.simHoursPerTick = data.simHoursPerTick;
+
+                    self.fieldModelPath.value = data.fieldModelPath;
+                    self.fieldItemRegex.value = data.fieldItemRegex;
+                    self.fieldItemRegexMaterial.value = data.fieldItemRegexMaterial;
+                    self.fieldModelData = data.fieldModelData;
+
                     self.scene.value = getScene(0);
                 });
 
@@ -721,7 +788,11 @@ effect(() => {
 
 const getScene = (index: number) => {
     const i = Math.min(index, st.history.length - 1);
-    const src = st.history[i].s;
-    const reader = new BinaryReader(base64ToArrayBuffer(src));
-    return reader.readAgroScene();
+    if (i >= 0) {
+        const src = st.history[i].s;
+        const reader = new BinaryReader(base64ToArrayBuffer(src));
+        return reader.readAgroScene();
+    }
+    else
+        return [];
 }

@@ -47,7 +47,7 @@ public class AgroWorld : SimulationWorld
 	public readonly byte TicksPerDay = 24;
 	//public const int TotalHours = 24 * 365 * 10;
 	//public readonly int TotalHours = 24 * 31 * 12;
-	public readonly int TotalHours = 24 * 31 * 2;
+	public readonly int TotalHours = 24 * 31 * 3; //cca 3 months
 
 	public readonly byte StatsBlockLength = 24;
 

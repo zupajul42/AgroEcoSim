@@ -961,6 +961,12 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 	public ICollection<int> GetRoots() => TreeCache.GetRoots();
 	public ICollection<int> GetLeaves() => TreeCache.GetLeaves();
 
+	public Vector3 GetBoundingBoxSize()
+	{
+		float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
+		return default;
+	}
+
 	internal float GetEnergyCapacity(int index) => ReadTMP
 		? (AgentsTMP.Length > index ? AgentsTMP[index].EnergyStorageCapacity() : 0f)
 		: (Agents.Length > index ? Agents[index].EnergyStorageCapacity() : 0f);

@@ -23,6 +23,7 @@ import { DownloadRoots } from './hud/DownloadRoots';
 import { SamplesPerPixel } from './hud/SamplesPerPixel';
 import { FieldModelUpload } from './hud/FieldModelUpload';
 import { FieldItemRegex } from './hud/FieldItemRegex';
+import { FieldsList } from './hud/FieldsList';
 //import {Tab, initTE } from "tw-elements"; initTE({ Tab }); //tried but failed
 
 const tabs = signal("tab-home");
@@ -37,6 +38,7 @@ const App = () => {
 			<ul role="tablist">
 				<li role="presentation"><a role="tab" onClick={e => tabs.value = "tab-home"} aria-selected={tabs.value.endsWith("tab-home")}>Home</a></li>
 				<li role="presentation"><a role="tab" onClick={e => tabs.value = "tab-sim"} aria-selected={tabs.value.endsWith("tab-sim")}>Simulation</a></li>
+				<li role="presentation"><a role="tab" onClick={e => tabs.value = "tab-terrain"} aria-selected={tabs.value.endsWith("tab-terrain")}>Terrain</a></li>
 				<li role="presentation"><a role="tab" onClick={e => tabs.value = "tab-spec"} aria-selected={tabs.value.endsWith("tab-spec")}>Species</a></li>
 				<li role="presentation"><a role="tab" onClick={e => tabs.value = "tab-plants"} aria-selected={tabs.value.endsWith("tab-plants")}>Plants</a></li>
 				<li role="presentation"><a role="tab" onClick={e => tabs.value = "tab-obstacles"} aria-selected={tabs.value.endsWith("tab-obstacles")}>Obstacles</a></li>
@@ -54,12 +56,6 @@ const App = () => {
 			<div role="tabpanel" id="tab-sim" aria-selected={tabs.value.endsWith("tab-sim")}>
 				<HoursPerTick/>
 				<TotalHours/>
-				<FieldResolution/>
-				<FieldSizeX/>
-				<FieldSizeZ/>
-				<FieldSizeD/>
-				<FieldModelUpload/>
-				<FieldItemRegex/>
 				<Randomize/>
 				<InitNumber/>
 				<Renderer/>
@@ -69,6 +65,15 @@ const App = () => {
 			</div>
 			<div role="tabpanel" id="tab-plants" aria-selected={tabs.value.endsWith("tab-plants")}>
 				<Seeds/>
+			</div>
+			<div role="tabpanel" id="tab-terrain" aria-selected={tabs.value.endsWith("tab-terrain")}>
+				<FieldResolution/>
+				<FieldSizeX/>
+				<FieldSizeZ/>
+				<FieldSizeD/>
+				<FieldModelUpload/>
+				<FieldItemRegex/>
+				<FieldsList/>
 			</div>
 			<div role="tabpanel" id="tab-obstacles" aria-selected={tabs.value.endsWith("tab-obstacles")}>
 				<Obstacles/>
