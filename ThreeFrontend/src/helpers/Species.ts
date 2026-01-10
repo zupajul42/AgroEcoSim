@@ -54,6 +54,8 @@ export class Species {
     rootsDensity = signal(0.5);
     rootsGravitaxis = signal(0.2);
 
+    includeInRndGen = signal(true);
+
     public static Default() {
         const result = new Species();
         result.name.value = "default";
@@ -106,7 +108,9 @@ export class Species {
             petioleRadiusVar: this.petioleRadiusVar.peek(),
 
             rootsDensity: this.rootsDensity.peek(),
-            rootsGravitaxis: this.rootsGravitaxis.peek()
+            rootsGravitaxis: this.rootsGravitaxis.peek(),
+
+            includeInRndGen: this.includeInRndGen.peek(),
         };
     }
 
@@ -155,6 +159,8 @@ export class Species {
 
         this.rootsDensity.value = s.rootsDensity;
         this.rootsGravitaxis.value = s.rootsGravitaxis;
+
+        this.includeInRndGen.value = s.hasOwnProperty('includeInRndGen') ? s.includeInRndGen : true;
         return this;
     }
 
@@ -204,7 +210,9 @@ export class Species {
             PetioleRadiusVar: this.petioleRadiusVar.peek(),
 
             RootsSparsity: 100 - 99.999 * Math.min(1, Math.max(0, this.rootsDensity.peek())), //roots sparsity
-            RootsGravitaxis: this.rootsGravitaxis.peek()
+            RootsGravitaxis: this.rootsGravitaxis.peek(),
+
+            IncludeInRndGen: this.includeInRndGen.peek(),
         };
     }
 }

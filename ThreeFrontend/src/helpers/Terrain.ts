@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BaseRequestObject, ReqObjMaterials } from "./BaseRequestObject";
+import { neutralColor } from "./Selection";
 
 const color = new THREE.Color("#573600");
 const defaultMaterial = new THREE.MeshLambertMaterial({
@@ -8,8 +9,8 @@ const defaultMaterial = new THREE.MeshLambertMaterial({
     flatShading: true,
     name: "terrainDefault"
 });
-const hoverMaterial = new THREE.MeshLambertMaterial({ ...defaultMaterial, color: color.clone().lerpHSL(color, 0.1), name: "terrainHover "});
-const selectMaterial = new THREE.MeshLambertMaterial({ ...defaultMaterial, color: color.clone().lerpHSL(color, 0.2), name: "terrainSelect" });
+const hoverMaterial = new THREE.MeshLambertMaterial({ ...defaultMaterial, color: color.clone().lerpHSL(neutralColor, 0.1), name: "terrainHover "});
+const selectMaterial = new THREE.MeshLambertMaterial({ ...defaultMaterial, color: color.clone().lerpHSL(neutralColor, 0.2), name: "terrainSelect" });
 const grabMaterial = selectMaterial;
 const selectHoverMaterial = selectMaterial;
 

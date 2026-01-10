@@ -186,7 +186,7 @@ export default function ThreeSceneFn () {
     };
 
     const raycastScene = (clicks: Clicks) => {
-        if (mouse.inside && scene && perspectiveCamera) {
+        if (mouse.inside && scene && perspectiveCamera && appstate.performPicking.value) {
             const mousePoint = new THREE.Vector3(mouse.x, mouse.y, 1); //The mouse point in homogenous coordinates (1 at the end)
             mousePoint.unproject(perspectiveCamera);
             const raycaster = new THREE.Raycaster(perspectiveCamera.position, mousePoint.sub(perspectiveCamera.position).normalize());
@@ -230,6 +230,8 @@ export default function ThreeSceneFn () {
                             break;
                             case "terrain":
                                 terrainPick = ref.terrain;
+                                if (terrainPick)
+                                    pickingLogic(clicks, terrainPick, raycaster);
                             break;
                         }
                     }
