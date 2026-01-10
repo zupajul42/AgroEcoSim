@@ -8,7 +8,7 @@ public static class Bergonia_Cordifolia
         Behavior = Behavior.Bergenia_Cordifolia,
         LeafLength = 0.24f,
         LeafRadius = 0.09f,
-        PetioleLength = 0.05f, //?
+        PetioleLength = 0.005f, 
         PetioleRadius = 0.004f,
         LeafGrowthTime = 24 * 7 * 12,
         Height = 0.04f,
@@ -26,7 +26,5 @@ public static class Bergonia_Cordifolia
         RizomeMaxDepth = 3,
         RizomeLength = 0.04f,
         RizomeRadius = 0.0025f,
-        PetiolMoveDownMax = 0.3f,
-        PetiolMoveDown = 0.025f,
     };
 }

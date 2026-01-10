@@ -96,7 +96,7 @@ namespace Agro.Plant.Flower
                     formation.Death(agentID);
                     return;
                 }
-                //grow(ref agent, agentID, formation);
+                grow(ref agent, agentID, formation);
                 chaning(ref agent, agentID, formation);
             }
             else
@@ -119,7 +119,7 @@ namespace Agro.Plant.Flower
                         //Console.WriteLine("base");
                         var or = AboveGroundAgent.TurnUpwards(agent.Orientation);
                         var floweragent = new Flower() { BirthTime = agent.FlowerAgent.BirthTime, debth = agent.FlowerAgent.debth + 1, FlowerStartTime = agent.FlowerAgent.FlowerStartTime, flowerBase = true };
-                        var mari = new AboveGroundAgent(formation.Plant, agentID, OrganTypes.FlowerMeristem, or, 0.1f * agent.Energy, initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { Water_g = 0.1f * agent.Water_g, LateralAngle = _settings.LateralAngle, DominanceLevel = agent.DominanceLevel, FlowerAgent = floweragent, Length = 0.0015f, Radius = 0.00025f };
+                        var mari = new AboveGroundAgent(formation.Plant, agentID, OrganTypes.FlowerMeristem, or, 0.1f * agent.Energy, initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { Water_g = 0.1f * agent.Water_g, LateralAngle = _settings.LateralAngle, DominanceLevel = agent.DominanceLevel, FlowerAgent = floweragent };
                         var meristem = formation.Birth(mari);
                         agent.Energy *= 0.9f;
                         agent.Water_g *= 0.9f;
@@ -162,7 +162,7 @@ namespace Agro.Plant.Flower
                             var or = AboveGroundAgent.TurnUpwards(agent.Orientation);
                             // Quaternion.CreateFromAxisAngle(Vector3.UnitZ, _settings.LateralAngle * MathF.PI) * Quaternion.CreateFromAxisAngle(Vector3.UnitX, (MathF.Tau / _settings.LateralsPerNode) * lat);
 
-                            var flowerStem = new AboveGroundAgent(formation.Plant, agentID, OrganTypes.FlowerStem, agent.RandomOrientation(formation.Plant, formation.Plant.Parameters, or), 0.1f * agent.Energy, initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel, FlowerAgent = floweragent, Length = 0.01f, Radius = 0.00025f };
+                            var flowerStem = new AboveGroundAgent(formation.Plant, agentID, OrganTypes.FlowerStem, agent.RandomOrientation(formation.Plant, formation.Plant.Parameters, or), 0.1f * agent.Energy, initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel, FlowerAgent = floweragent };
                             var meristem = formation.Birth(flowerStem);
                             agent.Energy *= 0.9f;
                             agent.Water_g *= 0.9f;
@@ -206,7 +206,7 @@ namespace Agro.Plant.Flower
 
                             var orientation1 = or * Quaternion.CreateFromAxisAngle(Vector3.UnitX, (MathF.Tau / _settings.LateralsPerNode) * lat) * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -0.10f * MathF.PI);
 
-                            var meristem = formation.Birth(new(formation.Plant, agentID, OrganTypes.FlowerMeristem, agent.RandomOrientation(formation.Plant, formation.Plant.Parameters, orientation1), 0.1f * agent.Energy, initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel, FlowerAgent = floweragent, Length = 0.05f, Radius = 0.00025f });
+                            var meristem = formation.Birth(new(formation.Plant, agentID, OrganTypes.FlowerMeristem, agent.RandomOrientation(formation.Plant, formation.Plant.Parameters, orientation1), 0.1f * agent.Energy, initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { Water_g = 0.1f * agent.Water_g, LateralAngle = lateralPitch, DominanceLevel = agent.DominanceLevel, FlowerAgent = floweragent });
                             agent.Energy *= 0.9f;
                             agent.Water_g *= 0.9f;
                         }

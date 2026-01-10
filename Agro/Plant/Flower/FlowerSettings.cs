@@ -23,7 +23,7 @@ namespace Agro.Plant.Flower
 
         public int LateralsPerNode { get; set; } = 2;
         public int FlowersPerInternode { get; set; } = 0;
-        public float stemLengthVar { get; set; } = 0;
+        public float stemLengthVar { get; set; } = 0.09f;
         public bool deterministic { get; set; } = false;
         public int clusterSize { get; set; } = 1;
         public byte floralDepthFactor { get; set; } = 0;

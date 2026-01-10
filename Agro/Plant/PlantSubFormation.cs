@@ -375,6 +375,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
 
 	internal void Gravity()
 	{
+		
         if (!IsAboveGround)
             return;
 
@@ -442,12 +443,15 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
             var radius = agent.Radius;
             var totalWeight = Weights[i];
 
+            if (length <= 1e-4) continue;
+
             float woodiness = agent.WoodRatio();
             float depthAttenuation = MathF.Exp(-GetAbsDepth(i) * depthFactor);
 
             float baseDebthstiffness = 1e8f;
 
-            float elasticity = (MathF.Max(1e5f, baseDebthstiffness * depthAttenuation)) * (1 - woodiness) + 1e6f * woodiness;
+            float elasticity = (MathF.Max(1e15f, baseDebthstiffness * depthAttenuation)) * (1 - woodiness) + 1e15f * woodiness;
+			if (agent.Organ.Equals(OrganTypes.Petiole)) elasticity = 1e15f;
 			//Console.WriteLine($"e = {elasticity}, b*d = {baseDebthstiffness * depthAttenuation}, w = {woodiness}, we = {Weights[i]}");
 			Quaternion rotation = Quaternion.Identity;
 			Quaternion appliedDelta = Quaternion.Identity;
@@ -532,7 +536,7 @@ public partial class PlantSubFormation<T> : IPlantSubFormation<T> where T: struc
             int index1 = overlap.first;
 			int index2 = overlap.second;
             //Console.WriteLine($"{index1} {index2}");
-            if (!BranchIntersect(index1, index2))
+            if (!BranchIntersect(index1, index2)|| dst[index1].Length <= 1e-4 || dst[index2].Length <= 1e-4)
 				continue;
 
             bool isParentChild = isDescendant(index1, index2) || isDescendant(index2, index1);
