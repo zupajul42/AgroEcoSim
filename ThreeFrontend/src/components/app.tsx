@@ -7,7 +7,7 @@ import { FieldSizeX } from './hud/FieldCellsX';
 import { FieldSizeZ } from './hud/FieldCellsZ';
 import { FieldSizeD } from './hud/FieldCellsD';
 import { InitNumber } from './hud/InitNumber';
-import { PlantsTable } from './viewport/PlantsTable';
+import { PickedDetails } from './viewport/PickedDetails';
 import { Randomize } from './hud/Randomize';
 import { Seeds } from './hud/Seeds';
 import ThreeSceneFn from './viewport/ThreeSceneFn';
@@ -23,7 +23,7 @@ import { DownloadRoots } from './hud/DownloadRoots';
 import { SamplesPerPixel } from './hud/SamplesPerPixel';
 import { FieldModelUpload } from './hud/FieldModelUpload';
 import { FieldItemRegex } from './hud/FieldItemRegex';
-import { FieldsList } from './hud/FieldsList';
+import { TerrainsList } from './viewport/TerrainsList';
 //import {Tab, initTE } from "tw-elements"; initTE({ Tab }); //tried but failed
 
 const tabs = signal("tab-home");
@@ -73,7 +73,7 @@ const App = () => {
 				<FieldSizeD/>
 				<FieldModelUpload/>
 				<FieldItemRegex/>
-				<FieldsList/>
+				<TerrainsList/>
 			</div>
 			<div role="tabpanel" id="tab-obstacles" aria-selected={tabs.value.endsWith("tab-obstacles")}>
 				<Obstacles/>
@@ -81,7 +81,7 @@ const App = () => {
 			<div role="tabpanel" id="tab-analysis" aria-selected={tabs.value.endsWith("tab-analysis")}>
 				<Start inclStats={false}/>
 				<VisualMapping/>
-				<PlantsTable/>
+				<PickedDetails/>
 			</div>
 		</nav>
 	</>

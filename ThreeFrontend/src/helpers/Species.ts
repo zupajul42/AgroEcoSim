@@ -27,14 +27,14 @@ export class Species {
     lateralPitchDeg = signal(45);
     lateralPitchDegVar = signal(5);
     twigsBending = signal(0.5);
-    apexBending = signal(0.02);
+    twigsBendingApical = signal(0.02);
     bendingByLevel = signal(1);
     shootsGravitaxis = signal(0.2);
 
     woodGrowthTime = signal(100);
     woodGrowthTimeVar = signal(10);
 
-    leafLevel = signal(2);
+    //leafLevel = signal(2);
     leafLength = signal(0.12);
     leafLengthVar = signal(0.02);
     leafRadius = signal(0.04);
@@ -69,8 +69,8 @@ export class Species {
             behavior: this.behaviorIndex.peek(),
             height: this.height.peek(),
 
-            nodeDist: this.nodeDistance.peek(),
-            nodeDistVar: this.nodeDistanceVar.peek(),
+            nodeDistance: this.nodeDistance.peek(),
+            nodeDistanceVar: this.nodeDistanceVar.peek(),
 
             monopodialFactor: this.monopodialFactor.peek(),
             dominanceFactor: this.dominanceFactor.peek(),
@@ -85,14 +85,14 @@ export class Species {
             lateralPitchVar: this.lateralPitchDegVar.peek() * DegToRad,
 
             twigsBending: this.twigsBending.peek(),
-            apexBending: this.apexBending.peek(),
+            twigsBendingApical: this.twigsBendingApical.peek(),
             bendingByLevel: this.bendingByLevel.peek(),
             shootsGravitaxis: this.shootsGravitaxis.peek(),
 
             woodGrowthTime: this.woodGrowthTime.peek(),
             woodGrowthTimeVar: this.woodGrowthTimeVar.peek(),
 
-            leafLevel: this.leafLevel.peek(),
+            //leafLevel: this.leafLevel.peek(),
             leafLength: this.leafLength.peek(),
             leafLengthVar: this.leafLengthVar.peek(),
             leafRadius: this.leafRadius.peek(),
@@ -135,14 +135,14 @@ export class Species {
         this.lateralPitchDegVar.value = s.lateralPitchVar * RadToDeg;
 
         this.twigsBending.value = s.twigsBending;
-        this.apexBending.value = s.twigsBendingApical;
+        this.twigsBendingApical.value = s.twigsBendingApical;
         this.bendingByLevel.value = s.twigsBendingLevel;
         this.shootsGravitaxis.value = s.shootsGravitaxis;
 
         this.woodGrowthTime.value = s.woodGrowthTime;
         this.woodGrowthTimeVar.value = s.woodGrowthTimeVar;
 
-        this.leafLevel.value = s.leafLevel;
+        //this.leafLevel.value = s.leafLevel;
         this.leafLength.value = s.leafLength;
         this.leafLengthVar.value = s.leafLengthVar;
         this.leafRadius.value = s.leafRadius;
@@ -188,13 +188,13 @@ export class Species {
 
             TwigsBending: this.twigsBending.peek(),
             TwigsBendingLevel: this.bendingByLevel.peek(),
-            TwigsBendingApical: 1.0 - this.apexBending.peek(),
+            TwigsBendingApical: 1.0 - this.twigsBendingApical.peek(),
             ShootsGravitaxis: this.shootsGravitaxis.peek(),
 
             WoodGrowthTime: this.woodGrowthTime.peek() * 24,
             WoodGrowthTimeVar: this.woodGrowthTimeVar.peek() * 24,
 
-            LeafLevel: this.leafLevel.peek(),
+            //LeafLevel: this.leafLevel.peek(),
             LeafLength: this.leafLength.peek(),
             LeafLengthVar: this.leafLengthVar.peek(),
             LeafRadius: this.leafRadius.peek(),

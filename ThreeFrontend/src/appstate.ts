@@ -332,8 +332,50 @@ class State {
             this.playing.value = PlayState.ForwardWaiting;
     }
 
-    clearSeeds = () => {
-        this.seeds.value = [ ];
+    clearSeeds = (fieldIndex: number = -1) => {
+        if (fieldIndex >= 0)
+        {
+            const remove : number[] = [];
+            const keep : Seed[] = [];
+            const src = this.seeds.peek();
+            src.forEach((s, i) => {
+                if (s.fieldIndex.peek() == fieldIndex)
+                    remove.push(i);
+                else
+                    keep.push(s);
+            });
+            remove.forEach(i => { this.objSeeds.remove(src[i].mesh); src[i].mesh = undefined; });
+            this.seeds.value = keep;
+        }
+        else
+        {
+            this.seeds.peek().forEach(seed => { this.objSeeds.remove(seed.mesh); seed.mesh = undefined; } );
+            this.seeds.value = [ ];
+        }
+        this.needsRender.value = true;
+    }
+
+    batchTerrainsClear(pattern: string) {
+        if (pattern?.length > 0 && this.terrainList?.length > 0)
+        {
+            const fieldIndexesToRemove = new Set<number>();
+            for(let i = 0; i < this.terrainList.length; ++i)
+                if (this.terrainList[i].id?.match(pattern))
+                    fieldIndexesToRemove.add(i);
+
+            const remove : number[] = [];
+            const keep : Seed[] = [];
+            const src = this.seeds.peek();
+            src.forEach((s, i) => {
+                if (fieldIndexesToRemove.has(s.fieldIndex.peek()))
+                    remove.push(i);
+                else
+                    keep.push(s);
+            });
+            remove.forEach(i => { this.objSeeds.remove(src[i].mesh); src[i].mesh = undefined; });
+            this.seeds.value = keep;
+            this.needsRender.value = true;
+        }
     }
 
     pushRndSeed = (count?: number) => {
@@ -394,7 +436,7 @@ class State {
                                 for(let z = 0; z < zCount; ++z)
                                 {
                                     const pos = new THREE.Vector2(principatDir.x * mx, principatDir.y * mx).addScaledVector(secondaryDir, z * zDist).add(start);
-                                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), pos.x, -0.02, pos.y, i));
+                                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), pos.x, -0.02, pos.y, i, false));
                                 }
                             }
                         }
@@ -410,7 +452,7 @@ class State {
                             const zStart = zDist * 0.5;
                             for(let x = 0; x < xCount; ++x)
                                 for(let z = 0; z < zCount; ++z)
-                                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xStart + x * xDist, -0.02, zStart + z * zDist, i));
+                                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xStart + x * xDist, -0.02, zStart + z * zDist, i, false));
                         }
                     }
                 }
@@ -424,7 +466,7 @@ class State {
                     const zHalf = zDist * 0.5;
                     for(let x = 0; x < xCount; ++x)
                         for(let z = 0; z < zCount; ++z)
-                            result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0));
+                            result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0, false));
                 }
                 this.seeds.value = [ ...this.seeds.value, ...result];
             });
@@ -588,7 +630,7 @@ class State {
                     self.fieldSizeX.value = data.fieldSizeX;
                     self.fieldSizeZ.value = data.fieldSizeZ;
                     self.fieldSizeD.value = data.fieldSizeD;
-                    self.terrainList = data.terrainList?.map(item => item.hasOwnProperty('points') ? MeshTerrainItem.load(item) : BoxTerrainItem.load(item)) ?? [];
+                    self.terrainList = data.terrainList?.map((item, index) => item.hasOwnProperty('points') ? MeshTerrainItem.load(item, index) : BoxTerrainItem.load(item, index)) ?? [];
                     self.terrainTimestamp.value = data.terrainTimestamp;
                     self.initNumber.value = data.initNumber;
                     self.randomize.value = data.randomize;
@@ -601,7 +643,7 @@ class State {
 
                     self.seedsPerField.value = data.seedsPerField;
                     self.seedsOptimalDistance.value = data.seedsOptimalDistance;
-                    self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz, s.fi));
+                    self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz, s.fi, true));
 
                     self.obstacles.value = data.obstacles.map(o => new Obstacle(o.type, o.px, o.py, o.pz, o.ax, o.ay, o.l, o.h, o.t, new Float32Array(o.vt), o.fc));
 
@@ -714,7 +756,7 @@ class State {
 const st = new State();
 export default st;
 //now that the singleton is exported push in the default seed
-st.seeds.value = [ new Seed(st.species.peek()[0].name.peek(), st.fieldSizeX.peek() * 0.5, -0.01, st.fieldSizeZ.peek() * 0.5, 0) ];
+st.seeds.value = [ new Seed(st.species.peek()[0].name.peek(), st.fieldSizeX.peek() * 0.5, -0.01, st.fieldSizeZ.peek() * 0.5, 0, false) ];
 fetch(`${location.protocol}//${BackendURI}/Simulation/species`, { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }}).then(response => response.json()).then((list: Species[]) => st.species.value = list.map(x => new Species().load(x)));
 
 fetch(`${location.protocol}//${BackendURI}/Simulation/behaviors`, { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }}).then(response => response.json()).then((list: string[]) => st.behaviors.value = list);

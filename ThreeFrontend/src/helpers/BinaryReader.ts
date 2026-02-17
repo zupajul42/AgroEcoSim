@@ -262,7 +262,7 @@ export default class BinaryReader {
             {
                 const data = this.readFloat32Vector(3 + 3 + 4);
                 const id = this.readString();
-                terrains.push(new BoxTerrainItem(id, data));
+                terrains.push(new BoxTerrainItem(id, data, i));
             }
             else if (type == 1)
             {
@@ -272,7 +272,7 @@ export default class BinaryReader {
                 const points = this.readFloat32Vector(pointsCount * 3);
                 const trianglesCount = this.readInt32();
                 const triangles = this.readInt32Array(trianglesCount * 3);
-                terrains.push(new MeshTerrainItem(id, position[0], position[1], position[2], points, triangles));
+                terrains.push(new MeshTerrainItem(id, position[0], position[1], position[2], points, triangles, i));
             }
         }
 

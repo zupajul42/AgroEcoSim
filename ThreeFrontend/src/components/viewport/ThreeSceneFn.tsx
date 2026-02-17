@@ -200,7 +200,8 @@ export default function ThreeSceneFn () {
                 intersections.push(...raycaster.intersectObjects(appstate.objObstacles.children, true));
             const plantObjects = appstate.showLeaves.peek() ? appstate.objPlants.children.filter(x => x.visible) : appstate.objPlants.children;
             intersections.push(...raycaster.intersectObjects(plantObjects, true));
-            intersections.push(...raycaster.intersectObjects(appstate.objTerrain.children));
+            if (appstate.showTerrain.peek())
+                intersections.push(...raycaster.intersectObjects(appstate.objTerrain.children));
             intersections.sort((a,b) => a.distance < b.distance ? -1 : (a.distance > b.distance ? 1 : 0));
 
             batch(() => {

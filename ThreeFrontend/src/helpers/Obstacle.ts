@@ -73,7 +73,7 @@ export class Obstacle extends BaseRequestObject
                 // console.log("Vertices", this.vertices, this.vertices.length % 3, this.vertices.length / 3);
                 // console.log("Faces", this.faces, this.faces.length % 3, this.faces.length / 3);
                 // console.log("MaxVertex", this.faces.reduce((a,c) => Math.max(a, c), 0));
-
+                this.movable = false;
                 this.bufferGeometry = new THREE.BufferGeometry();
                 this.bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
                 this.bufferGeometry.setIndex(this.faces);
@@ -159,12 +159,13 @@ export class Obstacle extends BaseRequestObject
     }
 
     transformMove() {
-        batch(() => {
-            this.px.value = this.mesh.position.x;
-            this.py.value = this.mesh.position.y - (this.type.peek() == "wall" ? 0 : this.height.peek());
-            this.pz.value = this.mesh.position.z;
-            appstate.needsRender.value = true;
-        });
+        if (this.movable)
+            batch(() => {
+                this.px.value = this.mesh.position.x;
+                this.py.value = this.mesh.position.y - (this.type.peek() == "wall" ? 0 : this.height.peek());
+                this.pz.value = this.mesh.position.z;
+                appstate.needsRender.value = true;
+            });
     }
 
     public save() {

@@ -120,7 +120,7 @@ export function SpeciesItem()
             <label for={`bendingByLevel-${index}`}>Bending factor by hierarchy level</label>
         </div>
         <div>
-            <input min={0} max={1} step={0.01} type="number" name={`apexBending-${index}`} value={+species.apexBending.value.toFixed(4)} onChange={e => species.apexBending.value = parseFloat(e.currentTarget.value)}  />
+            <input min={0} max={1} step={0.01} type="number" name={`apexBending-${index}`} value={+species.twigsBendingApical.value.toFixed(4)} onChange={e => species.twigsBendingApical.value = parseFloat(e.currentTarget.value)}  />
             <label for={`apexBending-${index}`}>Apex bending rate</label>
         </div>
         <div>

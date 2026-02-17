@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { neutralColor } from "./Selection";
 import appstate from "../appstate";
 import { BaseRequestObject, ReqObjMaterials } from "./BaseRequestObject";
-import { BoxTerrainItem } from "./Terrain";
+import { BoxTerrainItem, MeshTerrainItem } from "./Terrain";
 import { Species } from "./Species";
 
 const seedColor = new THREE.Color("#008");
@@ -28,7 +28,10 @@ const seedMaterials : ReqObjMaterials = {
 export class Seed extends BaseRequestObject
 {
     species: Signal<string>;
-    constructor(spec: string, x: number, y: number, z: number, fieldIndex: number) {
+    constructor(spec: string, x: number, y: number, z: number, fieldIndex: number, isLoading: boolean) {
+        if (appstate.terrainList[fieldIndex] instanceof MeshTerrainItem && !isLoading)
+            y += appstate.terrainList[fieldIndex].sy();
+
         super(x, y, z, seedMaterials, fieldIndex);
         this.species = signal(spec);
 
@@ -45,7 +48,7 @@ export class Seed extends BaseRequestObject
             if (appstate.terrainList?.length > 0)
             {
                 const terrain = appstate.terrainList[this.fieldIndex.value];
-                offset.set(terrain.posx(), terrain instanceof BoxTerrainItem ? terrain.posy() : terrain.posy() + terrain.sy(), terrain.posz());
+                offset.set(terrain.posx(), terrain instanceof BoxTerrainItem ? terrain.posy() : terrain.posy(), terrain.posz());
             }
             this.mesh.position.set(this.px.value + offset.x, this.py.value + offset.y, this.pz.value + offset.z);
             appstate.needsRender.value = true;
@@ -98,7 +101,7 @@ export class Seed extends BaseRequestObject
                 pos = bestPos;
         }
 
-        return new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), pos.x, pos.y, pos.z, fieldIndex ?? 0);
+        return new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), pos.x, pos.y, pos.z, fieldIndex ?? 0, false);
     }
 
     static checkDist(fieldSize: THREE.Vector3, pos: THREE.Vector3, fieldIndex: number) {
