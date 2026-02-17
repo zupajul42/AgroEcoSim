@@ -312,9 +312,6 @@ public class SoilFormationTetrahedral : ISoilFormation
 
         RainCatchers = [..raincatchers];
 
-		if (World != null)
-			ComputeDiffusionCoefs();
-
         //replace the faces by the originals (workaround as long as numeric issues have not been fixes)
         Faces.Clear();
         foreach(var f in faces)
@@ -343,6 +340,9 @@ public class SoilFormationTetrahedral : ISoilFormation
             Debug.Assert(WaterCapacityPerCell[i] >= 0f);
             MinimumWaterToDiffuse[i] = WaterCapacityPerCell[i] * 0.001f;
         }
+
+		if (World != null)
+			ComputeDiffusionCoefs();
 	}
 
     void SuperTetrahedron()

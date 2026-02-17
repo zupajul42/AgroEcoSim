@@ -236,7 +236,7 @@ public class SpeciesSettings
 
     // public static SpeciesSettings Geranium_Macrorhizum;
     // public static SpeciesSettings Geranium_Cantabrigiense;
-    // public static SpeciesSettings Bergonia_Cordifolia;
+    // public static SpeciesSettings Bergenia_Cordifolia;
     [JsonPropertyName("DF")]
     public float DepthFactor { get; init; } = 0.01f; // in Pa
 
@@ -284,8 +284,8 @@ public class SpeciesSettings
 
         Predefined.Add(Geranium_Macrorrhizum.Init());
         Predefined.Add(Geranium_x_Cantabrigiense.Init());
-        Predefined.Add(Bergonia_Cordifolia.Init());
-        
+        Predefined.Add(Bergenia_Cordifolia.Init());
+
         // Campanula;
         // Heuchera;
         // Fragaria;
