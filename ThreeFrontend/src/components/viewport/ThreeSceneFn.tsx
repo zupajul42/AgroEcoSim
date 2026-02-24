@@ -13,6 +13,7 @@ import { backgroundColor } from "../../helpers/Selection";
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { BaseRequestObject } from "src/helpers/BaseRequestObject";
 import { CreateBudMesh, CreateLeafMesh, CreateRootMesh, CreateStemMesh, EncodePlantName, SetupMesh, UpdateBudMesh, UpdateLeafMesh, UpdateRootMesh, UpdateStemMesh, VisualizeBudMesh, VisualizeLeafMesh, VisualizeRootMesh, VisualizeStemMesh, doubleGreyMaterial } from "../../helpers/Plant";
+import { BoxTerrainItem, ITerrainItem, MeshTerrainItem, terrainDefaultMaterial } from "../../helpers/Terrain";
 
 enum Clicks { None, Down, Up, Double };
 
@@ -40,7 +41,12 @@ interface IObstacleRef {
     obstacle: Obstacle;
 }
 
-type DataRef = ISeedRef | ITerrainRef | IPlantRef | IObstacleRef;
+interface ITerrainRef {
+    type: "terrain";
+    terrain: ITerrainItem;
+}
+
+type DataRef = ISeedRef | ITerrainRef | IPlantRef | IObstacleRef | ITerrainRef;
 
 // export const TerrainLayer = 0;
 // export const SeedsLayer = 1;
@@ -180,7 +186,7 @@ export default function ThreeSceneFn () {
     };
 
     const raycastScene = (clicks: Clicks) => {
-        if (mouse.inside && scene && perspectiveCamera) {
+        if (mouse.inside && scene && perspectiveCamera && appstate.performPicking.value) {
             const mousePoint = new THREE.Vector3(mouse.x, mouse.y, 1); //The mouse point in homogenous coordinates (1 at the end)
             mousePoint.unproject(perspectiveCamera);
             const raycaster = new THREE.Raycaster(perspectiveCamera.position, mousePoint.sub(perspectiveCamera.position).normalize());
@@ -194,12 +200,15 @@ export default function ThreeSceneFn () {
                 intersections.push(...raycaster.intersectObjects(appstate.objObstacles.children, true));
             const plantObjects = appstate.showLeaves.peek() ? appstate.objPlants.children.filter(x => x.visible) : appstate.objPlants.children;
             intersections.push(...raycaster.intersectObjects(plantObjects, true));
+            if (appstate.showTerrain.peek())
+                intersections.push(...raycaster.intersectObjects(appstate.objTerrain.children));
             intersections.sort((a,b) => a.distance < b.distance ? -1 : (a.distance > b.distance ? 1 : 0));
 
             batch(() => {
                 let seedPick: Seed = undefined;
                 let obstaclePick: Obstacle = undefined;
                 let plantPick: string = "";
+                let terrainPick : ITerrainItem = undefined;
                 if (intersections.length > 0) {
                     const closest = intersections[0];
                     if (closest.object.userData)
@@ -220,23 +229,33 @@ export default function ThreeSceneFn () {
                                 if (clicks == Clicks.None)
                                     plantPick = EncodePlantName(ref.index);
                             break;
+                            case "terrain":
+                                terrainPick = ref.terrain;
+                                if (terrainPick)
+                                    pickingLogic(clicks, terrainPick, raycaster);
+                            break;
                         }
                     }
                 }
 
                 appstate.clearSeedHovers(seedPick);
                 appstate.clearObstacleHovers(obstaclePick);
+                appstate.clearTerrainHovers(terrainPick);
+
                 if (clicks == Clicks.Double)
                 {
                     appstate.clearSeedSelects(seedPick);
                     appstate.clearObstacleSelects(obstaclePick);
+                    appstate.clearTerrainSelects(terrainPick);
                 }
                 if (clicks == Clicks.Up)
                 {
                     appstate.clearSeedGrabs(seedPick);
                     appstate.clearObstacleGrabs(obstaclePick);
                 }
+
                 appstate.plantPick.value = plantPick;
+
                 if (!plantPick && seedPick)
                 {
                     const seedIndex = appstate.seeds.peek().indexOf(seedPick);
@@ -244,6 +263,13 @@ export default function ThreeSceneFn () {
                 }
                 else
                     appstate.seedPick.value = -1;
+
+                if (terrainPick)
+                {
+                    appstate.terrainPick.value = appstate.terrainList.indexOf(terrainPick);
+                }
+                else
+                    appstate.terrainPick.value = -1;
             });
         }
     };
@@ -315,11 +341,24 @@ export default function ThreeSceneFn () {
             for(let i = 0; i < appstate.terrainList.length; ++i)
             {
                 const t = appstate.terrainList[i];
-                const terrainMesh = new THREE.Mesh(terrainBoxPrimitive, new THREE.MeshLambertMaterial({ color: 0x573600, name: "terrainMesh" }));
-                terrainMesh.scale.set(t.sx(), t.sy(), t.sz());
-                //terrainMesh.scale.set(0.1, t.py(), 0.1);
-                terrainMesh.position.set(t.px(), t.py() - t.sy(), t.pz());
-                terrainMesh.userData = { type: "terrain", index: i };
+                let terrainMesh: THREE.Mesh ;
+                if (t instanceof BoxTerrainItem)
+                {
+                    terrainMesh = new THREE.Mesh(terrainBoxPrimitive, terrainDefaultMaterial);
+                    terrainMesh.scale.set(t.sx(), t.sy(), t.sz());
+                    terrainMesh.position.set(t.posx(), t.posy() - t.sy(), t.posz());
+                }
+                else if (t instanceof MeshTerrainItem)
+                {
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.BufferAttribute(t.points, 3))
+                    geometry.setIndex(t.triangles);
+                    geometry.computeVertexNormals();
+                    terrainMesh = new THREE.Mesh(geometry, terrainDefaultMaterial);
+                    terrainMesh.position.set(t.posx(), t.posy(), t.posz());
+                }
+                terrainMesh.userData = { type: "terrain", index: i, terrain: t };
+                t.mesh = terrainMesh;
                 appstate.objTerrain.add(terrainMesh);
             }
         }
@@ -331,7 +370,7 @@ export default function ThreeSceneFn () {
 
             //const box = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(w * 0.5, -d*0.5, l * 0.5), new THREE.Vector3(w, d, l) );
             //const terrainMesh = new THREE.Box3Helper( box, new THREE.Color("#cc9900") );
-            const terrainMesh = new THREE.Mesh(terrainBoxPrimitive, new THREE.MeshLambertMaterial({ color: 0x593700, name: "terrainMesh" }));
+            const terrainMesh = new THREE.Mesh(terrainBoxPrimitive, terrainDefaultMaterial);
             terrainMesh.scale.set(w, d, l);
             terrainMesh.position.set(0, -d, 0);
             terrainMesh.userData = { type: "terrain" };

@@ -13,7 +13,7 @@ import { scene } from "./components/viewport/ThreeSceneFn";
 import { VisualMappingOptions } from "./helpers/Plant";
 import { Species } from "./helpers/Species";
 import { IObjImport, Parse } from "./helpers/ObjParser";
-import { BoxTerrainItem } from "./helpers/Terrain";
+import { BoxTerrainItem, ITerrainItem, MeshTerrainItem } from "./helpers/Terrain";
 
 interface RetryContext {
     readonly previousRetryCount: number; //The number of consecutive failed tries so far.
@@ -104,7 +104,7 @@ hubConnection.on("preview", (result: ISimPreview) => {
 hubConnection.on("terrain", (response: Uint8Array) => {
     const binaryTerrain = base64ToArrayBuffer(response);
     const reader = new BinaryReader(binaryTerrain);
-    const result = reader.readBoxTerrain();
+    const result = reader.readTerrain();
     st.terrainList = result.terrains;
     st.obstacles.value = [...st.obstacles.value.filter(x => x.type.value !== 'mesh'), ...result.obstacles];
     st.terrainTimestamp.value = Date.now();
@@ -177,7 +177,7 @@ class State {
     fieldCellsX = computed(() => Math.ceil(this.fieldSizeX.value / this.fieldResolution.value));
     fieldCellsZ = computed(() => Math.ceil(this.fieldSizeZ.value / this.fieldResolution.value));
     fieldCellsD = computed(() => Math.ceil(this.fieldSizeD.value / this.fieldResolution.value));
-    terrainList: BoxTerrainItem[] = [];
+    terrainList: ITerrainItem[] = [];
     terrainTimestamp = signal(Date.now());
     initNumber = signal(42);
     randomize = signal(false);
@@ -207,6 +207,7 @@ class State {
     visualMapping = signal(VisualMappingOptions.Natural);
     plantPick = signal("");
     seedPick = signal(-1);
+    terrainPick = signal(-1);
 
     transformControls: TransformControls | undefined;
     downloadRoots = signal(false);
@@ -216,6 +217,8 @@ class State {
     showRoots = signal(true);
     showObstacles = signal(true);
     showSeeds = signal(true);
+
+    performPicking = signal(true);
 
     grabbed = computed(() => this.seeds.value.filter((x: Seed) => x.state.value == "grab"));
 
@@ -289,7 +292,7 @@ class State {
 
             if (hubConnection.state == SignalR.HubConnectionState.Connected)
             {
-                //console.log(this.requestBody());
+                console.log(this.requestBody());
                 const prepared = await fetch(`${location.protocol}//${BackendURI}/simulation/upload`, {
                     body: JSON.stringify(this.requestBody()),
                     method: 'post',
@@ -329,61 +332,144 @@ class State {
             this.playing.value = PlayState.ForwardWaiting;
     }
 
-    pushRndSeed = (count?: number) => {
-        if (count >= 1)
+    clearSeeds = (fieldIndex: number = -1) => {
+        if (fieldIndex >= 0)
         {
-            const result : Seed[] = [];
-            if (this.terrainList?.length > 0)
-            {
-                for(let t = 0; t < this.terrainList.length; ++t)
-                    for(let i = 0; i < count; ++i)
-                        result.push(Seed.rndItem(0, t));
-            }
-            else
-            {
-                for(let i = 0; i < count; ++i)
-                    result.push(Seed.rndItem());
-            }
-            this.seeds.value = [ ...this.seeds.peek(), ...result]
+            const remove : number[] = [];
+            const keep : Seed[] = [];
+            const src = this.seeds.peek();
+            src.forEach((s, i) => {
+                if (s.fieldIndex.peek() == fieldIndex)
+                    remove.push(i);
+                else
+                    keep.push(s);
+            });
+            remove.forEach(i => { this.objSeeds.remove(src[i].mesh); src[i].mesh = undefined; });
+            this.seeds.value = keep;
         }
         else
-            this.seeds.value = [ ...this.seeds.peek(), Seed.rndItem()]
+        {
+            this.seeds.peek().forEach(seed => { this.objSeeds.remove(seed.mesh); seed.mesh = undefined; } );
+            this.seeds.value = [ ];
+        }
+        this.needsRender.value = true;
+    }
+
+    batchTerrainsClear(pattern: string) {
+        if (pattern?.length > 0 && this.terrainList?.length > 0)
+        {
+            const fieldIndexesToRemove = new Set<number>();
+            for(let i = 0; i < this.terrainList.length; ++i)
+                if (this.terrainList[i].id?.match(pattern))
+                    fieldIndexesToRemove.add(i);
+
+            const remove : number[] = [];
+            const keep : Seed[] = [];
+            const src = this.seeds.peek();
+            src.forEach((s, i) => {
+                if (fieldIndexesToRemove.has(s.fieldIndex.peek()))
+                    remove.push(i);
+                else
+                    keep.push(s);
+            });
+            remove.forEach(i => { this.objSeeds.remove(src[i].mesh); src[i].mesh = undefined; });
+            this.seeds.value = keep;
+            this.needsRender.value = true;
+        }
+    }
+
+    pushRndSeed = (count?: number) => {
+        const species = this.species.peek().filter(s => s.includeInRndGen.value);
+        if (species.length == 0)
+            console.error("No species selected for random seeding");
+        else
+        {
+            if (count >= 1)
+            {
+                const result : Seed[] = [];
+                if (this.terrainList?.length > 0)
+                {
+                    for(let t = 0; t < this.terrainList.length; ++t)
+                        for(let i = 0; i < count; ++i)
+                            result.push(Seed.rndItem(species, 0, t));
+                }
+                else
+                {
+                    for(let i = 0; i < count; ++i)
+                        result.push(Seed.rndItem(species));
+                }
+                this.seeds.value = [ ...this.seeds.peek(), ...result]
+            }
+            else
+                this.seeds.value = [ ...this.seeds.peek(), Seed.rndItem(species)]
+        }
     };
 
     pushSeedRaster = (dist: number) => {
         const result : Seed[] = [];
-        const species = this.species.peek();
-        if (this.terrainList?.length > 0)
-        {
-            for(let i = 0; i < this.terrainList.length; ++i)
-            {
-                const terrain = this.terrainList[i];
-                const sx = terrain.sx();
-                const sz = terrain.sz();
-                const xCount = Math.max(1, Math.round(sx / dist));
-                const zCount = Math.max(1, Math.round(sz / dist));
-                const xDist = sx / xCount;
-                const zDist = sz / zCount;
-                const xHalf = xDist * 0.5;
-                const zHalf = zDist * 0.5;
-                for(let x = 0; x < xCount; ++x)
-                    for(let z = 0; z < zCount; ++z)
-                        result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, i));
-            }
-        }
+        const species = this.species.peek().filter(s => s.includeInRndGen.value);
+        if (species.length == 0)
+            console.error("No species selected for random seeding");
         else
-        {
-            const xCount = Math.max(1, Math.round(this.fieldSizeX.value / dist));
-            const zCount = Math.max(1, Math.round(this.fieldSizeZ.value / dist));
-            const xDist = this.fieldSizeX.value / xCount;
-            const zDist = this.fieldSizeZ.value / zCount;
-            const xHalf = xDist * 0.5;
-            const zHalf = zDist * 0.5;
-            for(let x = 0; x < xCount; ++x)
-                for(let z = 0; z < zCount; ++z)
-                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0));
-        }
-        this.seeds.value = [ ...this.seeds.value, ...result];
+            batch(() => {
+                if (this.terrainList?.length > 0)
+                {
+                    for(let i = 0; i < this.terrainList.length; ++i)
+                    {
+                        const terrain = this.terrainList[i];
+
+                        if (terrain instanceof MeshTerrainItem)
+                        {
+                            const principatDir = terrain.principalDir;
+                            const secondaryDir = terrain.secondaryDir;
+                            const sx = terrain.principalSize;
+                            const sz = terrain.secondarySize;
+                            const xCount = Math.max(1, Math.round(sx / dist));
+                            const zCount = Math.max(1, Math.round(sz / dist));
+                            const xDist = sx / xCount;
+                            const zDist = sz / zCount;
+                            const xStart = xDist * 0.5;
+                            const start = new THREE.Vector2(principatDir.x * xStart, principatDir.y * xStart).addScaledVector(secondaryDir, zDist * 0.5);
+                            for(let x = 0; x < xCount; ++x)
+                            {
+                                const mx = x * xDist;
+                                for(let z = 0; z < zCount; ++z)
+                                {
+                                    const pos = new THREE.Vector2(principatDir.x * mx, principatDir.y * mx).addScaledVector(secondaryDir, z * zDist).add(start);
+                                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), pos.x, -0.02, pos.y, i, false));
+                                }
+                            }
+                        }
+                        else
+                        {
+                            const sx = terrain.sx();
+                            const sz = terrain.sz();
+                            const xCount = Math.max(1, Math.round(sx / dist));
+                            const zCount = Math.max(1, Math.round(sz / dist));
+                            const xDist = sx / xCount;
+                            const zDist = sz / zCount;
+                            const xStart = xDist * 0.5;
+                            const zStart = zDist * 0.5;
+                            for(let x = 0; x < xCount; ++x)
+                                for(let z = 0; z < zCount; ++z)
+                                    result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xStart + x * xDist, -0.02, zStart + z * zDist, i, false));
+                        }
+                    }
+                }
+                else
+                {
+                    const xCount = Math.max(1, Math.round(this.fieldSizeX.value / dist));
+                    const zCount = Math.max(1, Math.round(this.fieldSizeZ.value / dist));
+                    const xDist = this.fieldSizeX.value / xCount;
+                    const zDist = this.fieldSizeZ.value / zCount;
+                    const xHalf = xDist * 0.5;
+                    const zHalf = zDist * 0.5;
+                    for(let x = 0; x < xCount; ++x)
+                        for(let z = 0; z < zCount; ++z)
+                            result.push(new Seed(species[Math.floor(Math.random() * species.length)].name.peek(), xHalf + x * xDist, -0.02, zHalf + z * zDist, 0, false));
+                }
+                this.seeds.value = [ ...this.seeds.value, ...result];
+            });
     }
 
     removeSeedAt = (i : number) => {
@@ -410,7 +496,7 @@ class State {
     };
 
     clearHovers = (src: BaseRequestObject[], except: BaseRequestObject | undefined) => {
-        src.forEach((x : Seed) => {
+        src.forEach((x : BaseRequestObject) => {
             if (x !== except)
             {
                 switch (x.state.peek()) {
@@ -423,10 +509,10 @@ class State {
 
     clearSeedHovers = (except: Seed | undefined) => this.clearHovers(this.seeds.peek(), except);
     clearObstacleHovers = (except: Obstacle | undefined) => this.clearHovers(this.obstacles.peek(), except);
+    clearTerrainHovers = (except: ITerrainItem | undefined) => this.clearHovers(this.terrainList, except);
 
-
-    clearSelects = (src: BaseRequestObject[], except: Seed | Obstacle | undefined) => {
-        src.forEach((s : Seed) => {
+    clearSelects = (src: BaseRequestObject[], except: Seed | Obstacle | ITerrainItem | undefined) => {
+        src.forEach((s : BaseRequestObject) => {
             if (s !== except)
                 switch(s.state.peek()) {
                     case "select":
@@ -437,9 +523,10 @@ class State {
 
     clearSeedSelects = (except: Seed | undefined) => this.clearSelects(this.seeds.peek(), except);
     clearObstacleSelects = (except: Obstacle | undefined) => this.clearSelects(this.obstacles.peek(), except);
+    clearTerrainSelects = (except: ITerrainItem | undefined) => this.clearSelects(this.terrainList, except);
 
     clearGrabs = (src: BaseRequestObject[], except: Seed | Obstacle | undefined) => {
-        src.forEach((s : Seed) => {
+        src.forEach((s : BaseRequestObject) => {
             if (s !== except)
                 if (s.state.peek() == "grab")
                     s.ungrab("select");
@@ -472,25 +559,41 @@ class State {
             fieldSizeX: this.fieldSizeX.peek(),
             fieldSizeZ: this.fieldSizeZ.peek(),
             fieldSizeD: this.fieldSizeD.peek(),
-            fieldModelData: this.fieldModelData,
-            fieldModelPath: this.fieldModelPath.peek(),
-            fieldItemRegex: this.fieldItemRegex.peek(),
+            terrainList: this.terrainList.map(item => item.save()),
+            terrainTimestamp: this.terrainTimestamp.value,
             initNumber: this.initNumber.peek(),
             randomize: this.randomize.peek(),
-            constantLight: this.renderMode.peek(),
+            renderMode: this.renderMode.peek(),
             downloadRoots: this.downloadRoots.peek(),
             exactPreview: this.exactPreview.peek(),
+
+            species: this.species.value.map(s => s.save()),
+            behaviors: this.behaviors.value,
+
+            seedsPerField: this.seedsPerField.peek(),
+            seedsOptimalDistance: this.seedsOptimalDistance.peek(),
+            seeds: this.seeds.value.map(s => s.save()),
+
+            obstacles: this.obstacles.value.map(o => o.save()),
+
             visualMapping: this.visualMapping.peek(),
             debugDisplayOrientations: this.debugBoxes.peek(),
             showLeaves: this.showLeaves.peek(),
-            seeds: this.seeds.value.map(s => s.save()),
-            obstacles: this.obstacles.value.map(o => o.save()),
-            species: this.species.value.map(s => s.save()),
+            showTerrain: this.showTerrain.peek(),
+            showRoots: this.showRoots.peek(),
+            showObstacles: this.showObstacles.peek(),
+            showSeeds: this.showSeeds.peek(),
+            performPicking: this.performPicking.peek(),
 
             plants: this.plants.peek(),
-            history: this.history,
             historySize: this.historySize.peek(),
+            history: this.history,
             simHoursPerTick: this.simHoursPerTick,
+
+            fieldModelPath: this.fieldModelPath.peek(),
+            fieldItemRegex: this.fieldItemRegex.peek(),
+            fieldItemRegexMaterial: this.fieldItemRegexMaterial.peek(),
+            fieldModelData: this.fieldModelData,
         };
 
         this.saveTextFile(JSON.stringify(data), 'json');
@@ -527,23 +630,43 @@ class State {
                     self.fieldSizeX.value = data.fieldSizeX;
                     self.fieldSizeZ.value = data.fieldSizeZ;
                     self.fieldSizeD.value = data.fieldSizeD;
-                    self.fieldModelData = data.fieldModelData;
-                    self.fieldModelPath.value = data.fieldModelPath;
-                    self.fieldItemRegex.value = data.fieldItemRegex;
+                    self.terrainList = data.terrainList?.map((item, index) => item.hasOwnProperty('points') ? MeshTerrainItem.load(item, index) : BoxTerrainItem.load(item, index)) ?? [];
+                    self.terrainTimestamp.value = data.terrainTimestamp;
                     self.initNumber.value = data.initNumber;
                     self.randomize.value = data.randomize;
-                    self.renderMode.value = data.constantLight;
+                    self.renderMode.value = data.renderMode;
                     self.downloadRoots.value = data.downloadRoots;
                     self.exactPreview.value = data.exactPreview;
+
+                    self.species.value = data.species.map(s => new Species().load(s));
+                    self.behaviors.value = data.behaviors;
+
+                    self.seedsPerField.value = data.seedsPerField;
+                    self.seedsOptimalDistance.value = data.seedsOptimalDistance;
+                    self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz, s.fi, true));
+
+                    self.obstacles.value = data.obstacles.map(o => new Obstacle(o.type, o.px, o.py, o.pz, o.ax, o.ay, o.l, o.h, o.t, new Float32Array(o.vt), o.fc));
+
                     self.visualMapping.value = data.visualMapping;
                     self.debugBoxes.value = data.debugDisplayOrientations;
                     self.showLeaves.value = data.showLeaves;
-                    self.seeds.value = data.seeds.map(s => new Seed(s.species, s.px, s. py, s.pz, s.fi));
-                    self.obstacles.value = data.obstacles.map(o => new Obstacle(o.type, o.px, o.py, o.pz, o.ax, o.ay, o.l, o.h, o.t, new Float32Array(o.vt), o.fc));
-                    self.species.value = data.species.map(s => new Species().load(s));
+                    self.showTerrain.value = data.showTerrain;
+                    self.showRoots.value = data.showRoots;
+                    self.showObstacles.value = data.showObstacles;
+                    self.showSeeds.value = data.showSeeds;
+
+                    self.performPicking.value = data.performPicking;
 
                     self.plants.value = data.plants;
                     self.historySize.value = data.historySize;
+                    self.history = data.history;
+                    self.simHoursPerTick = data.simHoursPerTick;
+
+                    self.fieldModelPath.value = data.fieldModelPath;
+                    self.fieldItemRegex.value = data.fieldItemRegex;
+                    self.fieldItemRegexMaterial.value = data.fieldItemRegexMaterial;
+                    self.fieldModelData = data.fieldModelData;
+
                     self.scene.value = getScene(0);
                 });
 
@@ -633,7 +756,7 @@ class State {
 const st = new State();
 export default st;
 //now that the singleton is exported push in the default seed
-st.seeds.value = [ new Seed(st.species.peek()[0].name.peek(), st.fieldSizeX.peek() * 0.5, -0.01, st.fieldSizeZ.peek() * 0.5, 0) ];
+st.seeds.value = [ new Seed(st.species.peek()[0].name.peek(), st.fieldSizeX.peek() * 0.5, -0.01, st.fieldSizeZ.peek() * 0.5, 0, false) ];
 fetch(`${location.protocol}//${BackendURI}/Simulation/species`, { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }}).then(response => response.json()).then((list: Species[]) => st.species.value = list.map(x => new Species().load(x)));
 
 fetch(`${location.protocol}//${BackendURI}/Simulation/behaviors`, { headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }}).then(response => response.json()).then((list: string[]) => st.behaviors.value = list);
@@ -721,7 +844,11 @@ effect(() => {
 
 const getScene = (index: number) => {
     const i = Math.min(index, st.history.length - 1);
-    const src = st.history[i].s;
-    const reader = new BinaryReader(base64ToArrayBuffer(src));
-    return reader.readAgroScene();
+    if (i >= 0) {
+        const src = st.history[i].s;
+        const reader = new BinaryReader(base64ToArrayBuffer(src));
+        return reader.readAgroScene();
+    }
+    else
+        return [];
 }

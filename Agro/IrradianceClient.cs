@@ -758,7 +758,7 @@ public class IrradianceClient
 				for (int i = 0; i < count; ++i)
 				{
 					var organ = ag.GetOrgan(i);
-					var center = ag.GetBaseCenterWorld(i);
+					var center = ag.GetBaseCenterWorld(i) + ag.GetBaseOffset(i);
 					var scale = ag.GetScale(i);
 					var orientation = ag.GetDirection(i);
 
@@ -771,7 +771,8 @@ public class IrradianceClient
 					switch (organ)
 					{
 						case OrganTypes.Leaf:
-							{
+                        case OrganTypes.FlowerPadel:
+                            {
 								writer.WriteU8(1); //ORGAN 1 leaf
 								var ax = x * scale.X * 0.5f;
 								var ay = -z * scale.Z * 0.5f;
@@ -790,8 +791,11 @@ public class IrradianceClient
 								}
 							}
 							break;
-						case OrganTypes.Stem: case OrganTypes.Petiole: case OrganTypes.Meristem:
-							{
+						case OrganTypes.Stem: case OrganTypes.Petiole: case OrganTypes.Meristem: case OrganTypes.FlowerStem:
+                        case OrganTypes.FlowerMeristem:
+                        case OrganTypes.FlowerPetiol:
+                        case OrganTypes.FlowerBud:
+                            {
 								writer.WriteU8(2); //ORGAN 2 stem
 								writer.Write(scale.X); //length
 								writer.Write(scale.Z * 0.5f); //radius
@@ -819,7 +823,7 @@ public class IrradianceClient
 							}
 							break;
 						case OrganTypes.Bud:
-							{
+                            {
 								writer.WriteU8(3); //ORGAN 3 bud
 								writer.WriteV32(center);
 								writer.Write(scale.X); //radius
@@ -827,7 +831,11 @@ public class IrradianceClient
 								writer.Write(Math.Clamp(ag.GetEnergy(i) / ag.GetEnergyCapacity(i), 0, 1));
 							}
 							break;
-						default: throw new NotImplementedException();
+
+ 
+
+                        
+                        default: throw new NotImplementedException();
 					}
 					if (extended)
 					{

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { neutralColor } from "./Selection";
 import { BaseRequestObject, ReqObjMaterials } from "./BaseRequestObject";
 
-const color = new THREE.Color("#bbb");
+const color = new THREE.Color("#999");
 const box = new THREE.BoxGeometry().translate(0, 0.5, 0);
 const disk = new THREE.CircleGeometry().rotateX(-Math.PI * 0.5);
 const defaultMaterial = new THREE.MeshLambertMaterial({
@@ -12,10 +12,11 @@ const defaultMaterial = new THREE.MeshLambertMaterial({
     polygonOffset: true,
     polygonOffsetFactor: -2,
     side: THREE.DoubleSide,
+    flatShading: true,
     name: "obstacleDefault"
 });
-const hoverMaterial = new THREE.MeshStandardMaterial({ color: color.clone().lerpHSL(neutralColor, 0.1), name: "obstacleHover "});
-const selectMaterial = new THREE.MeshStandardMaterial({ color: color.clone().lerpHSL(neutralColor, 0.2), name: "obstacleSelect" });
+const hoverMaterial = new THREE.MeshLambertMaterial({ ...defaultMaterial, color: color.clone().lerpHSL(neutralColor, 0.1), name: "obstacleHover "});
+const selectMaterial = new THREE.MeshLambertMaterial({ ...defaultMaterial, color: color.clone().lerpHSL(neutralColor, 0.2), name: "obstacleSelect" });
 //disabled when using the gizmo
 //const grabMaterial = new THREE.MeshStandardMaterial({ color: color.clone().lerpHSL(new THREE.Color("#06a"), 0.5) });
 //const selectHoverMaterial = new THREE.MeshStandardMaterial({ color: grabMaterial.color.clone().lerpHSL(selectMaterial.color, 0.5) });
@@ -72,7 +73,7 @@ export class Obstacle extends BaseRequestObject
                 // console.log("Vertices", this.vertices, this.vertices.length % 3, this.vertices.length / 3);
                 // console.log("Faces", this.faces, this.faces.length % 3, this.faces.length / 3);
                 // console.log("MaxVertex", this.faces.reduce((a,c) => Math.max(a, c), 0));
-
+                this.movable = false;
                 this.bufferGeometry = new THREE.BufferGeometry();
                 this.bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(this.vertices, 3));
                 this.bufferGeometry.setIndex(this.faces);
@@ -158,12 +159,13 @@ export class Obstacle extends BaseRequestObject
     }
 
     transformMove() {
-        batch(() => {
-            this.px.value = this.mesh.position.x;
-            this.py.value = this.mesh.position.y - (this.type.peek() == "wall" ? 0 : this.height.peek());
-            this.pz.value = this.mesh.position.z;
-            appstate.needsRender.value = true;
-        });
+        if (this.movable)
+            batch(() => {
+                this.px.value = this.mesh.position.x;
+                this.py.value = this.mesh.position.y - (this.type.peek() == "wall" ? 0 : this.height.peek());
+                this.pz.value = this.mesh.position.z;
+                appstate.needsRender.value = true;
+            });
     }
 
     public save() {
@@ -177,7 +179,7 @@ export class Obstacle extends BaseRequestObject
             t: this.thickness.peek(),
             ax: this.angleX.peek(),
             ay: this.angleY.peek(),
-            vt: this.vertices.buffer,
+            vt: Array.from(this.vertices),
             fc: this.faces
         }
     }

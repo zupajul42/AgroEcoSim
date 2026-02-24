@@ -17,11 +17,17 @@ public interface IPlantAgent : ITreeAgent
 	/// Orientation with respect to the parent. If there is no parent, this is the initial orientation.
 	/// </summary>
 	Quaternion Orientation { get; }
+    Quaternion baseOrientation { get; set; }
+    Quaternion restOrientation { get; set; }
+    Quaternion targetOrientation { get; set; }
 
-	byte DominanceLevel { get; }
+    byte DominanceLevel { get; }
 
 
-	float Energy { get; }
+    bool isRizome { get; }
+	Vector3 BaseOffset { get; }
+
+    float Energy { get; }
 
 	/// <summary>
 	/// Water amount in gramms
@@ -71,4 +77,5 @@ public interface IPlantAgent : ITreeAgent
 	void DailyAdd(float resources, float production);
 	void DailySet(float resources, float production, float efficiency);
 	void DailyDiv(uint count);
+    void SetOrientation(Quaternion quaternion);
 }
