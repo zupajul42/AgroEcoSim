@@ -1,5 +1,4 @@
 using AgentsSystem;
-using Agro.Plant.Flower;
 using Microsoft.VisualBasic;
 using System;
 using System.Diagnostics;
@@ -18,7 +17,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// <summary>
 	/// Simulation step when the agent was created
 	/// </summary>
-	readonly uint BirthTime;
+	public readonly uint BirthTime;
 	/// <summary>
 	/// Orientation with respect to the parent. If there is no parent, this is the initial orientation.
 	/// </summary>
@@ -82,19 +81,23 @@ public partial struct AboveGroundAgent : IPlantAgent
 	/// Water volume in gramms
 	/// </summary>
 	public float Water_g { get;  set; }
+    /// <summary>
+    /// Farbe
+    /// </summary>
+    public Vector3 Color { get; set; }
 
-	// /// <summary>
-	// /// Hormones level (in custom units)
-	// /// </summary>
-	// public float AbscisicAcid { get; set; }
+    // /// <summary>
+    // /// Hormones level (in custom units)
+    // /// </summary>
+    // public float AbscisicAcid { get; set; }
 
-	/// <summary>
-	/// Hormones level (in custom units)
-	/// </summary>
-	/// <remarks>
-	/// Auxins emerge in meristem and propagate away. Simplified in this simulation, they only keeps buds inactive in the vicinity of meristem.
-	/// </remarks>
-	public float Auxins { get; set; }
+    /// <summary>
+    /// Hormones level (in custom units)
+    /// </summary>
+    /// <remarks>
+    /// Auxins emerge in meristem and propagate away. Simplified in this simulation, they only keeps buds inactive in the vicinity of meristem.
+    /// </remarks>
+    public float Auxins { get; set; }
 
 	/// <summary>
 	/// Hormones level (in custom units)
@@ -123,10 +126,12 @@ public partial struct AboveGroundAgent : IPlantAgent
 	///</summary>
 	float CurrentDayEnvResourcesInv { get; set; }
 
-	///<summary>
-	///Accumulated light exposure of this agent during this day so far, in absolute units
-	///</summary>
-	float CurrentDayEnvResources { get; set; }
+    [M(AI)] public void SetCurrentDayEnvResourcesInv(float value) => this.CurrentDayEnvResourcesInv = value;
+
+    ///<summary>
+    ///Accumulated light exposure of this agent during this day so far, in absolute units
+    ///</summary>
+    float CurrentDayEnvResources { get; set; }
 
 	///<summary>
 	///Accumulated light exposure of this agent during the previous day, in absolute units
@@ -188,12 +193,15 @@ public partial struct AboveGroundAgent : IPlantAgent
 	public rizomeInfos rizomeInfo { get; set; } = new rizomeInfos();
 
 	public Flower FlowerAgent { get; set; } = new Flower();
-
 	//gravity
 	public Quaternion baseOrientation { get; set; }
     public Quaternion restOrientation { get; set; }
     public Quaternion targetOrientation { get; set; }
 
+
+    public int CrownIndex { get; set; } = 0;
+
+	public bool flowerSupport { get; set; } = true;
 
     #region Variances
     /// <summary>
@@ -204,10 +212,12 @@ public partial struct AboveGroundAgent : IPlantAgent
 	float GrowthTimeVar;
 	#endregion
 
-	/// <summary>
-	/// Water amount in gramms which can be passed to the parent per hour
-	/// </summary>
-	[M(AI)]public readonly float WaterFlowToParentPerHour_g() => 4f * Radius * Radius * WaterTransportRatio * UnderGroundAgent.CubicMetersToGrammsOfWater;
+	public readonly float GetLengthVar() => LengthVar;
+
+    /// <summary>
+    /// Water amount in gramms which can be passed to the parent per hour
+    /// </summary>
+    [M(AI)]public readonly float WaterFlowToParentPerHour_g() => 4f * Radius * Radius * WaterTransportRatio * UnderGroundAgent.CubicMetersToGrammsOfWater;
 
 	/// <summary>
 	/// Water amount in gramms which can be passed to the parent per timestep
@@ -269,7 +279,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 
     [M(AI)]readonly float EnoughEnergy(float? lifeSupportPerHour = null) => (lifeSupportPerHour ?? LifeSupportPerHour()) * 320;
 
-	public AboveGroundAgent(PlantFormation2 plant, int parent, OrganTypes organ, Quaternion orientation, float initialEnergy, float radius = InitialRadius, float length = InitialLength, float initialResources = 0f, float initialProduction = 0f)
+	public AboveGroundAgent(PlantFormation2 plant, int parent, OrganTypes organ, Quaternion orientation, float initialEnergy, float radius = InitialRadius, float length = InitialLength, float initialResources = 0f, float initialProduction = 0f, bool rizome = false, Flower flowerAgent = default)
 	{
 		BirthTime = plant.World.Timestep;
 		Parent = parent;
@@ -280,7 +290,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 		baseOrientation = orientation;
 		restOrientation = orientation;
 		targetOrientation = orientation;
-
+		isRizome = rizome;
 		Organ = organ;
 
 		Energy = initialEnergy;
@@ -295,6 +305,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 		PreviousDayEnvResources = initialResources * Length * Radius * 2f;
 		CurrentDayEnvResources = 0f;
 
+		FlowerAgent = flowerAgent;
 
 		//FirstSegmentIndex = plant.InsertSegments(SegmentsCount, orientation);
 
@@ -321,32 +332,46 @@ public partial struct AboveGroundAgent : IPlantAgent
 			break;
 
 			case OrganTypes.Meristem:
-			{
-				LengthVar = species.NodeDistance + plant.RNG.NextFloatVar(species.NodeDistanceVar);
-				RadiusVar = 0f;
-				GrowthTimeVar = 0f;
-			}
+				{
+					if (isRizome)
+					{
+						LengthVar = plant.Parameters.RizomeLength;
+						RadiusVar = plant.Parameters.RizomeRadius;
+					}
+					else
+					{
+						LengthVar = species.NodeDistance + plant.RNG.NextFloatVar(species.NodeDistanceVar);
+						RadiusVar = 0f;
+						GrowthTimeVar = 0f;
+					}
+				}
 			break;
 
 			case OrganTypes.Stem:
 				{
-					if (isRizome)
-					{
-						LengthVar = 0.1f;
-						RadiusVar = 0.01f;
-					}
-					else
-					{
+					
 
 						LengthVar = 0f;
 						RadiusVar = 0f;
 						GrowthTimeVar = plant.World.HoursPerTick / (species.WoodGrowthTime + plant.RNG.NextFloatVar(species.WoodGrowthTimeVar));
 
-					}
+					
 				}
 			break;
+            case OrganTypes.FlowerMeristem:
+                {
+                    LengthVar = FlowerAgent.flowerBase? 0.005f:  species.FlowerSettings.stemLength + plant.RNG.NextFloatVar(species.FlowerSettings.stemLengthVar);
 
-			default:
+                   
+                }
+                break;
+            case OrganTypes.FlowerPetiol: { } break;
+            case OrganTypes.FlowerPadel: {
+				Color = new Vector3(245, 5, 229);
+                } break;
+            case OrganTypes.FlowerBud: { } break;
+            case OrganTypes.FlowerStem: { } break;
+            default:
 			{
 				LengthVar = 0f;
 				RadiusVar = 0f;
@@ -389,7 +414,7 @@ public partial struct AboveGroundAgent : IPlantAgent
     public void TickDefault(IFormation _formation, int agentID, uint timestep)
 	{
         var formation = (PlantSubFormation<AboveGroundAgent>)_formation;
-
+		//Console.WriteLine("default");
         var plant = formation.Plant;
 		var species = plant.Parameters;
 		var world = plant.World;
@@ -740,13 +765,15 @@ public partial struct AboveGroundAgent : IPlantAgent
 			var pitch = plant.RNG.NextFloatVar(species.LateralPitchVar);
             var orientation = parent.Orientation * Quaternion.CreateFromAxisAngle(Vector3.UnitX, l * angleStep + lateralAngle) * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, -plant.Parameters.LateralPitch);
             orientation = TurnUpwards(orientation) * Quaternion.CreateFromAxisAngle(Vector3.UnitX, roll) * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, pitch);
-            var petioleIdx = plant.AG.Birth(new(plant, meristem, OrganTypes.Petiole, orientation, parent.Energy * 0.1f, initialResources: initialResources, initialProduction: initialProduction) { DominanceLevel = parent.DominanceLevel, ParentRadiusAtBirth = parent.Radius }); //leaf stem
+            var petioleIdx1 = plant.AG.Birth(new(plant, meristem, OrganTypes.Petiole, orientation, parent.Energy * 0.1f, initialResources: initialResources, initialProduction: initialProduction) { DominanceLevel = parent.DominanceLevel, ParentRadiusAtBirth = parent.Radius }); //leaf stem
+            parent.Energy *= 0.9f;
+           // var petioleIdx2 = plant.AG.Birth(new(plant, petioleIdx1, OrganTypes.Petiole, orientation, parent.Energy * 0.1f, initialResources: initialResources, initialProduction: initialProduction) { DominanceLevel = parent.DominanceLevel, ParentRadiusAtBirth = parent.Radius }); //leaf stem
             parent.Energy *= 0.9f;
 
-			var leafPitchVar = plant.RNG.NextFloatVar(species.LateralPitchVar);
+            var leafPitchVar = plant.RNG.NextFloatVar(species.LateralPitchVar);
             orientation *= Quaternion.CreateFromAxisAngle(Vector3.UnitZ, leafPitchVar - species.LeafPitch);
 
-            plant.AG.Birth(new(plant, petioleIdx, OrganTypes.Leaf, orientation, parent.Energy * 0.1f, initialResources: initialResources, initialProduction: initialProduction) { DominanceLevel = parent.DominanceLevel, ParentRadiusAtBirth = float.MaxValue }); //leaf
+            plant.AG.Birth(new(plant, petioleIdx1, OrganTypes.Leaf, orientation, parent.Energy * 0.1f, initialResources: initialResources, initialProduction: initialProduction) { DominanceLevel = parent.DominanceLevel, ParentRadiusAtBirth = float.MaxValue }); //leaf
             parent.Energy *= 0.9f;
 
         }

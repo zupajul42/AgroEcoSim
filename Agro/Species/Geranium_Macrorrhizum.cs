@@ -10,9 +10,10 @@ public static class Geranium_Macrorrhizum
         LeafRadius = 0.03f,
         LeafPitchVar = 5f * (MathF.PI / 180f),
         LeafPitch = 85 * (MathF.PI / 180f),
-        PetioleLength = 0.150f,
-        PetioleLengthVar = 0.05f,
-        PetioleRadius = 0.0018f,
+        PetioleLength = 0.060f,
+        PetioleLengthVar = 0.01f,
+        PetioleRadius = 0.003f,
+        PetioleRadiusVar = 0.0001f,
 
         LeafGrowthTime = 24 * 7,
         Height = 0.3f,

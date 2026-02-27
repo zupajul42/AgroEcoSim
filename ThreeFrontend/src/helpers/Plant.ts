@@ -159,7 +159,7 @@ export function VisualizeBudMesh(material: THREE.MeshStandardMaterial, index: In
 
 function LeafColor(primitive: Primitive, index: number) : { color: THREE.Color, emissive: THREE.Color } {
     switch (appstate.visualMapping.peek()) {
-        case VisualMappingOptions.Natural: return { color: greenColors[index % greenColors.length], emissive: black } ;
+        case VisualMappingOptions.Natural: return { color: new THREE.Color(primitive.color[0] / 255, primitive.color[1] / 255, primitive.color[2] / 255), emissive: black };
         case VisualMappingOptions.Water: return { emissive: WaterColor(primitive.stats[0]), color: black };
         case VisualMappingOptions.Energy: return { emissive: EnergyColor(primitive.stats[1]), color: black };
         case VisualMappingOptions.Auxins: return { emissive: AuxinsColor(primitive.stats[2]), color: black };

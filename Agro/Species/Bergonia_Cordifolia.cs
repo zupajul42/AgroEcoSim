@@ -14,7 +14,7 @@ public static class Bergonia_Cordifolia
         Height = 0.04f,
         NodeDistance = 0,
         NodeDistanceVar = 0,
-        pChaningSeaonns = [0.015f, 0.02f, 0.01f, 0f],
+        pChaningSeaonns = [0.5f, 0.02f, 0.01f, 0f],
         pFloweringSeaonns = [0.0005f, 0.005f, 0.0003f, 0f],
 
         MaxLeaveAge = 100,
@@ -23,8 +23,8 @@ public static class Bergonia_Cordifolia
         growthFactor = 0.2f,
         MaxRadius = 0.005f,
         pExpandRizome = 0.0005f,
-        RizomeMaxDepth = 3,
-        RizomeLength = 0.04f,
+        RizomeMaxDepth = 0,
+        RizomeLength = 0.05f,
         RizomeRadius = 0.0025f,
     };
 }

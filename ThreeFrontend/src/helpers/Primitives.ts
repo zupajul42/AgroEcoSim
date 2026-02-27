@@ -3,11 +3,13 @@ import * as THREE from "three";
 export enum Primitives { Disk, Rectangle, Cylinder, Sphere, Box }
 
 type StatsBase = {
-    //water, energy, irradiance, dailyResources, dailyProduction for leaves
+    //water, energy, irradiance, dailyResources, dailyProduction, color for leaves
     //water, energy, woodRatio for stems
     //water, energy for buds
     //water, energy, woodRatio, dailyResources, dailyProduction for roots
     stats: Float32Array | undefined
+    color?: Float32Array
+
 }
 
 type PrimitiveBase = StatsBase & {

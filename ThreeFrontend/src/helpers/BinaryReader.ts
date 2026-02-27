@@ -158,12 +158,15 @@ export default class BinaryReader {
                         const transform = this.readFloat32Vector(12);
                         const waterRatio = this.readFloat32();
                         const energyRatio = this.readFloat32();
+
+                        const color = this.readFloat32Vector(3);
                         const lastIrradiance = this.readFloat32();
                         const dailyResource = this.readFloat32();
                         const dailyProduction = this.readFloat32();
+
                         const auxins = this.readFloat32();
                         const cytokinins = this.readFloat32();
-                        entity.push({ type: Primitives.Rectangle, affineTransform: transform, stats: new Float32Array([waterRatio, energyRatio, auxins, cytokinins, lastIrradiance, dailyResource, dailyProduction, 0, 0]) });
+                        entity.push({ type: Primitives.Rectangle, affineTransform: transform, stats: new Float32Array([waterRatio, energyRatio, auxins, cytokinins, lastIrradiance, dailyResource, dailyProduction, 0, 0]), color: new Float32Array([color[0], color[1], color[2]]) });
                         maxDailyProductionShoots = Math.max(dailyProduction, maxDailyProductionShoots);
                         maxDailyResourceShoots = Math.max(dailyResource, maxDailyResourceShoots);
                     }

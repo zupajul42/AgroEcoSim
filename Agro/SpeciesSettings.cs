@@ -1,6 +1,5 @@
 using System.Numerics;
 using System.Text.Json.Serialization;
-using Agro.Plant.Flower;
 using Agro.Species;
 
 namespace Agro;
@@ -255,7 +254,7 @@ public class SpeciesSettings
 
     public float pExpandRizome { get; set; } = 0.005f;
     public int RizomeMaxDepth { get; set; } = 15;
-    public float RizomeLength { get; set; } = 0.01f;
+    public float RizomeLength { get; set; } = 0.1f;
     public float RizomeRadius { get; set; } = 0.0025f;
     public float PetiolMoveDownMax { get; set; } = 0.3f;
     public float PetiolMoveDown { get; set; } = 0f;
