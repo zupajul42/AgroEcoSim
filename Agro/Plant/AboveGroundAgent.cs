@@ -213,6 +213,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 	#endregion
 
 	public readonly float GetLengthVar() => LengthVar;
+    public readonly float GetRadiusVar() => RadiusVar;
 
     /// <summary>
     /// Water amount in gramms which can be passed to the parent per hour

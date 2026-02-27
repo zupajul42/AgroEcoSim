@@ -9,7 +9,6 @@ namespace Agro
 {
     public class FlowerSettings
     {
-        public InfloresenceType InfloresenceType = InfloresenceType.Solitary;
         public float stemLength { get; set; } = 0.005f;
         public readonly List<OrganTypes> flowerOrgans = new List<OrganTypes>() { OrganTypes.FlowerStem, OrganTypes.FlowerPadel, OrganTypes.FlowerPetiol, OrganTypes.FlowerMeristem, OrganTypes.FlowerBud
     };
@@ -33,12 +32,17 @@ namespace Agro
         public int flowerBaseDebth { get; set; } = 25;
 
         public uint FlowerMaxAge { get;  set; }
+        public uint BudBloomAge { get; set; }
+
+
         public int LateralAngle { get; set; } = 90;
         public int LateralRoll { get;  set; }
 
         public bool internodeFlowerWithStem { get; set; } = true;
         public float LeafLength { get; set; } = 0.03f;
         public float LeafRadius { get; set; } = 0.015f;
+        public float PedalLength { get; set; } 
+        public float PedalRadius { get; set; } 
         public float LeafLengthVar { get; internal set; }
         public float LeafRadiusVar { get; internal set; }
         public float LeavePetioleLength { get; set; } = 0.005f;
