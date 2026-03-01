@@ -27,6 +27,7 @@ namespace Agro
             }
             public void grow(ref AboveGroundAgent agent, int agentID, PlantSubFormation<AboveGroundAgent> formation)
             {
+                var currentSize = new Vector2(agent.Length, agent.Radius);
 
                 switch (agent.Organ)
                 {
@@ -35,7 +36,6 @@ namespace Agro
 
                             var energyReserve = Math.Clamp(agent.Energy / agent.EnergyStorageCapacity(), 0f, 1f);
                             var growth = (agent.FlowerAgent.flowerBase ? 0.001f : 0.00025f) / 5 * formation.Plant.World.HoursPerTick;
-                            var currentSize = new Vector2(agent.Length, agent.Radius);
                             //assure not to outgrow the parent
                             var parentRadius = (agent.Parent >= 0 && !formation.GetIsRizome(agent.Parent) && !formation.GetOrgan(agent.Parent).Equals(OrganTypes.Stem)) ? formation.GetBaseRadius(agent.Parent) : float.MaxValue;
                             if (currentSize.Y + growth > parentRadius)
@@ -49,8 +49,9 @@ namespace Agro
                         }
                         break;
                     case OrganTypes.FlowerPetiol: {
-                            var growth = Math.Min(1f, plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar;
-                            var currentSize = new Vector2(agent.Length, agent.Radius);
+                            var sizeLimit = new Vector2(_settings.PetiolLength + agent.LengthVar, _settings.PetiolRadius + agent.RadiusVar);
+
+                            var growth = Math.Min(1f, formation.Plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar;
                             //assure not to outgrow the parent
                             var parentRadius = formation.GetBaseRadius(agent.Parent);
                             if (currentSize.Y + growth.Y > parentRadius)
@@ -68,16 +69,23 @@ namespace Agro
                             if (currentSize.X < sizeLimit.X && currentSize.Y < sizeLimit.Y)
                             {
                                 //HoursPerTick are included in GrowthTimeVar
-                                var growth = Math.Min(1f, plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar ;
+                                var growth = Math.Min(1f, formation.Plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar ;
                                 var resultingSize = Vector2.Min(currentSize + growth, sizeLimit);
                                 growth = resultingSize - currentSize;
                                 agent.Length += growth.X;
                                 agent.Radius += growth.Y;
+
+                                float rim = formation.GetBaseRadius(agent.Parent)* 0.85f;
+                                
+                                var parentTip = formation.GetTipPosition(agent.Parent);
+                                    agent.BaseOffset = parentTip  + Vector3.Normalize(agent.BaseOffset - parentTip) * rim;
+                               
                             }
                         } break;
                     case OrganTypes.FlowerBud: {
-                            var growth = Math.Min(1f, plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar * formation.Plant.World.HoursPerTick;
-                            var currentSize = new Vector2(agent.Length, agent.Radius);
+                            var sizeLimit = new Vector2(_settings.BudLength + agent.LengthVar, _settings.BudRadius + agent.RadiusVar);
+
+                            var growth = Math.Min(1f, formation.Plant.WaterBalance) * sizeLimit * agent.GrowthTimeVar * formation.Plant.World.HoursPerTick;
                             //assure not to outgrow the parent
                             var parentRadius = formation.GetBaseRadius(agent.Parent);
                             if (currentSize.Y + growth.Y > parentRadius)
@@ -89,17 +97,9 @@ namespace Agro
                             {
                                 agent.Radius += growth.Y;
 
-                                if (formation.GetChildren().Count() > 0)
+                                if (formation.GetChildren(agentID).Count() > 0)
                                 {
-                                    var or = agent.Orientation;
-                                    float rim = agent.Radius * 0.85f;
-                                    foreach (var pedal in formation.GetChildren())
-                                    {
-                                        Quaternion o = pedal.Orientation;
-
-                                        Vector3 offset = Vector3.Transform(new Vector3(0f, MathF.Cos(a) * rim, MathF.Sin(a) * rim), or);
-                                        pedal.Offset = offset;
-                                    }
+                                    
                                 }
 
                             }
@@ -111,7 +111,6 @@ namespace Agro
                     case OrganTypes.FlowerMeristem: {
 
                             var growth = new Vector2((agent.GetLengthVar() / 5), ((agent.FlowerAgent.flowerBase ? 0.001f : 0.00025f) / 5)) * formation.Plant.World.HoursPerTick;
-                            var currentSize = new Vector2(agent.Length, agent.Radius);
                             //assure not to outgrow the parent
                             var parentRadius = (agent.Parent >= 0 && !formation.GetIsRizome(agent.Parent) && !formation.GetOrgan(agent.Parent).Equals(OrganTypes.Stem)) ? formation.GetBaseRadius(agent.Parent) : float.MaxValue;
                             if (currentSize.Y + growth.Y > parentRadius)
@@ -351,15 +350,15 @@ namespace Agro
                         float a = i * angleStep;
 
                         // Like your leaf variance
-                        float roll = rng.NextFloatVar(rollVarRange);
-                        float pitch = rng.NextFloatVar(pitchVarRange);
+                        float roll = formation.Plant.RNG.NextFloatVar(rollVarRange);
+                        float pitch = formation.Plant.RNG.NextFloatVar(pitchVarRange);
                         var or = agent.Orientation;
                         Quaternion o = or * Quaternion.CreateFromAxisAngle(Vector3.UnitX, a) * Quaternion.CreateFromAxisAngle(Vector3.UnitZ, (basePetalPitch + pitch)) * Quaternion.CreateFromAxisAngle(Vector3.UnitX, roll);
-                        float rim = bud.Radius * 0.85f;
+                        float rim = agent.Radius * 0.85f;
 
 
                         Vector3 offset = Vector3.Transform(new Vector3(0f, MathF.Cos(a) * rim, MathF.Sin(a) * rim), or);
-                        var flower = formation.Birth(new(formation.Plant, budId, OrganTypes.FlowerPadel, o, agent.Energy * (0.1f / petalCount), initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { DominanceLevel = agent.DominanceLevel, Length = 0.005f, Radius = 0.0025f, BaseOffset = offset });
+                        var flower = formation.Birth(new(formation.Plant, agentID, OrganTypes.FlowerPadel, o, agent.Energy * (0.1f / petalCount), initialResources: formation.DailyResourceMax, initialProduction: formation.DailyProductionMax) { DominanceLevel = agent.DominanceLevel, Length = 0.005f, Radius = 0.0025f, BaseOffset = offset });
 
                         agent.Energy *= 0.99f;
                     }

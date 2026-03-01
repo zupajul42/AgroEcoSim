@@ -4,7 +4,7 @@ public static class Geranium_Macrorrhizum
 {
     public static SpeciesSettings Init() =>new() {
         Name = "Geranium Macrorrhizum",
-        Behavior = Behavior.Geranium_Macrorrhizum,
+        Behavior = Behavior.Herbaceous,
         LeafLength = 0.06f,
         LeafLengthVar = 0.01f,
         LeafRadius = 0.03f,

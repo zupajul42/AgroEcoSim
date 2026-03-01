@@ -42,7 +42,11 @@ namespace Agro
         public float LeafLength { get; set; } = 0.03f;
         public float LeafRadius { get; set; } = 0.015f;
         public float PedalLength { get; set; } 
-        public float PedalRadius { get; set; } 
+        public float PedalRadius { get; set; }
+        public float BudLength { get; set; }
+        public float BudRadius { get; set; }
+        public float PetiolLength { get; set; }
+        public float PetiolRadius { get; set; }
         public float LeafLengthVar { get; internal set; }
         public float LeafRadiusVar { get; internal set; }
         public float LeavePetioleLength { get; set; } = 0.005f;

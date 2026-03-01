@@ -321,6 +321,7 @@ public partial struct AboveGroundAgent : IPlantAgent
 				LengthVar = plant.RNG.NextFloatVar(species.LeafLengthVar);
 				RadiusVar = plant.RNG.NextFloatVar(species.LeafRadiusVar);
 				GrowthTimeVar = plant.World.HoursPerTick / (species.LeafGrowthTime + plant.RNG.NextFloatVar(species.LeafGrowthTimeVar));
+					Color = species.BaseLeafColor;
 			}
 			break;
 
@@ -405,8 +406,8 @@ public partial struct AboveGroundAgent : IPlantAgent
         var formation = (PlantSubFormation<AboveGroundAgent>)_formation;
         switch (formation.Plant.Parameters.Behavior)
         {
-            case Behavior.Geranium_Sanguineum: GeraniumSanguineum.TickGeraniumSanguineum(ref this, formation, agentID, timestep); break;
-            case Behavior.Geranium_Macrorrhizum: case Behavior.Geranium_x_Cantabrigiense: case Behavior.Bergenia_Cordifolia: Bergania.Tick(ref this, formation, agentID, timestep); break;
+            //case Behavior.Geranium_Sanguineum: GeraniumSanguineum.TickGeraniumSanguineum(ref this, formation, agentID, timestep); break;
+            case Behavior.Herbaceous: Herbaceous.Tick(ref this, formation, agentID, timestep); break;
             default: TickDefault(_formation, agentID, timestep); break;
 
         };
@@ -891,7 +892,11 @@ public partial struct AboveGroundAgent : IPlantAgent
 		PreviousDayEnvResourcesInvariant /= count;
 		PreviousDayProductionInvariant /= count;
 	}
-
+	[M(AI)]
+    public void SetOffset(Vector3 offset)
+    {
+        BaseOffset = offset;
+    }
     [M(AI)] public void SetOrientation(Quaternion orientation)
     {
         Orientation = orientation;

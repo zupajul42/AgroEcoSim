@@ -16,7 +16,7 @@ namespace Agro
 {
     public partial struct AboveGroundAgent
     {
-        public partial struct Bergania
+        public partial struct Herbaceous
         {
             
             public static void Tick(ref AboveGroundAgent agent, PlantSubFormation<AboveGroundAgent> formation, int agentID, uint timestep)
@@ -80,13 +80,20 @@ namespace Agro
                         {
                             if (ageHours > species.MaxLeaveAge && formation.GetOrgan(agent.Parent) != OrganTypes.Meristem)
                             {
+
                                 var p = ageHours / (7000 ); //6 months in hours
                                 if (plant.RNG.NextFloatAccum(p * p, world.HoursPerTick))
                                     agent.MakeBud(formation, children);
                             }
                         }
                         break;
-
+                    case OrganTypes.Leaf:
+                        {
+                            
+                                var col = species.OldLeafColor;
+                                agent.Color = Vector3.Lerp(species.BaseLeafColor, col, ageHours/species.MaxLeaveAge);
+                            
+                        }break;
                     //height-based termination
                     case OrganTypes.Stem:
                         if (agent.DominanceLevel > 1 && formation.GetDominance(agent.Parent) < agent.DominanceLevel && !agent.isRizome)
@@ -249,11 +256,7 @@ namespace Agro
                             case OrganTypes.FlowerStem: case OrganTypes.FlowerPadel:
                             case OrganTypes.FlowerPetiol:
                             case OrganTypes.FlowerMeristem:
-                            {
-                                    
-                                    
-                                }
-                                return;
+                            {} return;
                          
                         }
                         ;

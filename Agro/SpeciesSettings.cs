@@ -4,7 +4,7 @@ using Agro.Species;
 
 namespace Agro;
 
-public enum Behavior : byte { Default, Geranium_Sanguineum, Geranium_x_Cantabrigiense, Geranium_Macrorrhizum, Bergenia_Cordifolia }
+public enum Behavior : byte { Default, Herbaceous}
 
 public class SpeciesSettings
 {
@@ -243,6 +243,9 @@ public class SpeciesSettings
     //-- custom parmeter Geranium & Bergania
     #region GeraniumBergania
     public float MaxLeaveAge { get; set; } = 100;
+
+    public Vector3 BaseLeafColor { get; set; }
+    public Vector3 OldLeafColor { get; set; }
     public float pNewCrown { get; set; } = 1f;
     public float crownPitch { get; set; } = 0.5f;
 

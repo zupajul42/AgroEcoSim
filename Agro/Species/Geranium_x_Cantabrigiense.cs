@@ -4,7 +4,7 @@ public static class Geranium_x_Cantabrigiense
 {
     public static SpeciesSettings Init() =>new() {
         Name = "Geranium × Cantabrigiense",
-        Behavior = Behavior.Geranium_x_Cantabrigiense,
+        Behavior = Behavior.Herbaceous,
         Height = 0.25f,
 
         LeafLength = 0.04f,

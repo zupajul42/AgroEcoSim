@@ -5,7 +5,7 @@ public static class Bergonia_Cordifolia
     public static SpeciesSettings Init() => new()
     {
         Name = "Bergonia Cordifolia",
-        Behavior = Behavior.Bergenia_Cordifolia,
+        Behavior = Behavior.Herbaceous,
         LeafLength = 0.24f,
         LeafRadius = 0.09f,
         PetioleLength = 0.005f, 
