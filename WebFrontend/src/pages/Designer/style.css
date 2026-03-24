@@ -1,0 +1,84 @@
+:root {
+    --border: 1px solid #eee;
+    --primary: #4e7711;
+    --bg: #222;
+    --fg: #eee;
+    --light: #aaa;
+    --grid: #444;
+}
+
+.designer {
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 100px;
+    grid-template-areas: "editor preview" "timeline timeline";
+}
+
+.designer>*:nth-child(1) {
+    grid-area: editor;
+    border-right: var(--border);
+}
+
+.designer>*:nth-child(2) {
+    grid-area: preview;
+    background-color: black;
+}
+
+.designer>*:nth-child(3) {
+    grid-area: timeline;
+    border-top: var(--border);
+}
+
+svg {
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    background-color: var(--bg);
+}
+
+svg #grid>circle {
+    fill: var(--grid);
+}
+
+svg .point {
+    fill: var(--bg);
+    stroke: var(--primary);
+    stroke-width: 4;
+}
+
+svg .point:hover {
+    fill: var(--light);
+    stroke: var(--light);
+    cursor: grab;
+}
+
+svg .point:active {
+    cursor: grabbing;
+}
+
+svg .point[data-active="true"] {
+    fill: var(--fg);
+}
+
+svg .point[data-selected="true"] {
+    stroke: var(--fg);
+}
+
+svg .line {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 4;
+}
+
+svg polygon.line {
+    fill: color-mix(in srgb, var(--primary) 40%, rgba(0, 0, 0, 0.1) 60%);
+}
+
+svg .line-helper {
+    stroke-width: 7;
+    stroke: transparent;
+    cursor: pointer;
+}
