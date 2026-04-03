@@ -1,7 +1,7 @@
 :root {
     --border: 1px solid #eee;
     --primary: #4e7711;
-    --bg: #222;
+    --bg: #111;
     --fg: #eee;
     --light: #aaa;
     --grid: #444;
@@ -32,53 +32,57 @@
     border-top: var(--border);
 }
 
-svg {
+.shape-editor svg {
     width: 100%;
     height: 100%;
     cursor: crosshair;
     background-color: var(--bg);
 }
 
-svg #grid>circle {
+.shape-editor svg #grid>circle {
     fill: var(--grid);
 }
 
-svg .point {
+.shape-editor svg .point {
     fill: var(--bg);
     stroke: var(--primary);
     stroke-width: 4;
 }
 
-svg .point:hover {
+.shape-editor svg .point:hover {
     fill: var(--light);
     stroke: var(--light);
     cursor: grab;
 }
 
-svg .point:active {
+.shape-editor svg .point:active {
     cursor: grabbing;
 }
 
-svg .point[data-active="true"] {
+.shape-editor svg .point[data-active="true"] {
     fill: var(--fg);
 }
 
-svg .point[data-selected="true"] {
+.shape-editor svg .point[data-selected="true"] {
     stroke: var(--fg);
 }
 
-svg .line {
+.shape-editor svg .line {
     fill: none;
     stroke: var(--primary);
     stroke-width: 4;
 }
 
-svg polygon.line {
+.shape-editor svg polygon.line {
     fill: color-mix(in srgb, var(--primary) 40%, rgba(0, 0, 0, 0.1) 60%);
 }
 
-svg .line-helper {
+.shape-editor svg .line-helper {
     stroke-width: 7;
     stroke: transparent;
     cursor: pointer;
+}
+
+.editor-preview canvas {
+    position: absolute;
 }
