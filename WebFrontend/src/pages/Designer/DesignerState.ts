@@ -1,7 +1,11 @@
 import { batch, signal } from "@preact/signals";
 
 export type Point = [number, number];
-export type Frame = { points: Point[]; active: boolean[] };
+export type Frame = {
+    points: Point[];
+    active: boolean[];
+    petiole: { base: Point; leafAngle: number; trunkAngle: number; length?: number };
+};
 
 function lerp(a: Point, b: Point, d: number): Point {
     return [
@@ -24,7 +28,7 @@ class DesignerState {
 
     private syncFrame() {
         if (this.frames[this.time.value]) return;
-        this.frames[this.time.value] = { active: [], points: [] };
+        this.frames[this.time.value] = { active: [], points: [], petiole: { base: [0, 0], leafAngle: 0, trunkAngle: 0 } };
 
         const stamps = Object.keys(this.frames).map((k) => +k);
         if (stamps.length == 1) return; // if other frame data return
@@ -68,10 +72,17 @@ class DesignerState {
         this.frame.value = this.getCurrentFrame();
     }
 
+    public setPetioleBase(base: Point) {
+        this.syncFrame();
+
+        this.frames[this.time.value].petiole.base = base;
+        this.frame.value = this.getCurrentFrame();
+    }
+
     private getCurrentFrame(): Frame {
         const t = this.time.value;
         const stamps = Object.keys(this.frames).map((k) => +k);
-        if (stamps.length == 0) return { points: [], active: [] };
+        if (stamps.length == 0) return { points: [], active: [], petiole: { base: [0, 0], leafAngle: 0, trunkAngle: 0 } };
 
         stamps.sort();
         if (this.frames[t]) return { ...this.frames[t] }; // exact frame - no interpolation
@@ -88,14 +99,29 @@ class DesignerState {
         const nFrame = this.frames[next];
 
         if (nFrame.points.length != pFrame.points.length) {
-            // handle difference (add/remove between 2)
+            // handle difference should not be the case, since you need to insert and remove with the given functions
         }
         const points = pFrame.points.map((_, i) => lerp(pFrame.points[i], nFrame.points[i], d));
         const active = pFrame.active;
-        return { points, active };
+        const base: Point = [(pFrame.petiole.base[0] + nFrame.petiole.base[0]) / 2, (pFrame.petiole.base[1] + nFrame.petiole.base[1]) / 2];
+        const leafAngle = (pFrame.petiole.leafAngle + nFrame.petiole.leafAngle) / 2;
+        const trunkAngle = (pFrame.petiole.trunkAngle + nFrame.petiole.trunkAngle) / 2;
+        return { points, active, petiole: { base, leafAngle, trunkAngle } };
     }
 
     // preview
+}
+
+export function debugInit() {
+    state.insertPoint([270, 320], 0); // right
+    state.insertPoint([230, 200], 0); // peak
+    state.insertPoint([190, 320], 0); // left
+    state.insertPoint([230, 350], 0); // trunk
+
+    state.frame.value!.petiole.base = [230, 330];
+    state.frame.value!.petiole.leafAngle = 20;
+    state.frame.value!.petiole.trunkAngle = 75;
+    state.frame.value!.petiole.length = 3;
 }
 
 const state = new DesignerState();

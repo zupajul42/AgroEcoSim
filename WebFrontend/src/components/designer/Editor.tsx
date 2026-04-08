@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
-import state, { Frame, Point } from "../../pages/Designer/DesignerState";
+import state, { debugInit, Frame, Point } from "../../pages/Designer/DesignerState";
 import { useSignal } from "@preact/signals";
 
 export function Editor() {
@@ -19,6 +19,10 @@ export function Editor() {
     useEffect(() => {
         const unTime = state.time.subscribe(setTime);
         const unFrame = state.frame.subscribe(setFrame);
+
+        debugInit();
+        setIsClosed(true);
+
         return () => {
             unTime();
             unFrame();
@@ -55,6 +59,8 @@ export function Editor() {
     const onPointDown = (e: Event, i: number) => {
         e.stopPropagation();
         setDraggedPoint(i);
+        if (i < 0) return;
+
         setSelectedPoint(i);
 
         if ((i == 0 && activePoint == points.length - 1) || (i == points.length - 1 && activePoint == 0)) {
@@ -65,7 +71,7 @@ export function Editor() {
     };
 
     const onCanvasClick = (e: MouseEvent) => {
-        if (draggedPoint >= 0) return;
+        if (draggedPoint != -1) return;
 
         const np = getPosition(e);
         if (activePoint == 0) {
@@ -119,6 +125,7 @@ export function Editor() {
 
     useEffect(() => {
         const handleMove = (e: MouseEvent) => {
+            if (draggedPoint == -2) state.setPetioleBase(getPosition(e));
             if (draggedPoint < 0) return;
 
             state.movePoint(getPosition(e), draggedPoint);
@@ -126,7 +133,7 @@ export function Editor() {
 
         const stopDrag = () => setTimeout(() => setDraggedPoint(-1), 0);
 
-        if (draggedPoint >= 0) {
+        if (draggedPoint != -1) {
             window.addEventListener("mousemove", handleMove);
             window.addEventListener("mouseup", stopDrag);
         }
@@ -214,6 +221,14 @@ export function Editor() {
                             onMouseDown={(e) => onPointDown(e, i)}
                         />
                     ))}
+
+                    <circle
+                        cx={frame?.petiole.base[0]}
+                        cy={frame?.petiole.base[1]}
+                        r="5"
+                        class="point petiole-base"
+                        onMouseDown={(e) => onPointDown(e, -2)}
+                    ></circle>
                 </g>
             </svg>
         </div>

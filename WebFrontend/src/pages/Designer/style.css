@@ -49,6 +49,11 @@
     stroke-width: 4;
 }
 
+.shape-editor svg .point.petiole-base {
+    fill: none;
+    stroke: #755;
+}
+
 .shape-editor svg .point:hover {
     fill: var(--light);
     stroke: var(--light);
@@ -66,6 +71,8 @@
 .shape-editor svg .point[data-selected="true"] {
     stroke: var(--fg);
 }
+
+
 
 .shape-editor svg .line {
     fill: none;
