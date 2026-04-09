@@ -14,6 +14,10 @@ function lerp(a: Point, b: Point, d: number): Point {
     ];
 }
 
+function lerpF(a: number, b: number, d: number): number {
+    return (1 - d) * a + d * b;
+}
+
 class DesignerState {
     time = signal<number>(0);
     frame = signal<Frame>();
@@ -40,6 +44,12 @@ class DesignerState {
         const toCopy = this.frames[stamps[i]];
         this.frames[this.time.value].points = [...toCopy.points.map((p) => [...p] as Point)];
         this.frames[this.time.value].active = [...toCopy.active];
+        this.frames[this.time.value].petiole = {
+            base: toCopy.petiole.base,
+            leafAngle: toCopy.petiole.leafAngle,
+            trunkAngle: toCopy.petiole.trunkAngle,
+            length: toCopy.petiole.length || 1,
+        };
     }
 
     public insertPoint(point: Point, index: number) {
@@ -103,10 +113,12 @@ class DesignerState {
         }
         const points = pFrame.points.map((_, i) => lerp(pFrame.points[i], nFrame.points[i], d));
         const active = pFrame.active;
-        const base: Point = [(pFrame.petiole.base[0] + nFrame.petiole.base[0]) / 2, (pFrame.petiole.base[1] + nFrame.petiole.base[1]) / 2];
-        const leafAngle = (pFrame.petiole.leafAngle + nFrame.petiole.leafAngle) / 2;
-        const trunkAngle = (pFrame.petiole.trunkAngle + nFrame.petiole.trunkAngle) / 2;
-        return { points, active, petiole: { base, leafAngle, trunkAngle } };
+
+        const base = lerp(pFrame.petiole.base, nFrame.petiole.base, d);
+        const leafAngle = lerpF(pFrame.petiole.leafAngle, nFrame.petiole.leafAngle, d);
+        const trunkAngle = lerpF(pFrame.petiole.trunkAngle, nFrame.petiole.trunkAngle, d);
+        const length = lerpF(pFrame.petiole.length || 1, nFrame.petiole.length || 1, d);
+        return { points, active, petiole: { base, leafAngle, trunkAngle, length } };
     }
 
     // preview
