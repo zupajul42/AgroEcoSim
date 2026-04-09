@@ -1,11 +1,17 @@
 # IMPORTANT: This fork specializes to implement an Leaf/Fruit/Flower designer.
 
 There is currently a prototype with preact/threejs available in "WebFrontend/". Run it: `cd WebFrontend/`, `npm i && npm run dev`.
-My idea was to create a generell WebFrontend folder where i want to merge the ThreeFrontend into. So there should be the simulation frontend and the leaf designer, as well as future frontend projects. I don't know if this architecture is bulletproof, but it makes sense to have all preact & three pages in the same "WebFrontend".
+My idea was to create a generell WebFrontend folder where i want to merge the ThreeFrontend into. So there should be the simulation frontend and the leaf designer, as well as future frontend projects, contained inside this one folder. I don't know if this architecture is bulletproof, but it makes sense for me to have all preact & three pages in the same "WebFrontend".
 
 When starting the prototype (http://localhost:5173/designer) you should see a very simple leaf.
 
-The Prototype is a very basic, not quite ui verbose version of my plan for the leaf designer. The idea is to draw simple leaf silhouettes (with mirroring helper) and some other points of interest like the connecting point of the petiole or bending lines. These POIs should also be very simple to add and configure. I want all values to be changeable over time, so i use classical keyframes for that. (currently not working correctly). The keyframes should be movable and deletable in the timeline. New ones are created on change. The timeline is from 0.0-1.0 units long so the actual simulation span can be easily stretched. The preview shows a intractable render of the leaf on the current timestamp. (should be "playable" in future)
+The Prototype is a very basic, not quite ui verbose version of my plan for the leaf designer. The idea is to draw simple leaf silhouettes (with mirroring helper) and some other points of interest like the connecting point of the petiole or bending lines. Points can be added by simply clicking the location of where you want to add it and moved by picking and dragging the point. These POIs should also be very simple to add and configure. I want all values to be changeable over time (no ui yet), so i use classical keyframes for that. The keyframes should be movable and deletable in the timeline. New ones are created on change (working). The timeline is from 0.0-1.0 units long so the actual simulation span can be easily stretched. The preview shows a intractable render of the leaf on the current timestamp. (should be "playable" in future)
+
+Next steps:
+
+-   Make petiole values editable in Editor
+-   Show Timeline with keyframes and moveable cursor (also play functionality)
+-
 
 # Procedural Agro Simulator
 

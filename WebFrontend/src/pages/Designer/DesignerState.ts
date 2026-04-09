@@ -130,6 +130,7 @@ export function debugInit() {
     state.insertPoint([190, 320], 0); // left
     state.insertPoint([230, 350], 0); // trunk
 
+    // TODO: Make petiole values editable in UI
     state.frame.value!.petiole.base = [230, 330];
     state.frame.value!.petiole.leafAngle = 20;
     state.frame.value!.petiole.trunkAngle = 75;
