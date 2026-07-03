@@ -134,7 +134,7 @@ export function debugInit() {
     state.frame.value!.petiole.base = [230, 330];
     state.frame.value!.petiole.leafAngle = 20;
     state.frame.value!.petiole.trunkAngle = 75;
-    state.frame.value!.petiole.length = 3;
+    state.frame.value!.petiole.length = 10;
 }
 
 const state = new DesignerState();

@@ -1,0 +1,76 @@
+/* Grundlegendes Layout (Zwei-Spalten) */
+.designer-layout {
+    display: flex;
+    font-family: sans-serif;
+
+    height: 100vh;
+    overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 0;
+}
+
+.config-sidebar {
+    width: clamp(300px, 30%, 400px);
+    overflow: auto;
+    background-color: var(--bg-1);
+    padding: 0.5rem;
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* Formularelemente */
+.full-width {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+label {
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Scrollbare Liste für die Blätter */
+.instances-list {
+    max-height: 150px;
+    overflow-y: auto;
+    gap: 5px; /* überschreibt/ergänzt .stack */
+}
+
+/* Rechter Vorschau-Bereich */
+.preview-container {
+    flex-grow: 1;
+    position: relative;
+}
+
+.preview-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 1;
+}

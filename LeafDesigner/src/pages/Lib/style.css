@@ -1,0 +1,49 @@
+.library {
+    position: relative;
+    padding: 1rem;
+}
+
+.library h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.library .leaf-list {
+    display: flex;
+    width: 100%;
+    gap: 1rem;
+}
+
+.library .leaf-card {
+    border-radius: 8px;
+    background-color: var(--bg-1);
+    padding: 1rem;
+    text-align: center;
+
+    transition: all 0.2s ease-in-out;
+}
+
+.library .leaf-card:hover {
+    opacity: 0.8;
+    cursor: pointer;
+}
+
+.library .popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+
+.library .leaf-details {
+    background-color: var(--bg-0);
+    border-radius: 16px;
+    padding: 1rem;
+
+    width: 60%;
+    overflow: auto;
+}

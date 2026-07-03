@@ -1,0 +1,70 @@
+html[data-theme="light"] {
+    --pre-mix--fg-0: #000;
+    --pre-mix--bg-0: #eee;
+
+    --pre-mix--fg-1: #000;
+    --pre-mix--bg-1: #fff;
+
+    --pre-mix--fg-2: #000;
+    --pre-mix--bg-2: #fff;
+
+    --pre-mix--fg-3: #000;
+    --pre-mix--bg-3: #fff;
+}
+
+html,
+html[data-theme="dark"] {
+    --pre-mix--fg-0: #fff;
+    --pre-mix--bg-0: #111;
+
+    --pre-mix--fg-1: #fff;
+    --pre-mix--bg-1: #222;
+
+    --pre-mix--fg-2: #fff;
+    --pre-mix--bg-2: #333;
+
+    --pre-mix--fg-3: #fff;
+    --pre-mix--bg-3: #444;
+}
+
+:root {
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+
+    --accent: #4e7711;
+
+    --fg-0: var(--pre-mix--fg-0);
+    --fg-1: var(--pre-mix--fg-1);
+    --fg-2: var(--pre-mix--fg-2);
+    --fg-3: var(--pre-mix--fg-3);
+
+    /* mixed-colors */
+    --bg-0: color-mix(in srgb, var(--pre-mix--bg-0) 95%, var(--accent) 5%);
+    --bg-1: color-mix(in srgb, var(--pre-mix--bg-1) 95%, var(--accent) 5%);
+    --bg-2: color-mix(in srgb, var(--pre-mix--bg-2) 80%, var(--accent) 20%);
+    --bg-3: color-mix(in srgb, var(--pre-mix--bg-3) 50%, var(--accent) 50%);
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+
+    accent-color: var(--accent);
+}
+
+body {
+    margin: 0;
+    background-color: var(--bg-0);
+    color: var(--fg-0);
+}
+
+main {
+}
+
+@media (max-width: 639px) {
+    main {
+        margin: 2rem;
+    }
+}
