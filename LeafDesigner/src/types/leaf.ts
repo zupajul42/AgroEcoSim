@@ -6,7 +6,7 @@ export type LeafGeometry = {
 export interface Leaf {
   name: string;
   shape: LeafShape[];
-  layout: LeafLayout;
+  layout?: LeafLayout;
   instances: LeafInstance[];
   petiole: Petiole;
 }

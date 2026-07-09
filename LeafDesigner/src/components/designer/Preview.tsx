@@ -204,13 +204,7 @@ export function Preview({ leaf, width, height, controls, showAxis }: PreviewProp
     const dummyPetiolule = new Object3D();
 
     leaf.instances.forEach((instance: any, index: number) => {
-      const { position, rotation } = calculateLeafletTransform(
-        index,
-        leaf.instances.length,
-        leaf.layout,
-        leaf.layout.angle,
-        leaf.petiole,
-      );
+      const { position, rotation } = calculateLeafletTransform(index, leaf.instances.length, leaf.petiole, leaf.layout);
       const scale = instance.scale || 1.0;
 
       dummyPetiolule.position.set(position.x, position.y, position.z);
@@ -247,18 +241,17 @@ export function Preview({ leaf, width, height, controls, showAxis }: PreviewProp
   );
 }
 
-function calculateLeafletTransform(
-  index: number,
-  count: number,
-  layout: LeafLayout,
-  angleDeg: number,
-  petiole: Petiole,
-) {
-  const { type, arrangement, terminalLeaf } = layout;
+function calculateLeafletTransform(index: number, count: number, petiole: Petiole, layout?: LeafLayout) {
+  const { type, arrangement, terminalLeaf, angle } = layout ?? {
+    type: "palmate",
+    arrangement: "alternate",
+    angle: 60,
+    terminalLeaf: true,
+  };
   const petioleLength = petiole.len || 100;
   const petioleWidth = petiole.width || 1;
   const petioleWidthHalf = petioleWidth / 2;
-  const angleRad = (angleDeg * Math.PI) / 180;
+  const angleRad = (angle * Math.PI) / 180;
 
   const position = new Vector3();
   const rotation = new Vector3();

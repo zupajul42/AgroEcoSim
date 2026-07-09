@@ -63,6 +63,15 @@ body {
 main {
 }
 
+button {
+    background-color: var(--bg-3);
+    color: var(--fg-3);
+    border: none;
+    border-radius: 8px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+}
+
 @media (max-width: 639px) {
     main {
         margin: 2rem;
