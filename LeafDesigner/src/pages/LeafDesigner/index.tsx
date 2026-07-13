@@ -26,18 +26,25 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
-    setTimeout(() => {
-      isInitialLoad.current = false;
-    }, 100);
+    setTimeout(() => (isInitialLoad.current = false), 100);
   }, []);
 
   useEffect(() => {
-    if (isCompound) {
-      updateLeaf(() => ({ instances: Array(5).fill({ shape: 0, scale: 1 }) }));
-    } else {
-      updateLeaf(() => ({ instances: [{ shape: 0, scale: 1 }] }));
-    }
-  }, [isCompound]);
+    const onKeydown = (ev: KeyboardEvent) => {
+      if (ev.code == "KeyS" && (ev.ctrlKey || ev.metaKey)) {
+        ev.preventDefault();
+        save();
+      }
+    };
+
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  }, [leaf]);
+
+  /* useEffect(() => { // resets instances when switching or loading
+    if (isCompound) updateLeaf(() => ({ instances: Array(5).fill({ shape: 0, scale: 1 }) }));
+    else updateLeaf(() => ({ instances: [{ shape: 0, scale: 1 }] }));
+  }, [isCompound]); */
 
   const updateLeaf = (updater: (prev: Leaf) => Partial<Leaf>) => {
     if (!isInitialLoad.current) setChanged(true);
@@ -69,7 +76,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   };
 
   const save = () => {
-    if (isEdit) state.updateLeafs();
+    if (isEdit) state.updateSelectedLeaf(leaf);
     else {
       state.setSelectedLeaf(state.addToLib(leaf));
       setLeaf(state.getSelectedLeaf());
@@ -390,7 +397,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                 <strong>{"Unsaved changes"}</strong> — <button onClick={() => save()}>Save</button>
               </div>
             )}
-            <Preview leaf={leaf} width={"800px"} height={"600px"} controls={true} />
+            <Preview leaf={leaf} width={"100%"} height={"100%"} controls={true} showAxis={true} />
           </main>
         </div>
       )}

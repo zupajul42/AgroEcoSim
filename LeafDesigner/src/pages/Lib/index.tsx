@@ -9,6 +9,7 @@ export function Library() {
   const [leafs, setLeafs] = useState<Leaf[]>([]);
 
   useEffect(() => {
+    state.setSelectedLeaf(-1);
     setLeafs(state.getLeafLib());
   }, []);
 

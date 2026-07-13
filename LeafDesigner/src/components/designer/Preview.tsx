@@ -72,8 +72,7 @@ export function Preview({ leaf, width, height, controls, showAxis }: PreviewProp
 
     const aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
     const camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
-    camera.position.set(0, 10, 10);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0, 4, 10);
 
     const renderer = new WebGLRenderer({
       canvas: canvasRef.current as HTMLCanvasElement,
@@ -152,7 +151,7 @@ export function Preview({ leaf, width, height, controls, showAxis }: PreviewProp
 
     const updateLeaf = () => {
       const f = 1;
-      const petiole = leaf.petiole;
+      const petiole = leaf?.shape[0].petiolule ?? leaf?.petiole ?? { x: 0, y: 0 };
       // update leaf
       const shape = new Shape();
       const points = leaf.shape[0].geom;

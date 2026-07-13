@@ -13,14 +13,14 @@ const demoLeaf: Leaf = {
       margin: "serrate",
       venation: "palmate",
       folding: "none",
-      petiolule: { len: 0, angle: 0, width: 0.5, x: 0, y: 0 },
+      petiolule: { len: 0, angle: 0, width: 0.5, x: 0.5, y: 0 },
     },
   ],
   layout: {
     type: "palmate",
     arrangement: "opposite",
     terminalLeaf: true,
-    angle: 0,
+    angle: 160,
   },
   instances: [
     { shape: 0, scale: 10 },
@@ -100,12 +100,16 @@ class AppState {
   }
 
   public getSelectedLeaf(): Leaf | undefined {
-    let leafNdx = +window.localStorage.getItem("selectedLeaf");
+    let leafNdx = +(window.localStorage.getItem("selectedLeaf") ?? -1);
     if (leafNdx == -1) return undefined;
     return this._load()[leafNdx];
   }
 
-  public updateLeafs() {
+  public updateSelectedLeaf(leaf: Leaf) {
+    let leafNdx = +(window.localStorage.getItem("selectedLeaf") ?? -1);
+    if (leafNdx == -1) return undefined;
+
+    this._load()[leafNdx] = leaf;
     this._save();
   }
 }
