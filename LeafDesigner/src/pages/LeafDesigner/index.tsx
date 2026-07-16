@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { Leaf, LeafArrangement, LeafFolding, LeafLayoutType, LeafMargin, LeafVenation } from "../../types/leaf";
+import {
+  Leaf,
+  LeafArrangement,
+  LeafFolding,
+  LeafGeometry,
+  LeafLayoutType,
+  LeafMargin,
+  LeafVenation,
+} from "../../types/leaf";
 import { Preview } from "../../components/designer/Preview";
 import "./style.css";
 import { state } from "../AppState";
@@ -16,17 +24,20 @@ interface SliderProp {
 }
 
 export function LeafDesigner(props: { leaf?: Leaf }) {
-  const startLeaf = props?.leaf ?? state.getSelectedLeaf() ?? null;
+  const startLeaf = props?.leaf ?? state.leafs.selected() ?? null;
 
-  const [isEdit, setIsEdit] = useState<boolean>(!!state.getSelectedLeaf());
+  const [isEdit, setIsEdit] = useState<boolean>(!!state.leafs.selected());
 
   const [leaf, setLeaf] = useState<Leaf>(startLeaf);
+  const [leafGeom, setLeafGeom] = useState<LeafGeometry>();
+  const [leafGeometries, setLeafGeometries] = useState<LeafGeometry[]>([]);
   const [isCompound, setIsCompound] = useState<boolean>(startLeaf?.instances?.length > 1);
   const [isChanged, setChanged] = useState<boolean>(false);
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
     setTimeout(() => (isInitialLoad.current = false), 100);
+    setLeafGeometries(state.geoms.all());
   }, []);
 
   useEffect(() => {
@@ -36,6 +47,16 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         save();
       }
     };
+
+    if (leaf) {
+      const geoms = state.geoms.all();
+      const current = geoms.find((g) => g.id == leaf.shape[0].geom);
+      if (!current) {
+        alert("Unknown leaf geometry: " + leaf.shape[0].geom);
+        throw "Unknown leaf geometry: " + leaf.shape[0].geom;
+      }
+      setLeafGeom(current);
+    }
 
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
@@ -76,10 +97,10 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   };
 
   const save = () => {
-    if (isEdit) state.updateSelectedLeaf(leaf);
+    if (isEdit) state.leafs.updateSelected(leaf);
     else {
-      state.setSelectedLeaf(state.addToLib(leaf));
-      setLeaf(state.getSelectedLeaf());
+      state.leafs.select(state.leafs.add(leaf));
+      setLeaf(state.leafs.selected());
       setIsEdit(true);
     }
     setChanged(false);
@@ -282,12 +303,21 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                 <h4>Geometry</h4>
                 <div class="row">
                   <select class="full-width">
-                    <option value="custom">Custom ({leaf.shape[0].geom.length} Pts)</option>
-                    <option value="lanceolate">Lanceolate</option>
-                    <option value="ovate">Ovate</option>
-                    <option value="elliptic">Elliptic</option>
+                    {leafGeometries.map((geom) => (
+                      <option value={geom.name} selected={geom.id == leaf.shape[0].geom}>
+                        {geom.name} ({geom.points.length} Pts)
+                      </option>
+                    ))}
+                    <option value="new">New</option>
                   </select>
-                  <button onClick={() => alert("Open Vector Grid Editor")}>Edit</button>
+                  {leafGeom ? (
+                    <>
+                      <button onClick={() => alert("Open Vector Grid Editor")}>Edit</button>
+                      <button onClick={() => alert("Open Vector Grid Editor")}>Copy and Edit</button>
+                    </>
+                  ) : (
+                    <button onClick={() => alert("Open Vector Grid Editor")}>Create New</button>
+                  )}
                 </div>
               </div>
 

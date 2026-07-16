@@ -9,19 +9,19 @@ export function Library() {
   const [leafs, setLeafs] = useState<Leaf[]>([]);
 
   useEffect(() => {
-    state.setSelectedLeaf(-1);
-    setLeafs(state.getLeafLib());
+    state.leafs.unselect();
+    setLeafs(state.leafs.all());
   }, []);
 
   function newLeaf() {
-    state.setSelectedLeaf(state.addToLib(state.createDefaultLeaf()));
+    state.leafs.select(state.leafs.add(state.leafs.createDefault()));
     window.location.href = "/leaf";
   }
 
   function openLeaf(leaf: Leaf) {
     var ndx = leafs.findIndex((l) => l.name == leaf.name);
-    if (ndx == -1) ndx = state.addToLib(leaf);
-    state.setSelectedLeaf(ndx);
+    if (ndx == -1) ndx = state.leafs.add(leaf);
+    state.leafs.select(ndx);
 
     window.location.href = "/leaf";
   }
@@ -43,12 +43,12 @@ export function Library() {
         if (p.status == "rejected") throw new Error("Couldn't load file!?");
 
         const leaf = JSON.parse(p.value);
-        state.addToLib(leaf);
+        state.leafs.add(leaf);
       } catch (e) {
         console.error(e);
       }
     }
-    setLeafs(state.getLeafLib());
+    setLeafs(state.leafs.all());
   }
 
   return (

@@ -20,6 +20,7 @@ import {
 import { OrbitControls } from "three/examples/jsm/Addons.js";
 import { Leaf, LeafLayout, LeafLayoutType, Petiole } from "../../types/leaf";
 import { exponentialHeightFogFactor } from "three/src/nodes/TSL.js";
+import { state } from "../../pages/AppState";
 
 interface PreviewProps {
   leaf: Leaf;
@@ -154,7 +155,8 @@ export function Preview({ leaf, width, height, controls, showAxis }: PreviewProp
       const petiole = leaf?.shape[0].petiolule ?? leaf?.petiole ?? { x: 0, y: 0 };
       // update leaf
       const shape = new Shape();
-      const points = leaf.shape[0].geom;
+
+      const points = state.geoms.get(leaf.shape[0].geom).points;
       if (points.length < 2) return shape;
       shape.moveTo((points[0].x - petiole.x) * f, (points[0].y - petiole.y) * f);
       for (let i = 1; i < points.length; i++)

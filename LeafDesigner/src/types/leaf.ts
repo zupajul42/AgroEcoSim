@@ -1,7 +1,9 @@
-export type LeafGeometry = {
-  x: number;
-  y: number;
-}[];
+export interface LeafGeometry {
+  id: string;
+  name: string;
+  points?: { x: number; y: number }[];
+  veins?: any;
+}
 
 export interface Leaf {
   name: string;
@@ -16,7 +18,7 @@ export type LeafVenation = "arcuate" | "palmate" | "pinnate" | "parallel";
 export type LeafFolding = "none" | "rolled" | "convolute";
 
 export interface LeafShape {
-  geom: LeafGeometry;
+  geom: string;
   margin: LeafMargin;
   venation: LeafVenation;
   folding: LeafFolding;
