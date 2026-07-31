@@ -8,14 +8,14 @@ const demoLeaf: Leaf = {
       margin: "serrate",
       venation: "palmate",
       folding: "none",
-      petiolule: { len: 0, angle: 0, width: 0.5, x: 0.5, y: 0 },
+      petiolule: { len: 0, angle: 0, width: 0.5, x: 0, y: 0 },
     },
   ],
   layout: {
     type: "palmate",
     arrangement: "opposite",
     terminalLeaf: true,
-    angle: 0,
+    angle: 140,
   },
   instances: [
     { shape: 0, scale: 1 },
@@ -29,14 +29,26 @@ const demoLeaf: Leaf = {
 
 const predefinedGeometries: LeafGeometry[] = [
   {
+    id: "def:quad",
+    name: "quad",
+    points: [
+      { x: -1, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 2 },
+      { x: -1, y: 2 },
+    ],
+    veins: null,
+  },
+  {
     id: "def:obovate",
     name: "obovate",
     points: [
       { x: -1, y: 0 },
       { x: 1, y: 0 },
-      { x: 1, y: 1 },
-      { x: -1, y: 1 },
+      { x: 1, y: 2 },
+      { x: -1, y: 2 },
     ],
+    veins: null,
   },
 ];
 
@@ -153,7 +165,6 @@ class GeometryStorage {
         this._save();
       }
     }
-    console.log(this.leafGeoms);
     return this.leafGeoms;
   }
 
@@ -163,6 +174,12 @@ class GeometryStorage {
     this.leafGeoms[ndx] = geom;
     this._save();
     return true;
+  }
+
+  public updateById(id: string, geom: LeafGeometry): boolean {
+    this._load();
+    const i = this.leafGeoms.findIndex((g) => g.id == id);
+    return this.update(i, geom);
   }
 
   public updateByName(name: string, geom: LeafGeometry): boolean {
@@ -180,6 +197,36 @@ class GeometryStorage {
 
   public get(id: string) {
     return this.all().find((g) => g.id == id);
+  }
+
+  public getNormalized(id: string) {
+    const g = this.get(id);
+    if (!g) return null;
+
+    const bounds = { x: { min: 100, max: -100 }, y: { min: 100, max: -100 } };
+    for (const p of g.points) {
+      if (p.x < bounds.x.min) bounds.x.min = p.x;
+      if (p.x > bounds.x.max) bounds.x.max = p.x;
+      if (p.y < bounds.y.min) bounds.y.min = p.y;
+      if (p.y > bounds.y.max) bounds.y.max = p.y;
+    }
+
+    // center around center with width and height max 1
+    const centerX = (bounds.x.min + bounds.x.max) / 2;
+    const centerY = (bounds.y.min + bounds.y.max) / 2;
+    const width = bounds.x.max - bounds.x.min;
+    const height = bounds.y.max - bounds.y.min;
+    const scale = Math.max(width, height);
+
+    const normalizedPoints = g.points.map((p) => ({
+      x: (p.x - centerX) / scale,
+      y: (p.y - centerY) / scale,
+    }));
+
+    return {
+      ...g,
+      points: normalizedPoints,
+    };
   }
 }
 

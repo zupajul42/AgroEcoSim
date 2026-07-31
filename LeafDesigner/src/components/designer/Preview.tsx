@@ -3,6 +3,8 @@ import {
   AmbientLight,
   AxesHelper,
   BoxGeometry,
+  BufferAttribute,
+  BufferGeometry,
   DoubleSide,
   GridHelper,
   InstancedMesh,
@@ -14,13 +16,17 @@ import {
   Scene,
   Shape,
   ShapeGeometry,
+  ShapeUtils,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { Leaf, LeafLayout, LeafLayoutType, Petiole } from "../../types/leaf";
+import { Leaf, LeafLayout, LeafLayoutType, LeafShape, Petiole } from "../../types/leaf";
 import { exponentialHeightFogFactor } from "three/src/nodes/TSL.js";
 import { state } from "../../pages/AppState";
+
+import { vec3, mat4 } from "gl-matrix";
 
 interface PreviewProps {
   leaf: Leaf;
@@ -28,17 +34,16 @@ interface PreviewProps {
   height?: string;
   controls?: boolean;
   showAxis?: boolean;
+  meshCallback?: (mesh: { position: number[]; index: number[] }) => {};
 }
 
-export function Preview({ leaf, width, height, controls, showAxis }: PreviewProps) {
+export function Preview({ leaf, width, height, controls, showAxis, meshCallback }: PreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const threeRef = useRef<{
     scene: Scene;
-    leaf?: InstancedMesh;
-    petiole?: Mesh;
-    petiolule?: InstancedMesh;
+    leaf?: Mesh;
   } | null>(null);
 
   // One Time Three Setup:
@@ -48,13 +53,9 @@ export function Preview({ leaf, width, height, controls, showAxis }: PreviewProp
 
     threeRef.current = {
       scene: new Scene(),
-      leaf: new InstancedMesh(new ShapeGeometry(), material, leaf.instances.length),
-      petiole: new Mesh(new BoxGeometry(), material),
-      petiolule: new InstancedMesh(new ShapeGeometry(), material, leaf.instances.length),
+      leaf: new Mesh(new BoxGeometry(), material),
     };
 
-    threeRef.current.scene.add(threeRef.current.petiole);
-    threeRef.current.scene.add(threeRef.current.petiolule);
     threeRef.current.scene.add(threeRef.current.leaf);
 
     if (showAxis) {
@@ -125,107 +126,19 @@ export function Preview({ leaf, width, height, controls, showAxis }: PreviewProp
   // On leaf change -> update the mesh
   useEffect(() => {
     const three = threeRef.current;
-    if (!three) return;
+    if (!three || !three.leaf) return;
 
-    if (three.leaf.count !== leaf.instances.length) {
-      three.scene.remove(three.leaf);
-      three.scene.remove(three.petiolule);
+    const rawMesh = generateMesh(leaf);
 
-      const mat = three.leaf.material;
+    const geom = new BufferGeometry();
+    geom.setAttribute("position", new BufferAttribute(new Float32Array(rawMesh.position), 3));
+    geom.setIndex(rawMesh.index);
 
-      three.leaf.geometry.dispose();
-      three.leaf.dispose();
-      three.petiolule.geometry.dispose();
-      three.petiolule.dispose();
+    const oldGeom = three.leaf.geometry;
+    three.leaf.geometry = geom;
+    if (oldGeom) oldGeom.dispose();
 
-      const newPetiolule = new InstancedMesh(new ShapeGeometry(), mat, leaf.instances.length);
-      const newLeaf = new InstancedMesh(new ShapeGeometry(), mat, leaf.instances.length);
-
-      three.scene.add(newPetiolule);
-      threeRef.current.petiolule = newPetiolule;
-      three.petiolule = newPetiolule;
-
-      three.scene.add(newLeaf);
-      threeRef.current.leaf = newLeaf;
-      three.leaf = newLeaf;
-    }
-
-    const updateLeaf = () => {
-      const f = 1;
-      const petiole = leaf?.shape[0].petiolule ?? leaf?.petiole ?? { x: 0, y: 0 };
-      // update leaf
-      const shape = new Shape();
-
-      const points = state.geoms.get(leaf.shape[0].geom).points;
-      if (points.length < 2) return shape;
-      shape.moveTo((points[0].x - petiole.x) * f, (points[0].y - petiole.y) * f);
-      for (let i = 1; i < points.length; i++)
-        shape.lineTo((points[i].x - petiole.x) * f, (points[i].y - petiole.y) * f);
-      shape.closePath();
-
-      const old = three.leaf.geometry;
-      three.leaf.geometry = new ShapeGeometry(shape);
-      old.dispose();
-    };
-
-    const updatePetiole = () => {
-      // update petiole
-      const old = three.petiole.geometry;
-      const len = leaf.petiole.len || 1;
-      const w = leaf.petiole.width || 1;
-      const geom = new BoxGeometry(w, len, 0.1);
-      geom.translate(0, len / 2, 0);
-      three.petiole.geometry = geom;
-      old.dispose();
-    };
-
-    const updatePetioluleGeometry = () => {
-      const old = three.petiolule.geometry;
-      const len = leaf.shape[0].petiolule?.len || 0.0;
-      const w = leaf.shape[0].petiolule?.width || 0.0;
-      const geom = new BoxGeometry(w, len, 0.08);
-      geom.translate(0, len / 2, 0);
-      three.petiolule.geometry = geom;
-      old.dispose();
-    };
-
-    updateLeaf();
-    updatePetiole();
-    updatePetioluleGeometry();
-
-    const globalAngle = -(leaf.petiole.angle / 180) * Math.PI;
-    three.petiole.rotation.x = globalAngle;
-    three.petiolule.rotation.x = globalAngle;
-    three.leaf.rotation.x = globalAngle;
-
-    const petioluleLength = leaf.shape[0].petiolule?.len;
-    const localPetioluleAngle = -(leaf.shape[0].petiolule.angle / 180) * Math.PI;
-
-    const dummyLeaf = new Object3D();
-    const dummyPetiolule = new Object3D();
-
-    leaf.instances.forEach((instance: any, index: number) => {
-      const { position, rotation } = calculateLeafletTransform(index, leaf.instances.length, leaf.petiole, leaf.layout);
-      const scale = instance.scale || 1.0;
-
-      dummyPetiolule.position.set(position.x, position.y, position.z);
-      dummyPetiolule.rotation.set(rotation.x, rotation.y, rotation.z);
-      dummyPetiolule.scale.set(scale, scale, scale);
-      dummyPetiolule.rotateX(localPetioluleAngle);
-      dummyPetiolule.updateMatrix();
-      three.petiolule.setMatrixAt(index, dummyPetiolule.matrix);
-
-      dummyLeaf.position.set(position.x, position.y, position.z);
-      dummyLeaf.rotation.set(rotation.x, rotation.y, rotation.z);
-      dummyLeaf.scale.set(scale, scale, scale);
-      dummyLeaf.rotateX(localPetioluleAngle);
-      dummyLeaf.translateY(petioluleLength * scale);
-      dummyLeaf.updateMatrix();
-      three.leaf.setMatrixAt(index, dummyLeaf.matrix);
-    });
-
-    three.leaf.instanceMatrix.needsUpdate = true;
-    three.petiolule.instanceMatrix.needsUpdate = true;
+    if (meshCallback) meshCallback(rawMesh);
   }, [leaf]);
 
   return (
@@ -296,4 +209,157 @@ function calculateLeafletTransform(index: number, count: number, petiole: Petiol
   }
 
   return { position, rotation };
+}
+
+function generateBoxBuffer(width: number, length: number, height: number = 0.08) {
+  const hw = width / 2;
+  const hh = height / 2;
+
+  const position = [
+    ...[-hw, 0, hh, hw, 0, hh, hw, length, hh, -hw, length, hh], // Front face
+    ...[-hw, 0, -hh, -hw, length, -hh, hw, length, -hh, hw, 0, -hh], // Back face,
+    ...[-hw, length, -hh, -hw, length, hh, hw, length, hh, hw, length, -hh], // Top face
+    ...[-hw, 0, -hh, hw, 0, -hh, hw, 0, hh, -hw, 0, hh], // Bottom face
+    ...[hw, 0, -hh, hw, length, -hh, hw, length, hh, hw, 0, hh], // Right face
+    ...[-hw, 0, -hh, -hw, 0, hh, -hw, length, hh, -hw, length, -hh], // Left face
+  ];
+
+  const index = [
+    ...[0, 1, 2, 0, 2, 3],
+    ...[4, 5, 6, 4, 6, 7],
+    ...[8, 9, 10, 8, 10, 11],
+    ...[12, 13, 14, 12, 14, 15],
+    ...[16, 17, 18, 16, 18, 19],
+    ...[20, 21, 22, 20, 22, 23],
+  ];
+
+  return { position, index };
+}
+
+export function generateShapeMesh(shape: LeafShape, petioleOffset: { x: number; y: number }) {
+  const rawPoints = state.geoms.getNormalized(shape.geom).points;
+  if (!rawPoints || rawPoints.length < 3) return { position: [], index: [] };
+
+  const adjusted = rawPoints
+    .map((p) => ({
+      x: p.x - petioleOffset.x,
+      y: p.y - petioleOffset.y,
+    }))
+    .map((p) => new Vector2(p.x, p.y));
+
+  const faces = ShapeUtils.triangulateShape(adjusted, []);
+  const position: number[] = [];
+  const index: number[] = [];
+
+  adjusted.forEach((pt) => position.push(pt.x, pt.y, 0));
+  faces.forEach((face) => index.push(face[0], face[1], face[2]));
+
+  return { position, index };
+}
+
+export function generateMesh(leaf: Leaf) {
+  // generate buffers (TRIANGLES, indexed)
+
+  const combinedPositions: number[] = [];
+  const combinedIndices: number[] = [];
+  let vertexOffset = 0;
+
+  const mergeSubMesh = (meshData: { position: number[]; index: number[] }, transformMatrix: mat4) => {
+    const tempVec = vec3.create();
+
+    for (let i = 0; i < meshData.position.length; i += 3) {
+      vec3.set(tempVec, meshData.position[i], meshData.position[i + 1], meshData.position[i + 2]);
+      vec3.transformMat4(tempVec, tempVec, transformMatrix);
+      combinedPositions.push(tempVec[0], tempVec[1], tempVec[2]);
+    }
+
+    for (let i = 0; i < meshData.index.length; i++) combinedIndices.push(meshData.index[i] + vertexOffset);
+    vertexOffset += meshData.position.length / 3;
+  };
+
+  // + petiole
+  const petioleLength = leaf.petiole.len || 1;
+  const petioleWidth = leaf.petiole.width || 1;
+  const petioleMesh = generateBoxBuffer(petioleWidth, petioleLength, 0.1);
+
+  const petioleMatrix = mat4.create();
+  mergeSubMesh(petioleMesh, petioleMatrix);
+
+  // + all leaflets on corrent postions (calculateLeafletTransform)
+  const petioluleLength = leaf.shape[0].petiolule?.len || 0.0;
+  const petioluleWidth = leaf.shape[0].petiolule?.width || 0.0;
+  const localPetioluleAngleRad = -((leaf.shape[0].petiolule?.angle || 0) / 180) * Math.PI;
+
+  //   + leaflet petiole
+  const basePetioluleMesh = petioluleLength > 0 ? generateBoxBuffer(petioluleWidth, petioluleLength, 0.08) : null;
+
+  //   + leaflet shape
+  const petioleOffset = leaf?.shape[0].petiolule ?? leaf?.petiole ?? { x: 0, y: 0 };
+  const baseLeafShapeMesh = generateShapeMesh(leaf.shape[0], petioleOffset);
+
+  leaf.instances.forEach((instance: any, index: number) => {
+    const { position, rotation } = calculateLeafletTransform(index, leaf.instances.length, leaf.petiole, leaf.layout);
+    const scale = instance.scale || 1.0;
+
+    const baseMatrix = mat4.create();
+    mat4.translate(baseMatrix, baseMatrix, [position.x, position.y, position.z]);
+    mat4.rotateZ(baseMatrix, baseMatrix, rotation.z);
+    mat4.scale(baseMatrix, baseMatrix, [scale, scale, scale]);
+
+    if (basePetioluleMesh) {
+      const petioluleMatrix = mat4.clone(baseMatrix);
+      mat4.rotateX(petioluleMatrix, petioluleMatrix, localPetioluleAngleRad);
+      mergeSubMesh(basePetioluleMesh, petioluleMatrix);
+    }
+
+    const bladeMatrix = mat4.clone(baseMatrix);
+    mat4.rotateX(bladeMatrix, bladeMatrix, localPetioluleAngleRad);
+    mat4.translate(bladeMatrix, bladeMatrix, [0, petioluleLength, 0]);
+    mergeSubMesh(baseLeafShapeMesh, bladeMatrix);
+  });
+
+  // + General rotations
+  const globalAngleRad = -((leaf.petiole.angle || 0) / 180) * Math.PI;
+  const globalMatrix = mat4.create();
+  mat4.rotateX(globalMatrix, globalMatrix, globalAngleRad);
+
+  const tempVec = vec3.create();
+  for (let i = 0; i < combinedPositions.length; i += 3) {
+    vec3.set(tempVec, combinedPositions[i], combinedPositions[i + 1], combinedPositions[i + 2]);
+    vec3.transformMat4(tempVec, tempVec, globalMatrix);
+    combinedPositions[i] = tempVec[0];
+    combinedPositions[i + 1] = tempVec[1];
+    combinedPositions[i + 2] = tempVec[2];
+  }
+
+  return {
+    position: combinedPositions,
+    index: combinedIndices,
+  };
+}
+
+// simplyfied GEMINI:
+export function meshToObjString(mesh: { position: number[]; index: number[] }, objectName: string = "Leaf"): string {
+  const { position, index } = mesh;
+  const lines: string[] = [];
+
+  lines.push(`# Exported Leaf Mesh`);
+  lines.push(`o ${objectName}`);
+
+  for (let i = 0; i < position.length; i += 3) {
+    const x = position[i].toFixed(6);
+    const y = position[i + 1].toFixed(6);
+    const z = position[i + 2].toFixed(6);
+    lines.push(`v ${x} ${y} ${z}`);
+  }
+
+  for (let i = 0; i < index.length; i += 3) {
+    const i1 = index[i] + 1;
+    const i2 = index[i + 1] + 1;
+    const i3 = index[i + 2] + 1;
+
+    lines.push(`f ${i1} ${i2} ${i3}`);
+  }
+
+  return lines.join("\n");
 }

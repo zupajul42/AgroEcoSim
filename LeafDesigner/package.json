@@ -9,12 +9,14 @@
 	"dependencies": {
 		"@preact/signals": "^2.8.2",
 		"@types/three": "^0.183.1",
+		"gl-matrix": "^3.4.4",
 		"preact": "^10.26.9",
 		"preact-iso": "^2.11.1",
 		"three": "^0.183.2"
 	},
 	"devDependencies": {
 		"@preact/preset-vite": "^2.10.2",
+		"@types/gl-matrix": "^2.4.5",
 		"eslint": "^9.39.4",
 		"eslint-config-preact": "^2.0.0",
 		"typescript": "^5.9.3",

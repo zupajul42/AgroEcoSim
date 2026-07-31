@@ -1,8 +1,8 @@
 export interface LeafGeometry {
   id: string;
   name: string;
-  points?: { x: number; y: number }[];
-  veins?: any;
+  points: { x: number; y: number }[];
+  veins: any;
 }
 
 export interface Leaf {

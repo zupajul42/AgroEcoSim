@@ -8,7 +8,7 @@ import {
   LeafMargin,
   LeafVenation,
 } from "../../types/leaf";
-import { Preview } from "../../components/designer/Preview";
+import { generateMesh, meshToObjString, Preview } from "../../components/designer/Preview";
 import "./style.css";
 import { state } from "../AppState";
 import { useInsertionEffect } from "preact/compat";
@@ -86,7 +86,30 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     });
   };
 
-  const handleExportMesh = () => alert("Exporting Mesh (OBJ/GLTF)...");
+  const handleGeomChange = (id: string) => {
+    if (id == "def:__new") {
+      setLeafGeom(null);
+      return;
+    }
+
+    const geom = leafGeometries.find((g) => g.id == id);
+    if (!geom) {
+      throw "Can't find requested geomerty for change";
+    }
+    setLeafGeom(geom);
+    updateLeaf((p) => ({ shape: [{ ...p.shape[0], geom: geom.id }] }));
+  };
+
+  const handleExportMesh = () => {
+    // create Wavefront - Obj file from point array and petiole
+    const objStr = meshToObjString(generateMesh(leaf), leaf.name);
+    const blob = new Blob([objStr], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.download = leaf.name + ".obj";
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    a.remove();
+  };
   const handleExportConfig = () => {
     const blob = new Blob([JSON.stringify(leaf, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -104,6 +127,18 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
       setIsEdit(true);
     }
     setChanged(false);
+  };
+
+  const editGeom = () => {
+    window.open("/leaf/geometry/" + leafGeom.id, "_self");
+  };
+
+  const createGeom = (start?: LeafGeometry) => {
+    const geom = start ?? { id: "---", name: "new geom", points: [], veins: null };
+    geom.id = "geom:" + Math.round(Math.random() * 1000000);
+    state.geoms.add(geom);
+    window.open("/leaf/geometry/" + geom.id, "_self");
+    handleGeomChange(geom.id);
   };
 
   const renderSlider = ({ label, min, max, step, unit, value, onInput }: SliderProp) => (
@@ -302,21 +337,21 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
               <div class="stack">
                 <h4>Geometry</h4>
                 <div class="row">
-                  <select class="full-width">
+                  <select class="full-width" onChange={(e) => handleGeomChange((e.target as any).value)}>
                     {leafGeometries.map((geom) => (
-                      <option value={geom.name} selected={geom.id == leaf.shape[0].geom}>
+                      <option value={geom.id} selected={geom.id == leaf.shape[0].geom}>
                         {geom.name} ({geom.points.length} Pts)
                       </option>
                     ))}
-                    <option value="new">New</option>
+                    <option value="def:__new">New</option>
                   </select>
                   {leafGeom ? (
                     <>
-                      <button onClick={() => alert("Open Vector Grid Editor")}>Edit</button>
-                      <button onClick={() => alert("Open Vector Grid Editor")}>Copy and Edit</button>
+                      <button onClick={() => editGeom()}>Edit</button>
+                      <button onClick={() => createGeom(leafGeom)}>Copy and Edit</button>
                     </>
                   ) : (
-                    <button onClick={() => alert("Open Vector Grid Editor")}>Create New</button>
+                    <button onClick={() => createGeom()}>Create New</button>
                   )}
                 </div>
               </div>
