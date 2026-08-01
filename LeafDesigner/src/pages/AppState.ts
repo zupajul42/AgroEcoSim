@@ -8,14 +8,14 @@ const demoLeaf: Leaf = {
       margin: "serrate",
       venation: "palmate",
       folding: "none",
-      petiolule: { len: 0, angle: 0, width: 0.5, x: 0, y: 0 },
+      petiolule: { len: 0.2, angle: 0, width: 0.1, x: 0, y: 0 },
     },
   ],
   layout: {
     type: "palmate",
     arrangement: "opposite",
     terminalLeaf: true,
-    angle: 140,
+    angle: 210,
   },
   instances: [
     { shape: 0, scale: 1 },
@@ -24,7 +24,7 @@ const demoLeaf: Leaf = {
     { shape: 0, scale: 1 },
     { shape: 0, scale: 1 },
   ],
-  petiole: { len: 3, angle: 0, width: 0.5, x: 0, y: 0 },
+  petiole: { len: 1.5, angle: 0, width: 0.15, x: 0, y: 0 },
 };
 
 const predefinedGeometries: LeafGeometry[] = [
@@ -43,10 +43,15 @@ const predefinedGeometries: LeafGeometry[] = [
     id: "def:obovate",
     name: "obovate",
     points: [
-      { x: -1, y: 0 },
-      { x: 1, y: 0 },
-      { x: 1, y: 2 },
-      { x: -1, y: 2 },
+      { x: 0, y: 1.1 },
+      { x: 0.2, y: 0.8 },
+      { x: 0.3, y: 0.5 },
+      { x: 0.2, y: 0.1 },
+      { x: 0.1, y: 0 },
+      { x: -0.1, y: 0 },
+      { x: -0.2, y: 0.1 },
+      { x: -0.3, y: 0.5 },
+      { x: -0.2, y: 0.8 },
     ],
     veins: null,
   },
@@ -195,6 +200,22 @@ class GeometryStorage {
     this._save();
   }
 
+  public remove(id: string): boolean {
+    this._load();
+    const i = this.leafGeoms.findIndex((g) => g.id === id);
+    if (i !== -1) {
+      this.leafGeoms.splice(i, 1);
+      this._save();
+      return true;
+    }
+    return false;
+  }
+
+  public getUsageCount(id: string, leafs: Leaf[]): number {
+    if (!leafs) return 0;
+    return leafs.filter((l) => l.shape?.some((s) => s.geom === id)).length;
+  }
+
   public get(id: string) {
     return this.all().find((g) => g.id == id);
   }
@@ -211,16 +232,14 @@ class GeometryStorage {
       if (p.y > bounds.y.max) bounds.y.max = p.y;
     }
 
-    // center around center with width and height max 1
-    const centerX = (bounds.x.min + bounds.x.max) / 2;
-    const centerY = (bounds.y.min + bounds.y.max) / 2;
+    // scale uniformly but keep origin (0,0) as stem attachment point
     const width = bounds.x.max - bounds.x.min;
     const height = bounds.y.max - bounds.y.min;
-    const scale = Math.max(width, height);
+    const scale = Math.max(width, height, 0.0001);
 
     const normalizedPoints = g.points.map((p) => ({
-      x: (p.x - centerX) / scale,
-      y: (p.y - centerY) / scale,
+      x: p.x / scale,
+      y: p.y / scale,
     }));
 
     return {

@@ -9,7 +9,7 @@ import {
   GridHelper,
   InstancedMesh,
   Mesh,
-  MeshStandardMaterial,
+  MeshBasicMaterial,
   Object3D,
   PerspectiveCamera,
   PointLight,
@@ -21,9 +21,8 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import { OrbitControls } from "three/examples/jsm/Addons.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Leaf, LeafLayout, LeafLayoutType, LeafShape, Petiole } from "../../types/leaf";
-import { exponentialHeightFogFactor } from "three/src/nodes/TSL.js";
 import { state } from "../../pages/AppState";
 
 import { vec3, mat4 } from "gl-matrix";
@@ -44,12 +43,19 @@ export function Preview({ leaf, width, height, controls, showAxis, meshCallback 
   const threeRef = useRef<{
     scene: Scene;
     leaf?: Mesh;
+    camera?: PerspectiveCamera;
+    controls?: OrbitControls;
   } | null>(null);
 
   // One Time Three Setup:
   useEffect(() => {
+    // Read accent color from CSS
+    const accentHex = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4e7711";
+    const accentInt = parseInt(accentHex.replace("#", ""), 16);
+
     // Scene init
-    const material = new MeshStandardMaterial({ color: 0xff0000, side: DoubleSide });
+    const material = new MeshBasicMaterial({ color: accentInt, side: DoubleSide });
+    material.color.multiplyScalar(0.5);
 
     threeRef.current = {
       scene: new Scene(),
@@ -75,6 +81,7 @@ export function Preview({ leaf, width, height, controls, showAxis, meshCallback 
     const aspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
     const camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
     camera.position.set(0, 4, 10);
+    threeRef.current.camera = camera;
 
     const renderer = new WebGLRenderer({
       canvas: canvasRef.current as HTMLCanvasElement,
@@ -105,6 +112,7 @@ export function Preview({ leaf, width, height, controls, showAxis, meshCallback 
       orbitCtrls = new OrbitControls(camera, renderer.domElement);
       orbitCtrls.enableDamping = true;
     }
+    threeRef.current.controls = orbitCtrls;
 
     let requestId: number;
     const render = () => {
@@ -131,12 +139,35 @@ export function Preview({ leaf, width, height, controls, showAxis, meshCallback 
     const rawMesh = generateMesh(leaf);
 
     const geom = new BufferGeometry();
+    console.log(rawMesh.position);
     geom.setAttribute("position", new BufferAttribute(new Float32Array(rawMesh.position), 3));
     geom.setIndex(rawMesh.index);
 
     const oldGeom = three.leaf.geometry;
     three.leaf.geometry = geom;
     if (oldGeom) oldGeom.dispose();
+
+    // Auto-fit camera to bounding box
+    if (three.camera && rawMesh.position.length > 0) {
+      geom.computeBoundingBox();
+      const bb = geom.boundingBox;
+      if (bb) {
+        const center = new Vector3();
+        bb.getCenter(center);
+        const size = new Vector3();
+        bb.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z, 0.1);
+        const fov = three.camera.fov * (Math.PI / 180);
+        const dist = (maxDim / 2 / Math.tan(fov / 2)) * 1.3;
+
+        three.camera.position.set(center.x, center.y, center.z + dist);
+        three.camera.lookAt(center);
+        if (three.controls) {
+          three.controls.target.copy(center);
+          three.controls.update();
+        }
+      }
+    }
 
     if (meshCallback) meshCallback(rawMesh);
   }, [leaf]);
@@ -165,7 +196,7 @@ function calculateLeafletTransform(index: number, count: number, petiole: Petiol
   const petioleLength = petiole.len || 100;
   const petioleWidth = petiole.width || 1;
   const petioleWidthHalf = petioleWidth / 2;
-  const angleRad = (angle * Math.PI) / 180;
+  const angleRad = ((angle ?? 0) * Math.PI) / 180;
 
   const position = new Vector3();
   const rotation = new Vector3();
@@ -236,16 +267,13 @@ function generateBoxBuffer(width: number, length: number, height: number = 0.08)
   return { position, index };
 }
 
-export function generateShapeMesh(shape: LeafShape, petioleOffset: { x: number; y: number }) {
-  const rawPoints = state.geoms.getNormalized(shape.geom).points;
+export function generateShapeMesh(shape: LeafShape) {
+  if (!shape || !shape.geom) return { position: [], index: [] };
+  const normalizedGeom = state.geoms.getNormalized(shape.geom);
+  const rawPoints = normalizedGeom?.points;
   if (!rawPoints || rawPoints.length < 3) return { position: [], index: [] };
 
-  const adjusted = rawPoints
-    .map((p) => ({
-      x: p.x - petioleOffset.x,
-      y: p.y - petioleOffset.y,
-    }))
-    .map((p) => new Vector2(p.x, p.y));
+  const adjusted = rawPoints.map((p) => new Vector2(p.x, p.y));
 
   const faces = ShapeUtils.triangulateShape(adjusted, []);
   const position: number[] = [];
@@ -258,6 +286,8 @@ export function generateShapeMesh(shape: LeafShape, petioleOffset: { x: number; 
 }
 
 export function generateMesh(leaf: Leaf) {
+  if (!leaf) return { position: [], index: [] };
+
   // generate buffers (TRIANGLES, indexed)
 
   const combinedPositions: number[] = [];
@@ -265,6 +295,7 @@ export function generateMesh(leaf: Leaf) {
   let vertexOffset = 0;
 
   const mergeSubMesh = (meshData: { position: number[]; index: number[] }, transformMatrix: mat4) => {
+    if (!meshData || !meshData.position || !meshData.index) return;
     const tempVec = vec3.create();
 
     for (let i = 0; i < meshData.position.length; i += 3) {
@@ -278,27 +309,32 @@ export function generateMesh(leaf: Leaf) {
   };
 
   // + petiole
-  const petioleLength = leaf.petiole.len || 1;
-  const petioleWidth = leaf.petiole.width || 1;
+  const petioleLength = leaf.petiole?.len || 1;
+  const petioleWidth = leaf.petiole?.width || 0.2;
   const petioleMesh = generateBoxBuffer(petioleWidth, petioleLength, 0.1);
 
   const petioleMatrix = mat4.create();
   mergeSubMesh(petioleMesh, petioleMatrix);
 
   // + all leaflets on corrent postions (calculateLeafletTransform)
-  const petioluleLength = leaf.shape[0].petiolule?.len || 0.0;
-  const petioluleWidth = leaf.shape[0].petiolule?.width || 0.0;
-  const localPetioluleAngleRad = -((leaf.shape[0].petiolule?.angle || 0) / 180) * Math.PI;
+  const mainShape =
+    leaf.shape && leaf.shape[0]
+      ? leaf.shape[0]
+      : { geom: "def:obovate", petiolule: { len: 0, width: 0, x: 0, y: 0, angle: 0 } };
+  const petioluleLength = mainShape.petiolule?.len || 0.0;
+  const petioluleWidth = mainShape.petiolule?.width || 0.0;
+  const localPetioluleAngleRad = -((mainShape.petiolule?.angle || 0) / 180) * Math.PI;
 
   //   + leaflet petiole
   const basePetioluleMesh = petioluleLength > 0 ? generateBoxBuffer(petioluleWidth, petioluleLength, 0.08) : null;
 
   //   + leaflet shape
-  const petioleOffset = leaf?.shape[0].petiolule ?? leaf?.petiole ?? { x: 0, y: 0 };
-  const baseLeafShapeMesh = generateShapeMesh(leaf.shape[0], petioleOffset);
+  const baseLeafShapeMesh = generateShapeMesh(mainShape as LeafShape);
 
-  leaf.instances.forEach((instance: any, index: number) => {
-    const { position, rotation } = calculateLeafletTransform(index, leaf.instances.length, leaf.petiole, leaf.layout);
+  const instances = leaf.instances && leaf.instances.length > 0 ? leaf.instances : [{ shape: 0, scale: 1 }];
+
+  instances.forEach((instance: any, index: number) => {
+    const { position, rotation } = calculateLeafletTransform(index, instances.length, leaf.petiole, leaf.layout);
     const scale = instance.scale || 1.0;
 
     const baseMatrix = mat4.create();

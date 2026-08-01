@@ -1,241 +1,369 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
-import { useSignal } from "@preact/signals";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { LeafGeometry } from "../../types/leaf";
 import { state } from "../../pages/AppState";
+import { useLocation } from "preact-iso";
+import "./GeomEditor.css";
 
 type Point = { x: number; y: number };
 
+function buildSymmetricContour(points: Point[]): Point[] {
+  const rightHalf = points.filter((p) => p.x >= 0);
+  if (rightHalf.length === 0) return points;
+
+  const rightEdgeOnly = rightHalf.filter((p) => p.x > 0);
+  const leftHalf = [...rightEdgeOnly].reverse().map((p) => ({ x: -p.x, y: p.y }));
+
+  return [...rightHalf, ...leftHalf];
+}
+
 export function GeomEditor({ id }: { id: string }) {
-  const g = state.geoms.get(id);
-  if (!g) {
-    return <p>No geometry to edit found!</p>;
+  const location = useLocation();
+  const initialGeom = state.geoms.get(id);
+
+  if (!initialGeom) {
+    return (
+      <div className="geom-viewport" style={{ padding: "2rem" }}>
+        <h2>Geometry Not Found</h2>
+        <p>Could not find geometry with ID: {id}</p>
+        <button onClick={() => location.route("/leaf")}>Back to Designer</button>
+      </div>
+    );
   }
 
-  const [geom, setGeom] = useState<LeafGeometry>(g);
-  //const [points, setPoints] = useState<Point[]>([]);
-
-  const pointsString = useMemo(() => geom.points?.map((p) => `${p.x},${p.y}`).join(" "), [geom]);
-  const [activePoint, setActivePoint] = useState<number>(0);
+  const [geom, setGeom] = useState<LeafGeometry>(initialGeom);
   const [selectedPoint, setSelectedPoint] = useState<number>(-1);
-  const [draggedPoint, setDraggedPoint] = useState<number>(-1);
-  const [isClosed, setIsClosed] = useState(false);
+  const [enableSnap, setEnableSnap] = useState<boolean>(true);
+  const [gridSnap, setGridSnap] = useState<number>(0.1);
+  const [mirrorX, setMirrorX] = useState<boolean>(false);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<SVGSVGElement>(null);
+  const [viewSize, setViewSize] = useState({ width: 800, height: 600 });
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
-  const [gridSnap, setGridSnap] = useState(10);
+  const zoom = 140; // Pixels per coordinate unit
 
-  useEffect(() => {
-    //debugInit();
-    //setIsClosed(true);
-  }, []);
+  const draggedRef = useRef<number>(-1);
+  const didMoveRef = useRef<boolean>(false);
+  const geomRef = useRef<LeafGeometry>(geom);
+  geomRef.current = geom;
+
+  const mirrorXRef = useRef<boolean>(mirrorX);
+  mirrorXRef.current = mirrorX;
 
   useEffect(() => {
     state.geoms.updateById(geom.id, geom);
   }, [geom]);
 
-  // settings:
-  // - grid snap (true/false)
-  // - grid size (10x10)
-  // - mirror-x (true/false)
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        setViewSize({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-  // TODO: (next steps)
-  // mirror
+  const centerX = viewSize.width / 2;
+  const centerY = viewSize.height / 2 + 80; // Stem base slightly below center
 
-  const snap = (p: Point): Point => ({
-    x: Math.round(p.x / gridSnap) * gridSnap,
-    y: Math.round(p.y / gridSnap) * gridSnap,
+  // Screen <-> Leaf unit conversions
+  const toScreen = (p: Point): Point => ({
+    x: centerX + offset.x + p.x * zoom,
+    y: centerY + offset.y - p.y * zoom,
   });
 
-  const getPosition = (e: MouseEvent, snapping: boolean = true): Point => {
-    const svg = document.querySelector("#canvas");
-    if (!svg) return { x: -1, y: -1 };
+  const toLeafCoord = (screenX: number, screenY: number): Point => {
+    const rawX = (screenX - centerX - offset.x) / zoom;
+    const rawY = (centerY + offset.y - screenY) / zoom;
 
-    const rect = svg.getBoundingClientRect();
-    const p: Point = { x: e.clientX - rect.left - offset.x, y: e.clientY - rect.top - offset.y };
-    if (snapping) return snap(p);
-    return p;
-  };
-
-  const onPointDown = (e: Event, i: number) => {
-    e.stopPropagation();
-    setDraggedPoint(i);
-    if (i < 0) return;
-
-    setSelectedPoint(i);
-
-    if ((i == 0 && activePoint == geom.points.length - 1) || (i == geom.points.length - 1 && activePoint == 0)) {
-      setIsClosed(true);
+    if (!enableSnap || gridSnap <= 0) {
+      return { x: Math.round(rawX * 100) / 100, y: Math.round(rawY * 100) / 100 };
     }
-
-    if (i == 0 || i == geom.points.length - 1) setActivePoint(i);
+    return {
+      x: Math.round(rawX / gridSnap) * gridSnap,
+      y: Math.round(rawY / gridSnap) * gridSnap,
+    };
   };
 
-  const addPointToGeom = (p: Point, ndx?: number) => {
-    if (ndx === undefined) geom.points.push(p);
-    else geom.points.splice(ndx, 0, p);
-    setGeom({ ...geom });
+  const pointsString = useMemo(() => {
+    return geom.points
+      ?.map((p) => {
+        const sp = toScreen(p);
+        return `${sp.x.toFixed(1)},${sp.y.toFixed(1)}`;
+      })
+      .join(" ");
+  }, [geom.points, viewSize, offset, zoom]);
+
+  const toggleMirrorX = (enabled: boolean) => {
+    setMirrorX(enabled);
+    if (enabled) {
+      const symmetricPoints = buildSymmetricContour(geom.points);
+      setGeom({ ...geom, points: symmetricPoints });
+    }
+  };
+
+  const handlePointMouseDown = (e: MouseEvent, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    draggedRef.current = index;
+    didMoveRef.current = false;
+    setSelectedPoint(index);
+
+    const handleMouseMove = (moveEv: MouseEvent) => {
+      if (draggedRef.current === -1) return;
+      didMoveRef.current = true;
+
+      const svg = canvasRef.current;
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      const newPt = toLeafCoord(moveEv.clientX - rect.left, moveEv.clientY - rect.top);
+
+      if (mirrorXRef.current && newPt.x < 0) {
+        newPt.x = 0;
+      }
+
+      const currentGeom = geomRef.current;
+      if (currentGeom && currentGeom.points[draggedRef.current]) {
+        const updatedPoints = [...currentGeom.points];
+        updatedPoints[draggedRef.current] = newPt;
+
+        if (mirrorXRef.current) {
+          const symmetric = buildSymmetricContour(updatedPoints);
+          setGeom({ ...currentGeom, points: symmetric });
+        } else {
+          setGeom({ ...currentGeom, points: updatedPoints });
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        draggedRef.current = -1;
+      }, 50);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
   };
 
   const onCanvasClick = (e: MouseEvent) => {
-    if (draggedPoint != -1) return;
+    if (didMoveRef.current || draggedRef.current !== -1) return;
 
-    const np = getPosition(e);
-    if (activePoint == 0) {
-      addPointToGeom(np, 0);
-      setSelectedPoint(0);
-    } else {
-      const i = geom.points.length - 1;
-      addPointToGeom(np, i);
-      setActivePoint(i);
-      setSelectedPoint(i);
-    }
+    const svg = canvasRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const leafPt = toLeafCoord(e.clientX - rect.left, e.clientY - rect.top);
+
+    if (mirrorX && leafPt.x < 0) leafPt.x = Math.abs(leafPt.x);
+
+    const updated = [...geom.points, leafPt];
+    const symmetric = mirrorX ? buildSymmetricContour(updated) : updated;
+    setSelectedPoint(symmetric.length - 1);
+    setGeom({ ...geom, points: symmetric });
   };
 
-  const insertPoint = (e: MouseEvent, after: number) => {
-    e.stopImmediatePropagation();
+  const insertPointOnSegment = (e: MouseEvent, afterIndex: number) => {
+    const svg = canvasRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const leafPt = toLeafCoord(e.clientX - rect.left, e.clientY - rect.top);
 
-    const np = getPosition(e);
-    addPointToGeom(np, after + 1);
-    setDraggedPoint(after + 1);
-    setSelectedPoint(after + 1);
-    if (activePoint > 0) setActivePoint(activePoint + 1);
+    if (mirrorX && leafPt.x < 0) leafPt.x = Math.abs(leafPt.x);
+
+    const newIndex = afterIndex + 1;
+    const updated = [...geom.points];
+    updated.splice(newIndex, 0, leafPt);
+
+    const symmetric = mirrorX ? buildSymmetricContour(updated) : updated;
+    setGeom({ ...geom, points: symmetric });
+
+    const insertedIdx = symmetric.findIndex(
+      (p) => Math.abs(p.x - leafPt.x) < 0.001 && Math.abs(p.y - leafPt.y) < 0.001,
+    );
+    const targetIdx = insertedIdx !== -1 ? insertedIdx : newIndex;
+    setSelectedPoint(targetIdx);
+
+    // Immediately start dragging newly inserted point
+    handlePointMouseDown(e, targetIdx);
   };
 
   const removeSelected = () => {
-    if (selectedPoint < 0) return;
-    if (isClosed) {
-      // remove point and reorder all
-      const n = [...geom.points.slice(selectedPoint + 1), ...geom.points.slice(0, selectedPoint)];
-      setActivePoint(0);
-      setSelectedPoint(0);
-      setIsClosed(false);
-      setGeom({ ...geom, points: n });
+    if (selectedPoint < 0 || selectedPoint >= geom.points.length) return;
+    if (geom.points.length <= 3) {
+      alert("A leaf shape requires at least 3 points.");
       return;
     }
 
-    if (selectedPoint >= geom.points.length) setSelectedPoint(geom.points.length - 1);
+    const updated = geom.points.filter((_, i) => i !== selectedPoint);
+    const symmetric = mirrorX ? buildSymmetricContour(updated) : updated;
+    const newSelected = Math.max(0, selectedPoint - 1);
+    setSelectedPoint(newSelected);
+    setGeom({ ...geom, points: symmetric });
   };
 
   useEffect(() => {
-    const keyPress = (ev: KeyboardEvent) => {
-      if (ev.key == "Backspace" || ev.key == "Delete") removeSelected();
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Backspace" || ev.key === "Delete") {
+        removeSelected();
+      }
     };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedPoint, geom, mirrorX]);
 
-    window.addEventListener("keydown", keyPress);
-
-    return () => {
-      window.removeEventListener("keydown", keyPress);
-    };
-  }, [selectedPoint, geom]);
-
-  useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
-      //if (draggedPoint == -2) state.setPetioleBase(getPosition(e));
-      if (draggedPoint < 0) return;
-
-      geom.points[draggedPoint] = getPosition(e);
-      setGeom({ ...geom });
-    };
-
-    const stopDrag = () => setTimeout(() => setDraggedPoint(-1), 0);
-
-    if (draggedPoint != -1) {
-      window.addEventListener("mousemove", handleMove);
-      window.addEventListener("mouseup", stopDrag);
-    }
-
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", stopDrag);
-    };
-  }, [draggedPoint, geom]);
-
-  useEffect(() => {
-    const onWheel = (ev: WheelEvent) => {
-      ev.preventDefault();
-
-      setOffset((p) => ({ x: p.x - ev.deltaX, y: p.y - ev.deltaY }));
-    };
-    /* const onKeyDown = (ev: KeyboardEvent) => {
-            if (ev.key == "Shift") setShiftDown((p) => true);
-        };
-        const onKeyUp = (ev: KeyboardEvent) => {
-            if (ev.key == "Shift") setShiftDown((p) => false);
-        }; */
-    const canvas = document.querySelector("#canvas") as HTMLElement;
-    canvas.addEventListener("wheel", onWheel, { passive: false });
-    //window.addEventListener("keydown", onKeyDown, { passive: false });
-    //window.addEventListener("keyup", onKeyUp, { passive: false });
-    return () => {
-      canvas.removeEventListener("wheel", onWheel);
-      //canvas.removeEventListener("keydown", onKeyDown);
-      //canvas.removeEventListener("keyup", onKeyUp);
-    };
-  }, []);
+  const originScreen = toScreen({ x: 0, y: 0 });
+  const patternStep = Math.max(gridSnap * zoom, 4);
 
   return (
-    <div class="shape-editor">
-      <svg id="canvas" onClick={onCanvasClick}>
+    <div className="geom-viewport" ref={containerRef}>
+
+      <div className="overlay-header">
+        <div className="toolbar-group">
+          <button onClick={() => location.route("/")}>Back to Library</button>
+        </div>
+        <div className="toolbar-group">
+          <input
+            type="text"
+            style={{
+              background: "var(--bg-1)",
+              color: "var(--fg-0)",
+              border: "1px solid var(--bg-3)",
+              borderRadius: "4px",
+              padding: "2px 8px",
+              fontSize: "0.95rem",
+              fontWeight: "bold",
+              width: "140px",
+            }}
+            value={geom.name}
+            onInput={(e) => setGeom({ ...geom, name: e.currentTarget.value })}
+            placeholder="Geometry Name"
+          />
+        </div>
+
+        <div className="toolbar-group">
+          <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <input type="checkbox" checked={enableSnap} onChange={(e) => setEnableSnap(e.currentTarget.checked)} />
+            Snap
+          </label>
+
+          {enableSnap && (
+            <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              Grid:
+              <input
+                type="number"
+                min="0.01"
+                max="5"
+                step="0.01"
+                style={{ width: "65px" }}
+                value={gridSnap}
+                onInput={(e) => {
+                  const val = parseFloat(e.currentTarget.value);
+                  if (!isNaN(val) && val > 0) setGridSnap(val);
+                }}
+              />
+            </label>
+          )}
+        </div>
+
+        <div className="toolbar-group">
+          <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <input type="checkbox" checked={mirrorX} onChange={(e) => toggleMirrorX(e.currentTarget.checked)} />
+            Mirror X
+          </label>
+        </div>
+      </div>
+
+      {/* SVG Editor Viewport */}
+      <svg id="canvas" ref={canvasRef} onClick={onCanvasClick}>
         <defs>
+          {/* Visual Dot Grid Overlay */}
           <pattern
-            id="grid"
-            width={gridSnap}
-            height={gridSnap}
+            id="dot-grid"
+            width={patternStep}
+            height={patternStep}
             patternUnits="userSpaceOnUse"
-            patternTransform={`translate(${-gridSnap / 2}, ${-gridSnap / 2})`}
+            patternTransform={`translate(${originScreen.x % patternStep}, ${originScreen.y % patternStep})`}
           >
-            <circle cx={gridSnap / 2} cy={gridSnap / 2} r={1} />
+            <circle cx={patternStep} cy={patternStep} r="1.5" fill="#444444" />
           </pattern>
         </defs>
 
-        <g transform={`translate(${offset.x}, ${offset.y})`}>
-          <rect x={-offset.x} y={-offset.y} width={`${100}%`} height={`${100}%`} fill="url(#grid)" />
-          {/*  <g class="mirror">
-                    <line x1="50%" x2="50%" y1="0" y2="100%"></line>
-                    <rect x="50%" width="50%" y="0" height="100%"></rect>
-                    <text x="50%" y="50%">
-                    Mirrored
-                    </text>
-                    </g> */}
+        {/* Dot grid background */}
+        {enableSnap && <rect width="100%" height="100%" fill="url(#dot-grid)" />}
 
-          {isClosed ? <polygon points={pointsString} class="line" /> : <polyline points={pointsString} class="line" />}
+        {/* Dimmed overlay for mirrored left side if Mirror X is active */}
+        {mirrorX && (
+          <rect
+            x={0}
+            y={0}
+            width={originScreen.x}
+            height={viewSize.height}
+            fill="rgba(0, 0, 0, 0.35)"
+            style={{ pointerEvents: "none" }}
+          />
+        )}
 
-          {geom.points?.map((p, i) => {
-            if (i == geom.points.length - 1) return;
-            const t = geom.points[i + 1];
-            return (
-              <line
-                x1={p.x}
-                y1={p.y}
-                x2={t.x}
-                y2={t.y}
-                class={"line-helper"}
-                onMouseDown={(e) => insertPoint(e, i)}
-              ></line>
-            );
-          })}
+        {/* Midrib and Y-axis guide lines */}
+        <line x1={originScreen.x} y1={0} x2={originScreen.x} y2={viewSize.height} className="midrib-axis" />
+        <line x1={0} y1={originScreen.y} x2={viewSize.width} y2={originScreen.y} className="axis-line" />
 
-          {geom.points?.map((p, i) => (
-            <circle
-              key={i}
-              cx={p.x}
-              cy={p.y}
-              r="5"
-              class="point"
-              data-selected={i == selectedPoint}
-              data-active={i == activePoint}
-              onMouseDown={(e) => onPointDown(e, i)}
+        {/* Closed Leaf Polygon */}
+        <polygon points={pointsString} className="leaf-shape-polygon" />
+
+        {/* Segment line helpers for point insertion */}
+        {geom.points?.map((p, i) => {
+          const nextIdx = (i + 1) % geom.points.length;
+          const sp1 = toScreen(p);
+          const sp2 = toScreen(geom.points[nextIdx]);
+
+          return (
+            <line
+              key={`seg-${i}`}
+              x1={sp1.x}
+              y1={sp1.y}
+              x2={sp2.x}
+              y2={sp2.y}
+              className="line-helper"
+              onMouseDown={(e) => insertPointOnSegment(e, i)}
             />
-          ))}
+          );
+        })}
 
-          {/*<circle
-            cx={frame?.petiole.base[0]}
-            cy={frame?.petiole.base[1]}
-            r="5"
-            class="point petiole-base"
-            onMouseDown={(e) => onPointDown(e, -2)}
-          ></circle>*/}
-        </g>
+        {/* Stem base marker at (0,0) */}
+        <circle cx={originScreen.x} cy={originScreen.y} r="5" className="petiole-base-dot" />
+
+        {/* Control point handles */}
+        {geom.points?.map((p, i) => {
+          const sp = toScreen(p);
+          const isLeftMirrored = mirrorX && p.x < -0.001;
+          return (
+            <circle
+              key={`pt-${i}`}
+              cx={sp.x}
+              cy={sp.y}
+              r="6"
+              className="point-handle"
+              data-selected={i === selectedPoint}
+              data-mirrored={isLeftMirrored}
+              onMouseDown={(e) => handlePointMouseDown(e, i)}
+            />
+          );
+        })}
       </svg>
+
+      <div className="overlay-footer">
+        {geom.points?.length || 0} vertices |{" "}
+        {mirrorX ? "MIRROR MODE (Active Right Half -> Auto-Reflected Left Half) | " : ""}
+        Add, move or delete points
+      </div>
     </div>
   );
 }

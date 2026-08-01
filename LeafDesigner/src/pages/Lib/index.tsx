@@ -1,29 +1,106 @@
 import { useEffect, useState } from "preact/hooks";
 import { Preview } from "../../components/designer/Preview";
-import { Leaf } from "../../types/leaf";
+import { Leaf, LeafGeometry } from "../../types/leaf";
+import { useLocation } from "preact-iso";
 import "./style.css";
 
 import { state } from "../AppState";
 
+function GeomPreview({ geomId }: { geomId: string }) {
+  const norm = state.geoms.getNormalized(geomId);
+  if (!norm || !norm.points || norm.points.length === 0) {
+    return <div style={{ width: "120px", height: "120px" }} />;
+  }
+
+  const pts = norm.points;
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  const minX = Math.min(...xs),
+    maxX = Math.max(...xs);
+  const minY = Math.min(...ys),
+    maxY = Math.max(...ys);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const span = Math.max(maxX - minX, maxY - minY, 0.001);
+
+  const pointsStr = pts
+    .map((p) => {
+      const sx = 60 + ((p.x - cx) / span) * 100;
+      const sy = 60 - ((p.y - cy) / span) * 100;
+      return `${sx.toFixed(1)},${sy.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg width="120" height="120" viewBox="0 0 120 120" style={{ borderRadius: "6px" }}>
+      <polygon points={pointsStr} fill="#4e771177" stroke="#4e7711" strokeWidth="2" />
+    </svg>
+  );
+}
+
 export function Library() {
+  const location = useLocation();
   const [leafs, setLeafs] = useState<Leaf[]>([]);
+  const [geoms, setGeoms] = useState<LeafGeometry[]>([]);
 
   useEffect(() => {
     state.leafs.unselect();
     setLeafs(state.leafs.all());
+    setGeoms(state.geoms.all());
   }, []);
 
   function newLeaf() {
     state.leafs.select(state.leafs.add(state.leafs.createDefault()));
-    window.location.href = "/leaf";
+    location.route("/leaf");
   }
 
   function openLeaf(leaf: Leaf) {
-    var ndx = leafs.findIndex((l) => l.name == leaf.name);
-    if (ndx == -1) ndx = state.leafs.add(leaf);
+    let ndx = leafs.findIndex((l) => l.name === leaf.name);
+    if (ndx === -1) ndx = state.leafs.add(leaf);
     state.leafs.select(ndx);
+    location.route("/leaf");
+  }
 
-    window.location.href = "/leaf";
+  function removeLeaf(e: MouseEvent, leaf: Leaf) {
+    e.stopPropagation();
+    if (confirm(`Delete leaf "${leaf.name}"?`)) {
+      state.leafs.remove(leaf);
+      setLeafs(state.leafs.all());
+    }
+  }
+
+  function newGeom() {
+    const geom: LeafGeometry = {
+      id: "geom:" + Math.round(Math.random() * 1000000),
+      name: "New Geometry",
+      points: [
+        { x: -1, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 2 },
+        { x: -1, y: 2 },
+      ],
+      veins: null,
+    };
+    state.geoms.add(geom);
+    setGeoms(state.geoms.all());
+    location.route(`/leaf/geometry/${geom.id}`);
+  }
+
+  function editGeom(geomId: string) {
+    location.route(`/leaf/geometry/${geomId}`);
+  }
+
+  function removeGeom(e: MouseEvent, geom: LeafGeometry) {
+    e.stopPropagation();
+    const usage = state.geoms.getUsageCount(geom.id, leafs);
+    if (usage > 0) {
+      alert(`Cannot delete geometry "${geom.name}" because it is used in ${usage} leaf model(s).`);
+      return;
+    }
+    if (confirm(`Delete geometry "${geom.name}"?`)) {
+      state.geoms.remove(geom.id);
+      setGeoms(state.geoms.all());
+    }
   }
 
   async function readText(file: File) {
@@ -40,8 +117,7 @@ export function Library() {
     const promises = await Promise.allSettled([...files].map((f) => readText(f)));
     for (const p of promises) {
       try {
-        if (p.status == "rejected") throw new Error("Couldn't load file!?");
-
+        if (p.status === "rejected") throw new Error("File load error");
         const leaf = JSON.parse(p.value);
         state.leafs.add(leaf);
       } catch (e) {
@@ -53,23 +129,74 @@ export function Library() {
 
   return (
     <div className="library">
-      <div>
-        <h1>Leafs</h1>
-        <label for="configPicker">load config</label>
-        <input type="file" id="configPicker" accept=".json" onInput={(e) => loadLeaf(e)} multiple={false} />
-      </div>
-      <div className="leaf-list">
-        {leafs.map((leaf) => (
-          <div className="leaf-card" onClick={() => openLeaf(leaf)}>
-            <Preview width={"150px"} height={"150px"} leaf={leaf}></Preview>
-            <span>{leaf.name}</span>
+      {/* Leafs Section */}
+      <section style={{ marginBottom: "3rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+          <h1>Leaf Models</h1>
+          <div>
+            <label htmlFor="configPicker" style={{ cursor: "pointer" }}>
+              <span className="btn-label">Load Config (.json)</span>
+            </label>
+            <input
+              type="file"
+              id="configPicker"
+              accept=".json"
+              onInput={(e) => loadLeaf(e)}
+              style={{ display: "none" }}
+            />
           </div>
-        ))}
-        <div className="leaf-card" style={{ width: "150px", height: "175px" }} onClick={() => newLeaf()}>
-          <span style={{ fontSize: "3rem" }}>+</span>
-          <span>Create New</span>
         </div>
-      </div>
+
+        <div className="leaf-list">
+          {leafs.map((leaf, i) => (
+            <div key={leaf.name + i} className="leaf-card" onClick={() => openLeaf(leaf)}>
+              <button className="card-delete-btn" onClick={(e) => removeLeaf(e, leaf)} title="Delete leaf">
+                ✕
+              </button>
+              <Preview width={"100%"} height={"180px"} leaf={leaf} />
+              <div style={{ marginTop: "0.5rem", fontWeight: "bold" }}>{leaf.name}</div>
+            </div>
+          ))}
+
+          <div className="leaf-card create-card" onClick={() => newLeaf()}>
+            <span style={{ fontSize: "2.5rem" }}>+</span>
+            <span>Create New Leaf</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Geometries Section */}
+      <section>
+        <div style={{ marginBottom: "1rem" }}>
+          <h1>Leaf Geometries</h1>
+        </div>
+
+        <div className="leaf-list">
+          {geoms.map((g) => {
+            const usageCount = state.geoms.getUsageCount(g.id, leafs);
+            return (
+              <div key={g.id} className="leaf-card" onClick={() => editGeom(g.id)}>
+                <button className="card-delete-btn" onClick={(e) => removeGeom(e, g)} title="Delete geometry">
+                  ✕
+                </button>
+                <div style={{ display: "flex", justifyContent: "center", padding: "0.25rem" }}>
+                  <GeomPreview geomId={g.id} />
+                </div>
+                <div style={{ marginTop: "0.5rem", fontWeight: "bold" }}>{g.name}</div>
+                <div style={{ fontSize: "0.8rem", opacity: 0.7 }}>{g.points.length} points</div>
+                <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: "2px" }}>
+                  Used in {usageCount} {usageCount === 1 ? "leaf" : "leaves"}
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="leaf-card create-card" onClick={() => newGeom()}>
+            <span style={{ fontSize: "2.5rem" }}>+</span>
+            <span>Create New Geometry</span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

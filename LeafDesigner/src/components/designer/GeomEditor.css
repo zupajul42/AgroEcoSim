@@ -1,0 +1,120 @@
+.geom-viewport {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+#canvas {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.overlay-header {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--bg-1);
+  border-radius: 4px;
+  padding: 0.25rem 1rem;
+  z-index: 10;
+}
+
+.toolbar-group {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  margin: 1rem 0;
+}
+
+.overlay-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.toolbar-group select,
+.toolbar-group input[type="text"],
+.toolbar-group input[type="number"] {
+  background-color: var(--bg-1);
+  color: var(--fg-0);
+  border: 1px solid var(--bg-3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.85rem;
+}
+
+.axis-line {
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.midrib-axis {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+
+.leaf-shape-polygon {
+  fill: rgba(78, 119, 17, 0.22);
+  stroke: #85ca20;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.line-helper {
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+}
+
+.line-helper:hover {
+  stroke: rgba(133, 202, 32, 0.4);
+}
+
+.point-handle {
+  fill: #ffffff;
+  stroke: #1e1e1e;
+  stroke-width: 2;
+  cursor: pointer;
+}
+
+.point-handle:hover {
+  fill: #85ca20;
+}
+
+.point-handle[data-selected="true"] {
+  fill: #ff9800;
+  stroke: #ffffff;
+  stroke-width: 2.5;
+}
+
+.point-handle[data-mirrored="true"] {
+  fill: rgba(255, 255, 255, 0.35);
+  stroke: rgba(133, 202, 32, 0.6);
+  opacity: 0.6;
+}
+
+.petiole-base-dot {
+  fill: #e74c3c;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.overlay-footer {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background-color: var(--bg-1);
+  border-radius: 4px;
+  padding: 0.25rem 1rem;
+  font-size: 0.75rem;
+  pointer-events: none;
+}

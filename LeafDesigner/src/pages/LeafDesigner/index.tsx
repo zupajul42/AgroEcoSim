@@ -13,6 +13,8 @@ import "./style.css";
 import { state } from "../AppState";
 import { useInsertionEffect } from "preact/compat";
 
+import { useLocation } from "preact-iso";
+
 interface SliderProp {
   label: string;
   min: number;
@@ -24,6 +26,7 @@ interface SliderProp {
 }
 
 export function LeafDesigner(props: { leaf?: Leaf }) {
+  const location = useLocation();
   const startLeaf = props?.leaf ?? state.leafs.selected() ?? null;
 
   const [isEdit, setIsEdit] = useState<boolean>(!!state.leafs.selected());
@@ -37,7 +40,21 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
 
   useEffect(() => {
     setTimeout(() => (isInitialLoad.current = false), 100);
-    setLeafGeometries(state.geoms.all());
+    const geoms = state.geoms.all();
+    setLeafGeometries(geoms);
+
+    if (!leaf) {
+      // Auto-load default if available
+      const selected = state.leafs.selected();
+      if (selected) setLeaf(selected);
+      else {
+        const allLeafs = state.leafs.all();
+        if (allLeafs.length > 0) {
+          state.leafs.select(0);
+          setLeaf(allLeafs[0]);
+        }
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -48,14 +65,14 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
       }
     };
 
-    if (leaf) {
+    if (leaf && leaf.shape && leaf.shape[0]) {
       const geoms = state.geoms.all();
       const current = geoms.find((g) => g.id == leaf.shape[0].geom);
-      if (!current) {
-        alert("Unknown leaf geometry: " + leaf.shape[0].geom);
-        throw "Unknown leaf geometry: " + leaf.shape[0].geom;
+      if (current) {
+        setLeafGeom(current);
+      } else if (geoms.length > 0) {
+        setLeafGeom(geoms[0]);
       }
-      setLeafGeom(current);
     }
 
     window.addEventListener("keydown", onKeydown);
@@ -130,15 +147,23 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   };
 
   const editGeom = () => {
-    window.open("/leaf/geometry/" + leafGeom.id, "_self");
+    if (leafGeom?.id) location.route("/leaf/geometry/" + leafGeom.id);
   };
 
   const createGeom = (start?: LeafGeometry) => {
-    const geom = start ?? { id: "---", name: "new geom", points: [], veins: null };
+    const geom = start ?? { id: "---", name: "new geom", points: [{x:-1, y:0},{x:1,y:0},{x:0,y:2}], veins: null };
     geom.id = "geom:" + Math.round(Math.random() * 1000000);
     state.geoms.add(geom);
-    window.open("/leaf/geometry/" + geom.id, "_self");
     handleGeomChange(geom.id);
+    location.route("/leaf/geometry/" + geom.id);
+  };
+
+  const handleCreateNewLeaf = () => {
+    const newL = state.leafs.createDefault();
+    const ndx = state.leafs.add(newL);
+    state.leafs.select(ndx);
+    setLeaf(newL);
+    setIsEdit(true);
   };
 
   const renderSlider = ({ label, min, max, step, unit, value, onInput }: SliderProp) => (
@@ -182,7 +207,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
 
   const stemSliderConfig = (type: "petiolule" | "petiole") => {
     const isPetiolule = type === "petiolule";
-    const target = isPetiolule ? leaf.shape[0].petiolule : leaf.petiole;
+    const target = isPetiolule ? leaf?.shape[0]?.petiolule : leaf?.petiole;
 
     return [
       {
@@ -192,7 +217,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         max: isPetiolule ? 5 : 10,
         step: 0.1,
         unit: "m",
-        value: target.len,
+        value: target?.len || 0,
       },
       {
         label: "Width",
@@ -201,30 +226,30 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         max: isPetiolule ? 1 : 1.5,
         step: 0.05,
         unit: "m",
-        value: target.width,
+        value: target?.width || 0.1,
       },
-      { label: "Angle", field: "angle", min: -90, max: 90, step: 1, unit: "°", value: target.angle },
+      { label: "Angle", field: "angle", min: -90, max: 90, step: 1, unit: "°", value: target?.angle || 0 },
     ];
   };
 
   return (
     <div>
       {!leaf && (
-        <div>
-          <h2>Landed here without UI?</h2>
-          <button>Create new leaf</button>
+        <div style={{ padding: "3rem", textAlign: "center" }}>
+          <h2>No Leaf Loaded</h2>
+          <p style={{ marginBottom: "1rem" }}>You can create a new leaf or load one from your library.</p>
+          <button onClick={handleCreateNewLeaf}>Create New Leaf</button>
         </div>
       )}
       {!!leaf && (
         <div class="designer-layout">
           <aside class="config-sidebar stack" style={{ gap: "24px" }}>
-            {/* nav, title, export  */}
-            <div class="stack" style={{ gap: "8px" }}>
-              <a href="/" class="back-link">
-                ← Back to Overview
-              </a>
-              <h2>Leaf Designer</h2>
-              <div class="btn-group">
+            <div className="stack" style={{ gap: "8px" }}>
+              <div className="row">
+                <h2>Leaf Designer</h2>
+                <button onClick={() => location.route("/")}>Back to Library</button>
+              </div>
+              <div class="btn-group" style={{ display: "flex", gap: "8px" }}>
                 <button onClick={handleExportMesh}>Export Mesh</button>
                 <button onClick={handleExportConfig}>Export Config</button>
               </div>
@@ -285,7 +310,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                     max: 360,
                     step: 5,
                     unit: "°",
-                    value: leaf.layout?.angle,
+                    value: leaf.layout?.angle || 0,
                     onInput: (val) => updateLeaf((prev) => ({ layout: { ...prev.layout, angle: val } })),
                   })}
 

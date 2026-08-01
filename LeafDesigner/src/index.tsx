@@ -2,9 +2,9 @@ import { render } from "preact";
 import { LocationProvider, Router, Route } from "preact-iso";
 
 import { Library } from "./pages/Lib/index";
-import { LeafDesigner } from "./pages/LeafDesigner/index.jsx";
+import { LeafDesigner } from "./pages/LeafDesigner/index";
 import { GeomEditorPage } from "./pages/GeomEditor";
-import { NotFound } from "./pages/_404.jsx";
+import { NotFound } from "./pages/_404";
 import "./style.css";
 
 export function App() {
