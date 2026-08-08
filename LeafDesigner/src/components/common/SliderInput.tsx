@@ -8,6 +8,7 @@ export interface SliderInputProps {
   onInput: (val: number) => void;
   className?: string;
   style?: any;
+  inline?: boolean;
 }
 
 export function SliderInput({
@@ -19,13 +20,24 @@ export function SliderInput({
   value,
   onInput,
   className = "",
+  inline = false,
   style = {},
 }: SliderInputProps) {
-  return (
-    <div className={`slider-input stack ${className}`} style={{ gap: "4px", ...style }}>
-      <div className="row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        {label && <label style={{ fontWeight: 500 }}>{label}</label>}
-        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "auto" }}>
+
+  if (inline) return (
+    <div className={`slider-input ${className}`} style={style}>
+      <div className="row">
+        {label && <label>{label}</label>}
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onInput={(e) => onInput(parseFloat((e.target as HTMLInputElement).value))}
+          style={{ flex: 1 }}
+        />
+        <div>
           <input
             type="number"
             min={min}
@@ -38,18 +50,32 @@ export function SliderInput({
                 onInput(val);
               }
             }}
-            style={{
-              width: "68px",
-              textAlign: "right",
-              backgroundColor: "var(--bg-1)",
-              color: "var(--fg-0)",
-              border: "1px solid var(--bg-3)",
-              borderRadius: "4px",
-              padding: "2px 6px",
-              fontSize: "0.85rem",
+          />
+          <span>{unit}</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={`slider-input stack ${className}`} style={style}>
+      <div className="row">
+        {label && <label>{label}</label>}
+        <div>
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onInput={(e) => {
+              const val = parseFloat((e.target as HTMLInputElement).value);
+              if (!isNaN(val)) {
+                onInput(val);
+              }
             }}
           />
-          {unit && <span style={{ fontSize: "0.85rem", opacity: 0.8, minWidth: "14px" }}>{unit}</span>}
+          {unit && <span>{unit}</span>}
         </div>
       </div>
       <input
@@ -60,7 +86,6 @@ export function SliderInput({
         step={step}
         value={value}
         onInput={(e) => onInput(parseFloat((e.target as HTMLInputElement).value))}
-        style={{ width: "100%", boxSizing: "border-box", margin: "2px 0" }}
       />
     </div>
   );

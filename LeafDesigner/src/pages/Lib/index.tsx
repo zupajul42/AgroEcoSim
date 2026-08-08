@@ -33,7 +33,7 @@ function GeomPreview({ geomId }: { geomId: string }) {
 
   return (
     <svg width="120" height="120" viewBox="0 0 120 120" style={{ borderRadius: "6px" }}>
-      <polygon points={pointsStr} fill="#4e771177" stroke="#4e7711" strokeWidth="2" />
+      <polygon points={pointsStr} fill="var(--bg-2)" stroke="var(--accent)" strokeWidth="2" />
     </svg>
   );
 }
@@ -61,6 +61,22 @@ export function Library() {
     location.route("/leaf");
   }
 
+  function duplicateLeaf(e: MouseEvent, leaf: Leaf) {
+    e.stopPropagation();
+    const newLeaf: Leaf = JSON.parse(JSON.stringify(leaf));
+
+    let newName = `${leaf.name} (Copy)`;
+    let counter = 1;
+    while (state.leafs.has(newName)) {
+      counter++;
+      newName = `${leaf.name} (Copy ${counter})`;
+    }
+    newLeaf.name = newName;
+
+    state.leafs.add(newLeaf);
+    setLeafs(state.leafs.all());
+  }
+
   function removeLeaf(e: MouseEvent, leaf: Leaf) {
     e.stopPropagation();
     if (confirm(`Delete leaf "${leaf.name}"?`)) {
@@ -84,6 +100,18 @@ export function Library() {
     state.geoms.add(geom);
     setGeoms(state.geoms.all());
     location.route(`/leaf/geometry/${geom.id}`);
+  }
+
+  function duplicateGeom(e: MouseEvent, geom: LeafGeometry) {
+    e.stopPropagation();
+    const newGeom: LeafGeometry = {
+      id: "geom:" + Math.round(Math.random() * 1000000),
+      name: geom.name + " (Copy)",
+      points: geom.points.map((p) => ({ ...p })),
+      veins: geom.veins ? JSON.parse(JSON.stringify(geom.veins)) : null,
+    };
+    state.geoms.add(newGeom);
+    setGeoms(state.geoms.all());
   }
 
   function editGeom(geomId: string) {
@@ -150,9 +178,22 @@ export function Library() {
         <div className="leaf-list">
           {leafs.map((leaf, i) => (
             <div key={leaf.name + i} className="leaf-card" onClick={() => openLeaf(leaf)}>
-              <button className="card-delete-btn" onClick={(e) => removeLeaf(e, leaf)} title="Delete leaf">
-                ✕
-              </button>
+              <div className="card-actions">
+                <button
+                  className="card-action-btn duplicate-btn"
+                  onClick={(e) => duplicateLeaf(e, leaf)}
+                  title="Duplicate leaf model"
+                >
+                  ⧉
+                </button>
+                <button
+                  className="card-action-btn delete-btn"
+                  onClick={(e) => removeLeaf(e, leaf)}
+                  title="Delete leaf model"
+                >
+                  ✕
+                </button>
+              </div>
               <Preview width={"100%"} height={"180px"} leaf={leaf} />
               <div style={{ marginTop: "0.5rem", fontWeight: "bold" }}>{leaf.name}</div>
             </div>
@@ -176,9 +217,22 @@ export function Library() {
             const usageCount = state.geoms.getUsageCount(g.id, leafs);
             return (
               <div key={g.id} className="leaf-card" onClick={() => editGeom(g.id)}>
-                <button className="card-delete-btn" onClick={(e) => removeGeom(e, g)} title="Delete geometry">
-                  ✕
-                </button>
+                <div className="card-actions">
+                  <button
+                    className="card-action-btn duplicate-btn"
+                    onClick={(e) => duplicateGeom(e, g)}
+                    title="Duplicate geometry"
+                  >
+                    ⧉
+                  </button>
+                  <button
+                    className="card-action-btn delete-btn"
+                    onClick={(e) => removeGeom(e, g)}
+                    title="Delete geometry"
+                  >
+                    ✕
+                  </button>
+                </div>
                 <div style={{ display: "flex", justifyContent: "center", padding: "0.25rem" }}>
                   <GeomPreview geomId={g.id} />
                 </div>

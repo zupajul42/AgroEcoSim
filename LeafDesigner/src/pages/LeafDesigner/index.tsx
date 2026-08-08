@@ -180,13 +180,15 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
 
   const handleGeomChange = (id: string) => {
     if (id == "def:__new") {
-      setLeafGeom(null);
+      createGeom();
       return;
     }
 
-    const geom = leafGeometries.find((g) => g.id == id);
+    const geoms = state.geoms.all();
+    const geom = geoms.find((g) => g.id == id);
     if (!geom) {
-      throw "Can't find requested geomerty for change";
+      console.warn("Could not find geometry:", id);
+      return;
     }
     setLeafGeom(geom);
     updateLeaf((p) => ({ shape: [{ ...p.shape[0], geom: geom.id }] }));
@@ -226,11 +228,38 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   };
 
   const createGeom = (start?: LeafGeometry) => {
-    const geom = start ?? { id: "---", name: "new geom", points: [{x:-1, y:0},{x:1,y:0},{x:0,y:2}], veins: null };
-    geom.id = "geom:" + Math.round(Math.random() * 1000000);
-    state.geoms.add(geom);
-    handleGeomChange(geom.id);
-    location.route("/leaf/geometry/" + geom.id);
+    const newGeom: LeafGeometry = start
+      ? {
+          id: "geom:" + Math.round(Math.random() * 1000000),
+          name: start.name + " (Copy)",
+          points: start.points.map((p) => ({ ...p })),
+          veins: start.veins ? JSON.parse(JSON.stringify(start.veins)) : null,
+        }
+      : {
+          id: "geom:" + Math.round(Math.random() * 1000000),
+          name: "New Geometry",
+          points: [
+            { x: -1, y: 0 },
+            { x: 1, y: 0 },
+            { x: 1, y: 2 },
+            { x: -1, y: 2 },
+          ],
+          veins: null,
+        };
+
+    state.geoms.add(newGeom);
+    setLeafGeometries(state.geoms.all());
+    setLeafGeom(newGeom);
+    
+    updateLeaf((prev) => {
+      const shape = [...prev.shape];
+      shape[0] = { ...shape[0], geom: newGeom.id };
+      const updated = { ...prev, shape };
+      state.leafs.updateSelected(updated);
+      return updated;
+    });
+
+    location.route("/leaf/geometry/" + newGeom.id);
   };
 
   const handleCreateNewLeaf = () => {
@@ -405,6 +434,8 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                           unit="x"
                           value={instance.scale}
                           onInput={(val) => handleInstance("scale", index, val)}
+                          inline={true}
+                          style={{flex: "1"}}
                         />
                         {leaf.instances.length > 1 && (
                           <button onClick={() => handleInstance("remove", index)} title="Remove instance">✕</button>
