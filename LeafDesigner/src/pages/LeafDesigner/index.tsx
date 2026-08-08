@@ -4,6 +4,8 @@ import {
   LeafArrangement,
   LeafFolding,
   LeafGeometry,
+  LeafInstance,
+  LeafLayout,
   LeafLayoutType,
   LeafMargin,
   LeafVenation,
@@ -14,6 +16,8 @@ import { state } from "../AppState";
 import { useInsertionEffect } from "preact/compat";
 
 import { useLocation } from "preact-iso";
+import { useHistory } from "../../hooks/useHistory";
+import { SliderInput } from "../../components/common/SliderInput";
 
 interface SliderProp {
   label: string;
@@ -31,12 +35,72 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
 
   const [isEdit, setIsEdit] = useState<boolean>(!!state.leafs.selected());
 
-  const [leaf, setLeaf] = useState<Leaf>(startLeaf);
+  const {
+    state: leaf,
+    set: setLeaf,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useHistory<Leaf>(startLeaf);
   const [leafGeom, setLeafGeom] = useState<LeafGeometry>();
   const [leafGeometries, setLeafGeometries] = useState<LeafGeometry[]>([]);
   const [isCompound, setIsCompound] = useState<boolean>(startLeaf?.instances?.length > 1);
   const [isChanged, setChanged] = useState<boolean>(false);
   const isInitialLoad = useRef(true);
+
+  const savedCompoundInstances = useRef<LeafInstance[]>(
+    startLeaf?.instances?.length > 1
+      ? startLeaf.instances
+      : [
+          { shape: 0, scale: 1 },
+          { shape: 0, scale: 1 },
+          { shape: 0, scale: 1 },
+          { shape: 0, scale: 1 },
+          { shape: 0, scale: 1 },
+        ]
+  );
+
+  const savedCompoundLayout = useRef<LeafLayout>(
+    startLeaf?.layout || {
+      type: "palmate",
+      arrangement: "opposite",
+      terminalLeaf: true,
+      angle: 140,
+    }
+  );
+
+  const handleSetCompound = (compound: boolean) => {
+    setIsCompound(compound);
+    if (!compound) {
+      if (leaf.instances && leaf.instances.length > 1) {
+        savedCompoundInstances.current = leaf.instances;
+      }
+      if (leaf.layout) {
+        savedCompoundLayout.current = leaf.layout;
+      }
+      const currentScale = leaf.instances[0]?.scale || 1.0;
+      updateLeaf((prev) => ({
+        instances: [{ shape: 0, scale: currentScale }],
+      }));
+    } else {
+      const instancesToRestore =
+        savedCompoundInstances.current.length > 1
+          ? savedCompoundInstances.current
+          : [
+              { shape: 0, scale: 1 },
+              { shape: 0, scale: 1 },
+              { shape: 0, scale: 1 },
+              { shape: 0, scale: 1 },
+              { shape: 0, scale: 1 },
+            ];
+      const layoutToRestore = savedCompoundLayout.current;
+      updateLeaf((prev) => ({
+        instances: instancesToRestore,
+        layout: layoutToRestore,
+      }));
+    }
+  };
 
   useEffect(() => {
     setTimeout(() => (isInitialLoad.current = false), 100);
@@ -62,6 +126,17 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
       if (ev.code == "KeyS" && (ev.ctrlKey || ev.metaKey)) {
         ev.preventDefault();
         save();
+      } else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z") {
+        if (ev.shiftKey) {
+          ev.preventDefault();
+          redo();
+        } else {
+          ev.preventDefault();
+          undo();
+        }
+      } else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "y") {
+        ev.preventDefault();
+        redo();
       }
     };
 
@@ -166,26 +241,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     setIsEdit(true);
   };
 
-  const renderSlider = ({ label, min, max, step, unit, value, onInput }: SliderProp) => (
-    <div class="stack" key={label}>
-      <div class="row">
-        <label>{label}</label>
-        <span>
-          {value}
-          {unit}
-        </span>
-      </div>
-      <input
-        type="range"
-        class="full-width"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onInput={(e) => onInput(parseFloat(e.currentTarget.value))}
-      />
-    </div>
-  );
+
 
   const renderSelect = (
     label: string,
@@ -249,7 +305,13 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                 <h2>Leaf Designer</h2>
                 <button onClick={() => location.route("/")}>Back to Library</button>
               </div>
-              <div class="btn-group" style={{ display: "flex", gap: "8px" }}>
+              <div class="btn-group" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z / Cmd+Z)">
+                  Undo
+                </button>
+                <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y / Cmd+Shift+Z)">
+                  Redo
+                </button>
                 <button onClick={handleExportMesh}>Export Mesh</button>
                 <button onClick={handleExportConfig}>Export Config</button>
               </div>
@@ -266,11 +328,11 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
               />
               <div class="row" style={{ justifyContent: "flex-start", gap: "20px" }}>
                 <label class="row">
-                  <input type="radio" name="type" checked={!isCompound} onChange={() => setIsCompound(false)} />
+                  <input type="radio" name="type" checked={!isCompound} onChange={() => handleSetCompound(false)} />
                   <span>Simple Leaf</span>
                 </label>
                 <label class="row">
-                  <input type="radio" name="type" checked={isCompound} onChange={() => setIsCompound(true)} />
+                  <input type="radio" name="type" checked={isCompound} onChange={() => handleSetCompound(true)} />
                   <span>Compound Leaf</span>
                 </label>
               </div>
@@ -304,15 +366,15 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                       updateLeaf((prev) => ({ layout: { ...prev.layout, arrangement: val as LeafArrangement } })),
                   )}
 
-                  {renderSlider({
-                    label: "Fanning Angle",
-                    min: 0,
-                    max: 360,
-                    step: 5,
-                    unit: "°",
-                    value: leaf.layout?.angle || 0,
-                    onInput: (val) => updateLeaf((prev) => ({ layout: { ...prev.layout, angle: val } })),
-                  })}
+                  <SliderInput
+                    label="Fanning Angle"
+                    min={0}
+                    max={360}
+                    step={5}
+                    unit="°"
+                    value={leaf.layout?.angle || 0}
+                    onInput={(val) => updateLeaf((prev) => ({ layout: { ...prev.layout, angle: val } }))}
+                  />
 
                   <label class="row" style={{ justifyContent: "flex-start" }}>
                     <input
@@ -334,20 +396,18 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
 
                   <div class="instances-list stack">
                     {leaf.instances.map((instance, index) => (
-                      <div key={index} class="row">
-                        <span>#{index + 1}</span>
-                        <input
-                          type="range"
-                          class="flex-grow"
-                          min="0.1"
-                          max="3.0"
-                          step="0.05"
+                      <div key={index} class="row" style={{ alignItems: "center" }}>
+                        <SliderInput
+                          label={`#${index + 1}`}
+                          min={0.1}
+                          max={3.0}
+                          step={0.05}
+                          unit="x"
                           value={instance.scale}
-                          onInput={(e) => handleInstance("scale", index, parseFloat(e.currentTarget.value))}
+                          onInput={(val) => handleInstance("scale", index, val)}
                         />
-                        <span>{instance.scale.toFixed(2)}x</span>
                         {leaf.instances.length > 1 && (
-                          <button onClick={() => handleInstance("remove", index)}>✕</button>
+                          <button onClick={() => handleInstance("remove", index)} title="Remove instance">✕</button>
                         )}
                       </div>
                     ))}
@@ -379,6 +439,22 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                     <button onClick={() => createGeom()}>Create New</button>
                   )}
                 </div>
+
+                {!isCompound && (
+                  <SliderInput
+                    label="Leaf Scale"
+                    min={0.1}
+                    max={5.0}
+                    step={0.05}
+                    unit="x"
+                    value={leaf.instances[0]?.scale || 1.0}
+                    onInput={(val) =>
+                      updateLeaf((prev) => ({
+                        instances: [{ shape: 0, scale: val }],
+                      }))
+                    }
+                  />
+                )}
               </div>
 
               <div class="stack">
@@ -443,39 +519,42 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
               {isCompound && (
                 <div class="stack">
                   <h4>Leaflet Stem (Petiolule)</h4>
-                  {stemSliderConfig("petiolule").map((p) =>
-                    renderSlider({
-                      label: p.label,
-                      min: p.min,
-                      max: p.max,
-                      step: p.step,
-                      unit: p.unit,
-                      value: p.value,
-                      onInput: (val) =>
+                  {stemSliderConfig("petiolule").map((p) => (
+                    <SliderInput
+                      key={p.label}
+                      label={p.label}
+                      min={p.min}
+                      max={p.max}
+                      step={p.step}
+                      unit={p.unit}
+                      value={p.value}
+                      onInput={(val) =>
                         updateLeaf((prev) => {
                           const shape = [...prev.shape];
                           shape[0] = { ...shape[0], petiolule: { ...shape[0].petiolule, [p.field]: val } };
                           return { shape };
-                        }),
-                    }),
-                  )}
+                        })
+                      }
+                    />
+                  ))}
                 </div>
               )}
 
               {/* main stem (petiole) */}
               <div class="stack">
                 <h4>Main Stem (Petiole)</h4>
-                {stemSliderConfig("petiole").map((s) =>
-                  renderSlider({
-                    label: s.label,
-                    min: s.min,
-                    max: s.max,
-                    step: s.step,
-                    unit: s.unit,
-                    value: s.value,
-                    onInput: (val) => updateLeaf((prev) => ({ petiole: { ...prev.petiole, [s.field]: val } })),
-                  }),
-                )}
+                {stemSliderConfig("petiole").map((s) => (
+                  <SliderInput
+                    key={s.label}
+                    label={s.label}
+                    min={s.min}
+                    max={s.max}
+                    step={s.step}
+                    unit={s.unit}
+                    value={s.value}
+                    onInput={(val) => updateLeaf((prev) => ({ petiole: { ...prev.petiole, [s.field]: val } }))}
+                  />
+                ))}
               </div>
             </div>
           </aside>

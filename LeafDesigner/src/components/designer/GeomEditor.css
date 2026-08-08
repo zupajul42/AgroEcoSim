@@ -2,6 +2,8 @@
   position: relative;
   width: 100vw;
   height: 100vh;
+  background-color: var(--bg-0);
+  color: var(--fg-0);
   overflow: hidden;
   user-select: none;
 }
@@ -9,6 +11,7 @@
 #canvas {
   width: 100%;
   height: 100%;
+  background-color: var(--bg-0);
   cursor: crosshair;
 }
 
@@ -16,19 +19,21 @@
   position: absolute;
   top: 12px;
   left: 12px;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-1);
-  border-radius: 4px;
-  padding: 0.25rem 1rem;
+  border: 1px solid var(--bg-3);
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
   z-index: 10;
+  gap: 0.5rem;
 }
 
 .toolbar-group {
   display: flex;
-  flex-direction: column;
-
-  gap: 0.5rem;
+  align-items: center;
+  gap: 8px;
   font-size: 0.85rem;
-  margin: 1rem 0;
 }
 
 .overlay-header h3 {
@@ -50,7 +55,7 @@
 }
 
 .axis-line {
-  stroke: rgba(255, 255, 255, 0.15);
+  stroke: var(--bg-3);
   stroke-dasharray: 3 3;
   stroke-width: 1;
 }
@@ -62,8 +67,8 @@
 }
 
 .leaf-shape-polygon {
-  fill: rgba(78, 119, 17, 0.22);
-  stroke: #85ca20;
+  fill: color-mix(in srgb, var(--accent) 25%, transparent);
+  stroke: var(--accent);
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -76,36 +81,45 @@
 }
 
 .line-helper:hover {
-  stroke: rgba(133, 202, 32, 0.4);
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
+/* NO CSS transition on point handle to prevent mouse drag jitter */
 .point-handle {
-  fill: #ffffff;
-  stroke: #1e1e1e;
+  fill: var(--fg-0);
+  stroke: var(--bg-0);
   stroke-width: 2;
   cursor: pointer;
 }
 
 .point-handle:hover {
-  fill: #85ca20;
+  fill: var(--accent);
 }
 
 .point-handle[data-selected="true"] {
-  fill: #ff9800;
-  stroke: #ffffff;
+  fill: var(--accent);
+  stroke: var(--fg-0);
   stroke-width: 2.5;
 }
 
 .point-handle[data-mirrored="true"] {
-  fill: rgba(255, 255, 255, 0.35);
-  stroke: rgba(133, 202, 32, 0.6);
+  fill: var(--fg-3);
+  stroke: var(--accent);
   opacity: 0.6;
 }
 
 .petiole-base-dot {
   fill: #e74c3c;
-  stroke: #ffffff;
-  stroke-width: 1.5;
+  stroke: var(--fg-0);
+  stroke-width: 2;
+  cursor: grab;
+  transition: r 0.15s ease, fill 0.15s ease;
+}
+
+.petiole-base-dot:hover {
+  fill: #ff6b6b;
+  r: 9;
+  cursor: grabbing;
 }
 
 .overlay-footer {
@@ -113,8 +127,10 @@
   bottom: 12px;
   left: 12px;
   background-color: var(--bg-1);
+  border: 1px solid var(--bg-3);
+  color: var(--fg-0);
   border-radius: 4px;
-  padding: 0.25rem 1rem;
+  padding: 4px 10px;
   font-size: 0.75rem;
   pointer-events: none;
 }

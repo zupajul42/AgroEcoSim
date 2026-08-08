@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { LeafGeometry } from "../../types/leaf";
 import { state } from "../../pages/AppState";
 import { useLocation } from "preact-iso";
+import { useHistory } from "../../hooks/useHistory";
 import "./GeomEditor.css";
 
 type Point = { x: number; y: number };
@@ -30,7 +31,16 @@ export function GeomEditor({ id }: { id: string }) {
     );
   }
 
-  const [geom, setGeom] = useState<LeafGeometry>(initialGeom);
+  const {
+    state: geom,
+    set: setGeom,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    pushState,
+  } = useHistory<LeafGeometry>(initialGeom);
+
   const [selectedPoint, setSelectedPoint] = useState<number>(-1);
   const [enableSnap, setEnableSnap] = useState<boolean>(true);
   const [gridSnap, setGridSnap] = useState<number>(0.1);
@@ -39,11 +49,12 @@ export function GeomEditor({ id }: { id: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<SVGSVGElement>(null);
   const [viewSize, setViewSize] = useState({ width: 800, height: 600 });
-  const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
+  const [offset] = useState<Point>({ x: 0, y: 0 });
   const zoom = 140; // Pixels per coordinate unit
 
   const draggedRef = useRef<number>(-1);
-  const didMoveRef = useRef<boolean>(false);
+  const draggingOrigin = useRef<boolean>(false);
+  const movedRef = useRef<boolean>(false);
   const geomRef = useRef<LeafGeometry>(geom);
   geomRef.current = geom;
 
@@ -67,6 +78,39 @@ export function GeomEditor({ id }: { id: string }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Global Keyboard Shortcuts (Undo/Redo & Delete)
+  useEffect(() => {
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      const isInput =
+        ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement;
+
+      // Undo / Redo
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z") {
+        if (ev.shiftKey) {
+          ev.preventDefault();
+          redo();
+        } else {
+          ev.preventDefault();
+          undo();
+        }
+        return;
+      }
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "y") {
+        ev.preventDefault();
+        redo();
+        return;
+      }
+
+      // Delete selected point
+      if (!isInput && (ev.key === "Backspace" || ev.key === "Delete")) {
+        removeSelected();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedPoint, geom, mirrorX, undo, redo]);
 
   const centerX = viewSize.width / 2;
   const centerY = viewSize.height / 2 + 80; // Stem base slightly below center
@@ -111,13 +155,16 @@ export function GeomEditor({ id }: { id: string }) {
     e.preventDefault();
     e.stopPropagation();
 
+    // Snapshot state before dragging for Undo
+    pushState(geomRef.current);
+
     draggedRef.current = index;
-    didMoveRef.current = false;
+    movedRef.current = false;
     setSelectedPoint(index);
 
     const handleMouseMove = (moveEv: MouseEvent) => {
       if (draggedRef.current === -1) return;
-      didMoveRef.current = true;
+      movedRef.current = true;
 
       const svg = canvasRef.current;
       if (!svg) return;
@@ -135,9 +182,9 @@ export function GeomEditor({ id }: { id: string }) {
 
         if (mirrorXRef.current) {
           const symmetric = buildSymmetricContour(updatedPoints);
-          setGeom({ ...currentGeom, points: symmetric });
+          setGeom({ ...currentGeom, points: symmetric }, false);
         } else {
-          setGeom({ ...currentGeom, points: updatedPoints });
+          setGeom({ ...currentGeom, points: updatedPoints }, false);
         }
       }
     };
@@ -154,8 +201,73 @@ export function GeomEditor({ id }: { id: string }) {
     window.addEventListener("mouseup", handleMouseUp);
   };
 
+  // Move origin dot
+  const handleOriginMouseDown = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    pushState(geomRef.current);
+    draggingOrigin.current = true;
+    movedRef.current = false;
+
+    const initialPoints = [...geomRef.current.points];
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const handleMouseMove = (moveEv: MouseEvent) => {
+      movedRef.current = true;
+
+      let dx = (moveEv.clientX - startX) / zoom;
+      let dy = -(moveEv.clientY - startY) / zoom;
+
+      if (enableSnap && gridSnap > 0) {
+        dx = Math.round(dx / gridSnap) * gridSnap;
+        dy = Math.round(dy / gridSnap) * gridSnap;
+      }
+
+      if (mirrorXRef.current) dx = 0;
+      if (dx === 0 && dy === 0) return;
+
+      const currentGeom = geomRef.current;
+      if (!currentGeom) return;
+
+      const shifted = initialPoints.map((p) => ({
+        x: Math.round((p.x - dx) * 100) / 100,
+        y: Math.round((p.y - dy) * 100) / 100,
+      }));
+
+      const symmetric = mirrorXRef.current ? buildSymmetricContour(shifted) : shifted;
+      setGeom({ ...currentGeom, points: symmetric }, false);
+    };
+
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        draggingOrigin.current = false;
+      }, 50);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const originToBase = () => {
+    if (!geom.points || geom.points.length === 0) return;
+    const ys = geom.points.map((p) => p.y);
+    const minY = Math.min(...ys);
+    if (Math.abs(minY) < 0.001) return;
+
+    const shifted = geom.points.map((p) => ({
+      x: p.x,
+      y: Math.round((p.y - minY) * 100) / 100,
+    }));
+    const symmetric = mirrorX ? buildSymmetricContour(shifted) : shifted;
+    setGeom({ ...geom, points: symmetric });
+  };
+
   const onCanvasClick = (e: MouseEvent) => {
-    if (didMoveRef.current || draggedRef.current !== -1) return;
+    if (movedRef.current || draggedRef.current !== -1 || draggingOrigin.current) return;
 
     const svg = canvasRef.current;
     if (!svg) return;
@@ -209,25 +321,21 @@ export function GeomEditor({ id }: { id: string }) {
     setGeom({ ...geom, points: symmetric });
   };
 
-  useEffect(() => {
-    const handleKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === "Backspace" || ev.key === "Delete") {
-        removeSelected();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPoint, geom, mirrorX]);
-
   const originScreen = toScreen({ x: 0, y: 0 });
   const patternStep = Math.max(gridSnap * zoom, 4);
 
   return (
     <div className="geom-viewport" ref={containerRef}>
-
+      {/* Header */}
       <div className="overlay-header">
         <div className="toolbar-group">
           <button onClick={() => location.route("/")}>Back to Library</button>
+          <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z / Cmd+Z)">
+            Undo
+          </button>
+          <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y / Cmd+Shift+Z)">
+            Redo
+          </button>
         </div>
         <div className="toolbar-group">
           <input
@@ -278,6 +386,10 @@ export function GeomEditor({ id }: { id: string }) {
             <input type="checkbox" checked={mirrorX} onChange={(e) => toggleMirrorX(e.currentTarget.checked)} />
             Mirror X
           </label>
+
+          <button onClick={originToBase} title="Move Origin (0,0) to lowest point of leaf shape">
+            Origin to Base
+          </button>
         </div>
       </div>
 
@@ -292,7 +404,7 @@ export function GeomEditor({ id }: { id: string }) {
             patternUnits="userSpaceOnUse"
             patternTransform={`translate(${originScreen.x % patternStep}, ${originScreen.y % patternStep})`}
           >
-            <circle cx={patternStep} cy={patternStep} r="1.5" fill="#444444" />
+            <circle cx={patternStep} cy={patternStep} r="1.5" fill="var(--bg-3)" />
           </pattern>
         </defs>
 
@@ -337,8 +449,16 @@ export function GeomEditor({ id }: { id: string }) {
           );
         })}
 
-        {/* Stem base marker at (0,0) */}
-        <circle cx={originScreen.x} cy={originScreen.y} r="5" className="petiole-base-dot" />
+        {/* Stem base marker */}
+        <circle
+          cx={originScreen.x}
+          cy={originScreen.y}
+          r="7"
+          className="petiole-base-dot"
+          onMouseDown={handleOriginMouseDown}
+        >
+          <title>Drag red dot to set Origin (Stem base)</title>
+        </circle>
 
         {/* Control point handles */}
         {geom.points?.map((p, i) => {
@@ -361,8 +481,8 @@ export function GeomEditor({ id }: { id: string }) {
 
       <div className="overlay-footer">
         {geom.points?.length || 0} vertices |{" "}
-        {mirrorX ? "MIRROR MODE (Active Right Half -> Auto-Reflected Left Half) | " : ""}
-        Add, move or delete points
+        {mirrorX ? "Right half active -> Auto-Reflecting left half | " : ""}
+        Drag origin to move stem | Add, move or delete points
       </div>
     </div>
   );
