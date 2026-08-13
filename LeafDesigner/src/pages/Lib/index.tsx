@@ -155,6 +155,14 @@ export function Library() {
     setLeafs(state.leafs.all());
   }
 
+  async function dumpGeoms(ev: any) {
+    const geoms = state.geoms.all();
+    const json = JSON.stringify(geoms, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  }
+
   return (
     <div className="library">
       {/* Leafs Section */}
@@ -208,8 +216,11 @@ export function Library() {
 
       {/* Geometries Section */}
       <section>
-        <div style={{ marginBottom: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h1>Leaf Geometries</h1>
+          <button className="btn" onClick={dumpGeoms}>
+            Export dump
+          </button>
         </div>
 
         <div className="leaf-list">

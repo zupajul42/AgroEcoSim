@@ -24,6 +24,7 @@ import {
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Leaf, LeafLayout, LeafLayoutType, LeafShape, Petiole } from "../../types/leaf";
 import { state } from "../../pages/AppState";
+import { generateFoldedMeshOutline, veinTreeHasFold } from "../../utils/veinGenerator";
 
 import { vec3, mat4 } from "gl-matrix";
 
@@ -272,6 +273,36 @@ export function generateShapeMesh(shape: LeafShape) {
   const normalizedGeom = state.geoms.getNormalized(shape.geom);
   const rawPoints = normalizedGeom?.points;
   if (!rawPoints || rawPoints.length < 3) return { position: [], index: [] };
+
+  const rawGeom = state.geoms.get(shape.geom);
+  const veins = rawGeom?.veins;
+
+
+  if (rawGeom && veins?.root && veinTreeHasFold(veins.root)) {
+    const bounds = { x: { min: Infinity, max: -Infinity }, y: { min: Infinity, max: -Infinity } };
+    for (const p of rawGeom.points) {
+      if (p.x < bounds.x.min) bounds.x.min = p.x;
+      if (p.x > bounds.x.max) bounds.x.max = p.x;
+      if (p.y < bounds.y.min) bounds.y.min = p.y;
+      if (p.y > bounds.y.max) bounds.y.max = p.y;
+    }
+    const scale = Math.max(bounds.x.max - bounds.x.min, bounds.y.max - bounds.y.min, 0.0001);
+
+    const folded = generateFoldedMeshOutline(veins, { mirrorX: true, params: veins.params });
+    if (folded.length >= 3) {
+      const position: number[] = [0, 0, 0];
+      folded.forEach((p) => position.push(p.x / scale, p.y / scale, p.z / scale));
+
+      const index: number[] = [];
+      const n = folded.length;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        index.push(0, i + 1, j + 1);
+      }
+
+      return { position, index };
+    }
+  }
 
   const adjusted = rawPoints.map((p) => new Vector2(p.x, p.y));
 

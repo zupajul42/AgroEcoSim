@@ -1,8 +1,37 @@
+export interface VeinNode {
+  id: string;
+  x: number;
+  y: number;
+  children: VeinNode[];
+  foldAngle?: number;
+
+  // Per-joint overrides
+  margin?: number;
+  curvature?: number;
+  smoothing?: number;
+  lobeDepth?: number;
+  lobeThreshold?: number;
+}
+
+export interface VeinGenParams {
+  lobeDepth: number;  // 0-1: how deep the outline dips toward a branch joint between two child veins (0 = smooth, 1 = follows the joint exactly)
+  lobeThreshold: number; // 0+: minimum distance between two sibling veins before a lobe starts forming between them at all — below it, the transition stays smooth regardless of lobeDepth
+  margin: number;     // 0-0.5: extra distance the outline extends beyond each vein tip
+  baseWidth: number;  // 0-1: relative width of the transition point near the stem base
+  curvature: number;  // 0-1: spline tension — 0 = straight segments between key points, 1 = fully curved
+  smoothing: number;  // 2-8: spline interpolation resolution
+}
+
+export interface VeinData {
+  root: VeinNode;
+  params?: VeinGenParams;
+}
+
 export interface LeafGeometry {
   id: string;
   name: string;
   points: { x: number; y: number }[];
-  veins: any;
+  veins?: VeinData | null;
 }
 
 export interface Leaf {
