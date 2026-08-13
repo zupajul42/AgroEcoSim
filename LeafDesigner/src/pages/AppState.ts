@@ -1,3 +1,4 @@
+import * as Geometries from "./PredefinedGeometries";
 import { Leaf, LeafGeometry } from "../types/leaf";
 
 const demoLeaf: Leaf = {
@@ -27,35 +28,6 @@ const demoLeaf: Leaf = {
   petiole: { len: 1.5, angle: 0, width: 0.15, x: 0, y: 0 },
 };
 
-const predefinedGeometries: LeafGeometry[] = [
-  {
-    id: "def:quad",
-    name: "quad",
-    points: [
-      { x: -1, y: 0 },
-      { x: 1, y: 0 },
-      { x: 1, y: 2 },
-      { x: -1, y: 2 },
-    ],
-    veins: null,
-  },
-  {
-    id: "def:obovate",
-    name: "obovate",
-    points: [
-      { x: 0, y: 1.1 },
-      { x: 0.2, y: 0.8 },
-      { x: 0.3, y: 0.5 },
-      { x: 0.2, y: 0.1 },
-      { x: 0.1, y: 0 },
-      { x: -0.1, y: 0 },
-      { x: -0.2, y: 0.1 },
-      { x: -0.3, y: 0.5 },
-      { x: -0.2, y: 0.8 },
-    ],
-    veins: null,
-  },
-];
 
 class AppState {
   leafs: LeafStorage;
@@ -164,7 +136,7 @@ class GeometryStorage {
 
   public all(): LeafGeometry[] {
     this._load();
-    for (const p of predefinedGeometries) {
+    for (const p of Geometries.all) {
       if (!this.leafGeoms.some((g) => g.id == p.id)) {
         this.leafGeoms.push(p);
         this._save();
