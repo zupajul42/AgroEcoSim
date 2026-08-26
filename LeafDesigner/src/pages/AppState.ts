@@ -1,11 +1,12 @@
 import * as Geometries from "./PredefinedGeometries";
 import { Leaf, LeafGeometry } from "../types/leaf";
+import { createDefaultLodGeom } from "../utils/lod";
 
 const demoLeaf: Leaf = {
   name: "Chestnut",
   shape: [
     {
-      geom: "def:obovate",
+      geom: ["def:obovate"],
       margin: "serrate",
       venation: "palmate",
       folding: "none",
@@ -58,7 +59,7 @@ class LeafStorage {
       petiole: { len: 3, width: 0.1, x: 0, y: 0, angle: 0 },
       shape: [
         {
-          geom: "def:obovate",
+          geom: createDefaultLodGeom(),
           folding: "none",
           margin: "serrate",
           petiolule: { len: 0, width: 0, x: 0, y: 0, angle: 0 },
@@ -185,7 +186,9 @@ class GeometryStorage {
 
   public getUsageCount(id: string, leafs: Leaf[]): number {
     if (!leafs) return 0;
-    return leafs.filter((l) => l.shape?.some((s) => s.geom === id)).length;
+    return leafs.filter((l) =>
+      l.shape?.some((s) => (Array.isArray(s.geom) ? s.geom.includes(id) : s.geom === id)),
+    ).length;
   }
 
   public get(id: string) {

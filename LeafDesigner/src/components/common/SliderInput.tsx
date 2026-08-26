@@ -9,6 +9,7 @@ export interface SliderInputProps {
   className?: string;
   style?: any;
   inline?: boolean;
+  defaultValue?: number;
 }
 
 export function SliderInput({
@@ -22,7 +23,10 @@ export function SliderInput({
   className = "",
   inline = false,
   style = {},
+  defaultValue,
 }: SliderInputProps) {
+  const resetToDefault = () => { if (defaultValue !== undefined) onInput(defaultValue); };
+  const resetTitle = defaultValue !== undefined ? `Double-click to reset to ${defaultValue}${unit}` : undefined;
 
   if (inline) return (
     <div className={`slider-input ${className}`} style={style}>
@@ -35,6 +39,8 @@ export function SliderInput({
           step={step}
           value={value}
           onInput={(e) => onInput(parseFloat((e.target as HTMLInputElement).value))}
+          onDblClick={resetToDefault}
+          title={resetTitle}
           style={{ flex: 1 }}
         />
         <div>
@@ -86,6 +92,8 @@ export function SliderInput({
         step={step}
         value={value}
         onInput={(e) => onInput(parseFloat((e.target as HTMLInputElement).value))}
+        onDblClick={resetToDefault}
+        title={resetTitle}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { LeafGeometry, VeinData, VeinNode, VeinGenParams } from "../../types/leaf";
+import { LeafGeometry, LeafMargin, VeinData, VeinNode, VeinGenParams } from "../../types/leaf";
 import { state } from "../../pages/AppState";
 import { useLocation } from "preact-iso";
 import { useHistory } from "../../hooks/useHistory";
@@ -66,7 +66,7 @@ export function GeomEditor({ id }: { id: string }) {
   // null means "the root" (the stem base).
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
-  const initParams: VeinGenParams = initialGeom.veins.params || { ...DEFAULT_VEIN_PARAMS };
+  const initParams: VeinGenParams = initialGeom.veins?.params || { ...DEFAULT_VEIN_PARAMS };
   const [genParams, setGenParams] = useState<VeinGenParams>(initParams);
 
   const [enableSnap, setEnableSnap] = useState<boolean>(true);
@@ -417,7 +417,7 @@ export function GeomEditor({ id }: { id: string }) {
 
       const veins = migrateVeinData(geomRef.current.veins);
       const newX = snapToAxis(pt.x);
-      const newY = Math.max(0.05, pt.y);
+      const newY = pt.y;
       const updatedRoot = updateVeinTree(veins.root, nodeId, (node) => ({
         ...node,
         x: r2(newX),
@@ -459,7 +459,8 @@ export function GeomEditor({ id }: { id: string }) {
     const parent = findVeinNode(veins.root, parentId) || veins.root;
 
     const x = targetPt ? snapToAxis(targetPt.x) : r2(parent.x + 0.5);
-    const y = targetPt ? Math.max(parent.y + 0.05, targetPt.y) : r2(parent.y + 0.4);
+    // Allow growing "backward"
+    const y = targetPt ? targetPt.y : r2(parent.y + 0.4);
 
     const newNode = createVeinNode(x, y);
     const rootWithNewNode = addVeinChild(veins.root, parentId, newNode);
@@ -617,6 +618,20 @@ export function GeomEditor({ id }: { id: string }) {
         </div>
 
         <div className="toolbar-group">
+          <select
+            value={geom.margin || "entire"}
+            onChange={(e) => setGeom({ ...geom, margin: e.currentTarget.value as LeafMargin })}
+            title="Botanical margin (edge) type of this leaf shape"
+          >
+            <option value="entire">Entire</option>
+            <option value="serrate">Serrate</option>
+            <option value="dentate">Dentate</option>
+            <option value="lobed">Lobed</option>
+            <option value="incised">Incised</option>
+          </select>
+        </div>
+
+        <div className="toolbar-group">
           <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
             <input
               type="checkbox"
@@ -689,6 +704,7 @@ export function GeomEditor({ id }: { id: string }) {
             step={0.02}
             value={genParams.lobeDepth}
             onInput={(v) => updateParam("lobeDepth", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
             inline
           />
           <SliderInput
@@ -698,6 +714,7 @@ export function GeomEditor({ id }: { id: string }) {
             step={0.02}
             value={genParams.lobeThreshold}
             onInput={(v) => updateParam("lobeThreshold", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
             inline
           />
           <SliderInput
@@ -707,6 +724,7 @@ export function GeomEditor({ id }: { id: string }) {
             step={0.01}
             value={genParams.margin}
             onInput={(v) => updateParam("margin", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.margin}
             inline
           />
           <SliderInput
@@ -716,6 +734,7 @@ export function GeomEditor({ id }: { id: string }) {
             step={0.02}
             value={genParams.baseWidth}
             onInput={(v) => updateParam("baseWidth", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.baseWidth}
             inline
           />
           <SliderInput
@@ -725,6 +744,7 @@ export function GeomEditor({ id }: { id: string }) {
             step={0.02}
             value={genParams.curvature}
             onInput={(v) => updateParam("curvature", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.curvature}
             inline
           />
           <SliderInput
@@ -734,6 +754,7 @@ export function GeomEditor({ id }: { id: string }) {
             step={1}
             value={genParams.smoothing}
             onInput={(v) => updateParam("smoothing", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.smoothing}
             inline
           />
         </div>
@@ -750,6 +771,7 @@ export function GeomEditor({ id }: { id: string }) {
             step={1}
             value={selectedVeinNode.foldAngle ?? 0}
             onInput={(v) => updateSelectedFoldAngle(v)}
+            defaultValue={0}
             inline
           />
 
@@ -761,6 +783,7 @@ export function GeomEditor({ id }: { id: string }) {
               step={0.02}
               value={selectedLobeDepth}
               onInput={(v) => updateSelectedLobeDepth(v)}
+              defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
               inline
             />
           )}
@@ -773,6 +796,7 @@ export function GeomEditor({ id }: { id: string }) {
               step={0.02}
               value={selectedLobeThreshold}
               onInput={(v) => updateSelectedLobeThreshold(v)}
+              defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
               inline
             />
           )}
@@ -786,6 +810,7 @@ export function GeomEditor({ id }: { id: string }) {
                 step={0.01}
                 value={selectedTipParams.margin}
                 onInput={(v) => updateSelectedTipParam("margin", v)}
+                defaultValue={DEFAULT_VEIN_PARAMS.margin}
                 inline
               />
               <SliderInput
@@ -795,6 +820,7 @@ export function GeomEditor({ id }: { id: string }) {
                 step={0.02}
                 value={selectedTipParams.curvature}
                 onInput={(v) => updateSelectedTipParam("curvature", v)}
+                defaultValue={DEFAULT_VEIN_PARAMS.curvature}
                 inline
               />
               <SliderInput
@@ -804,6 +830,7 @@ export function GeomEditor({ id }: { id: string }) {
                 step={1}
                 value={selectedTipParams.smoothing}
                 onInput={(v) => updateSelectedTipParam("smoothing", v)}
+                defaultValue={DEFAULT_VEIN_PARAMS.smoothing}
                 inline
               />
             </>

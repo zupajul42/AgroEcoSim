@@ -25,6 +25,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Leaf, LeafLayout, LeafLayoutType, LeafShape, Petiole } from "../../types/leaf";
 import { state } from "../../pages/AppState";
 import { generateFoldedMeshOutline, veinTreeHasFold } from "../../utils/veinGenerator";
+import { applyMarginTeethToFoldedOutline, applyMarginTeethToOutline } from "../../utils/marginTeeth";
+import { resolveLodGeom, resolveLodScale } from "../../utils/lod";
 
 import { vec3, mat4 } from "gl-matrix";
 
@@ -34,10 +36,11 @@ interface PreviewProps {
   height?: string;
   controls?: boolean;
   showAxis?: boolean;
+  lod?: number;
   meshCallback?: (mesh: { position: number[]; index: number[] }) => {};
 }
 
-export function Preview({ leaf, width, height, controls, showAxis, meshCallback }: PreviewProps) {
+export function Preview({ leaf, width, height, controls, showAxis, lod = 0, meshCallback }: PreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -137,7 +140,7 @@ export function Preview({ leaf, width, height, controls, showAxis, meshCallback 
     const three = threeRef.current;
     if (!three || !three.leaf) return;
 
-    const rawMesh = generateMesh(leaf);
+    const rawMesh = generateMesh(leaf, lod);
 
     const geom = new BufferGeometry();
     console.log(rawMesh.position);
@@ -171,7 +174,7 @@ export function Preview({ leaf, width, height, controls, showAxis, meshCallback 
     }
 
     if (meshCallback) meshCallback(rawMesh);
-  }, [leaf]);
+  }, [leaf, lod]);
 
   return (
     <div
@@ -188,7 +191,7 @@ export function Preview({ leaf, width, height, controls, showAxis, meshCallback 
 }
 
 function calculateLeafletTransform(index: number, count: number, petiole: Petiole, layout?: LeafLayout) {
-  const { type, arrangement, terminalLeaf, angle } = layout ?? {
+  const { type, arrangement, terminalLeaf, angle, distributionCurve = 1 } = layout ?? {
     type: "palmate",
     arrangement: "alternate",
     angle: 60,
@@ -221,22 +224,30 @@ function calculateLeafletTransform(index: number, count: number, petiole: Petiol
       rotation.z = 0;
     } else {
       const sideLeafletsCount = hasTerminal ? count - 1 : count;
-      const pairIndex = Math.floor(index / 2); // 0, 0, 1, 1, 2, 2...
-      const totalPairs = Math.ceil(sideLeafletsCount / 2);
-
       const isLeft = index % 2 === 0;
-      const heightFactor = 0.2 + (pairIndex / totalPairs) * 0.7;
-
-      position.y = petioleLength * heightFactor;
-
-      if (arrangement === "opposite") {
-        position.x = petioleWidthHalf * (isLeft ? -1 : 1);
-      } else if (arrangement === "alternate") {
-        if (!isLeft) position.y += ((petioleLength * 0.7) / totalPairs) * 0.5;
-        position.x = petioleWidthHalf * (isLeft ? -1 : 1);
-      }
       const branchAngle = angleRad;
       rotation.z = isLeft ? branchAngle : -branchAngle;
+      position.x = petioleWidthHalf * (isLeft ? -1 : 1);
+
+      const maxH = 0.95;
+      const minH = 0;
+      const growthRange = Math.max(0.02, Math.min(1, distributionCurve));
+      const rangeMinH = maxH - growthRange * (maxH - minH);
+      const easeHeight = (t: number) => rangeMinH + Math.max(0, Math.min(1, t)) * (maxH - rangeMinH);
+
+      if (arrangement === "opposite") {
+        // True pairs: left/right sit at the same height, one pair per rung up the petiole.
+        const pairIndex = Math.floor(index / 2);
+        const totalPairs = Math.ceil(sideLeafletsCount / 2);
+        const t = totalPairs > 1 ? pairIndex / (totalPairs - 1) : 0;
+        position.y = petioleLength * easeHeight(t);
+      } else {
+        // True alternate: every leaflet gets its own rung, sides just alternate by index —
+        // so only ONE side ever reaches the topmost rung closest to the terminal leaf,
+        // instead of a left/right pair both crowding near it.
+        const t = sideLeafletsCount > 1 ? index / (sideLeafletsCount - 1) : 0;
+        position.y = petioleLength * easeHeight(t);
+      }
     }
   }
 
@@ -268,15 +279,16 @@ function generateBoxBuffer(width: number, length: number, height: number = 0.08)
   return { position, index };
 }
 
-export function generateShapeMesh(shape: LeafShape) {
-  if (!shape || !shape.geom) return { position: [], index: [] };
-  const normalizedGeom = state.geoms.getNormalized(shape.geom);
+export function generateShapeMesh(shape: LeafShape, lod: number = 0) {
+  const geomId = resolveLodGeom(shape?.geom, lod);
+  if (!shape || !geomId) return { position: [], index: [] };
+  const normalizedGeom = state.geoms.getNormalized(geomId);
   const rawPoints = normalizedGeom?.points;
   if (!rawPoints || rawPoints.length < 3) return { position: [], index: [] };
 
-  const rawGeom = state.geoms.get(shape.geom);
+  const rawGeom = state.geoms.get(geomId);
   const veins = rawGeom?.veins;
-
+  const marginType = rawGeom?.margin;
 
   if (rawGeom && veins?.root && veinTreeHasFold(veins.root)) {
     const bounds = { x: { min: Infinity, max: -Infinity }, y: { min: Infinity, max: -Infinity } };
@@ -288,13 +300,19 @@ export function generateShapeMesh(shape: LeafShape) {
     }
     const scale = Math.max(bounds.x.max - bounds.x.min, bounds.y.max - bounds.y.min, 0.0001);
 
-    const folded = generateFoldedMeshOutline(veins, { mirrorX: true, params: veins.params });
-    if (folded.length >= 3) {
+    const folded = generateFoldedMeshOutline(veins, { mirrorX: true, params: veins.params }).map((p) => ({
+      x: p.x / scale,
+      y: p.y / scale,
+      z: p.z / scale,
+    }));
+    const toothed = applyMarginTeethToFoldedOutline(folded, marginType);
+
+    if (toothed.length >= 3) {
       const position: number[] = [0, 0, 0];
-      folded.forEach((p) => position.push(p.x / scale, p.y / scale, p.z / scale));
+      toothed.forEach((p) => position.push(p.x, p.y, p.z));
 
       const index: number[] = [];
-      const n = folded.length;
+      const n = toothed.length;
       for (let i = 0; i < n; i++) {
         const j = (i + 1) % n;
         index.push(0, i + 1, j + 1);
@@ -304,7 +322,8 @@ export function generateShapeMesh(shape: LeafShape) {
     }
   }
 
-  const adjusted = rawPoints.map((p) => new Vector2(p.x, p.y));
+  const toothedPoints = applyMarginTeethToOutline(rawPoints, marginType);
+  const adjusted = toothedPoints.map((p) => new Vector2(p.x, p.y));
 
   const faces = ShapeUtils.triangulateShape(adjusted, []);
   const position: number[] = [];
@@ -316,7 +335,7 @@ export function generateShapeMesh(shape: LeafShape) {
   return { position, index };
 }
 
-export function generateMesh(leaf: Leaf) {
+export function generateMesh(leaf: Leaf, lod: number = 0) {
   if (!leaf) return { position: [], index: [] };
 
   // generate buffers (TRIANGLES, indexed)
@@ -351,7 +370,7 @@ export function generateMesh(leaf: Leaf) {
   const mainShape =
     leaf.shape && leaf.shape[0]
       ? leaf.shape[0]
-      : { geom: "def:obovate", petiolule: { len: 0, width: 0, x: 0, y: 0, angle: 0 } };
+      : { geom: ["def:obovate"], petiolule: { len: 0, width: 0, x: 0, y: 0, angle: 0 } };
   const petioluleLength = mainShape.petiolule?.len || 0.0;
   const petioluleWidth = mainShape.petiolule?.width || 0.0;
   const localPetioluleAngleRad = -((mainShape.petiolule?.angle || 0) / 180) * Math.PI;
@@ -359,8 +378,17 @@ export function generateMesh(leaf: Leaf) {
   //   + leaflet petiole
   const basePetioluleMesh = petioluleLength > 0 ? generateBoxBuffer(petioluleWidth, petioluleLength, 0.08) : null;
 
-  //   + leaflet shape
-  const baseLeafShapeMesh = generateShapeMesh(mainShape as LeafShape);
+  //   + leaflet shape — stretched independently on x/y per LOD, so one geometry can stand
+  //   in for several slightly different LODs instead of needing a near-duplicate each time.
+  const baseLeafShapeMesh = generateShapeMesh(mainShape as LeafShape, lod);
+  const bladeScaleX = resolveLodScale((mainShape as LeafShape).scaleX, lod);
+  const bladeScaleY = resolveLodScale((mainShape as LeafShape).scaleY, lod);
+  if (bladeScaleX !== 1 || bladeScaleY !== 1) {
+    for (let i = 0; i < baseLeafShapeMesh.position.length; i += 3) {
+      baseLeafShapeMesh.position[i] *= bladeScaleX;
+      baseLeafShapeMesh.position[i + 1] *= bladeScaleY;
+    }
+  }
 
   const instances = leaf.instances && leaf.instances.length > 0 ? leaf.instances : [{ shape: 0, scale: 1 }];
 

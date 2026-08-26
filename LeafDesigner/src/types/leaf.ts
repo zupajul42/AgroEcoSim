@@ -32,6 +32,7 @@ export interface LeafGeometry {
   name: string;
   points: { x: number; y: number }[];
   veins?: VeinData | null;
+  margin?: LeafMargin;
 }
 
 export interface Leaf {
@@ -47,7 +48,9 @@ export type LeafVenation = "arcuate" | "palmate" | "pinnate" | "parallel";
 export type LeafFolding = "none" | "rolled" | "convolute";
 
 export interface LeafShape {
-  geom: string;
+  geom: string[];
+  scaleX?: number[];
+  scaleY?: number[];
   margin: LeafMargin;
   venation: LeafVenation;
   folding: LeafFolding;
@@ -62,6 +65,7 @@ export interface LeafLayout {
   angle: number;
   arrangement: LeafArrangement;
   terminalLeaf: boolean;
+  distributionCurve?: number;
 }
 
 export interface LeafInstance {
