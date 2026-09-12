@@ -78,9 +78,8 @@ export const ovate: LeafGeometry = {
       lobeDepth: 0,
       lobeThreshold: 0,
       margin: 0.27,
-      baseWidth: 0.7,
       curvature: 0.66,
-      smoothing: 4,
+      subdivisions: 6,
     },
   },
 };
@@ -167,9 +166,8 @@ export const obovate = {
       lobeDepth: 0,
       lobeThreshold: 0,
       margin: 0.15,
-      baseWidth: 0.18,
       curvature: 0.82,
-      smoothing: 4,
+      subdivisions: 6,
     },
   },
 };
@@ -244,7 +242,7 @@ export const elliptic: LeafGeometry = {
         },
       ],
     },
-    params: { lobeDepth: 0, lobeThreshold: 1, margin: 0.15, baseWidth: 0, curvature: 0.5, smoothing: 4 },
+    params: { lobeDepth: 0, lobeThreshold: 1, margin: 0.15, curvature: 0.5, subdivisions: 6 },
   },
 };
 
@@ -343,9 +341,8 @@ export const lanceolate = {
       lobeDepth: 0,
       lobeThreshold: 0,
       margin: 0.09,
-      baseWidth: 0.1,
       curvature: 0.56,
-      smoothing: 4,
+      subdivisions: 6,
     },
   },
 };
@@ -460,9 +457,8 @@ export const orbicular = {
       lobeDepth: 0,
       lobeThreshold: 0,
       margin: 0.18,
-      baseWidth: 0.32,
       curvature: 0.5,
-      smoothing: 4,
+      subdivisions: 6,
     },
   },
 };
@@ -637,9 +633,8 @@ export const lobbed = {
       lobeDepth: 0.26,
       lobeThreshold: 0.4,
       margin: 0.15,
-      baseWidth: 0.1,
       curvature: 1,
-      smoothing: 6,
+      subdivisions: 6,
     },
   },
 };

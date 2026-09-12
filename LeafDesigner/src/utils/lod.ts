@@ -1,3 +1,5 @@
+import { LeafGeometry, RandomRange } from "../types/leaf";
+
 /** A leaf shape can pick a different geometry per level of detail — how many LODs a leaf
  *  has is dynamic per leaf (grow/shrink it with addLodGeom/removeLodGeom), not a fixed
  *  count. Kept as small, standalone helpers since both the editor UI and the mesh generator
@@ -57,15 +59,23 @@ export function removeLodGeom(geom: string[] | string | undefined, index: number
   return base;
 }
 
-/** Resolves the X/Y blade stretch for `lod` — 1 (no stretch) when the slot is unset. */
-export function resolveLodScale(scales: number[] | undefined, lod: number): number {
+/** Resolves the X/Y blade stretch slot for `lod` — a fixed number, a pseudorandom range
+ *  (resolve with resolveRandomValue()), or 1 (no stretch) when the slot is unset. */
+export function resolveLodScale(
+  scales: (number | RandomRange)[] | undefined,
+  lod: number,
+): number | RandomRange {
   if (!Array.isArray(scales) || !scales[lod]) return 1;
   return scales[lod];
 }
 
 /** Returns a NEW per-LOD scale array with `value` set at `lod`, padding unset slots to 1. */
-export function withLodScale(scales: number[] | undefined, lod: number, value: number): number[] {
-  const base: number[] = Array.isArray(scales) ? [...scales] : [];
+export function withLodScale(
+  scales: (number | RandomRange)[] | undefined,
+  lod: number,
+  value: number | RandomRange,
+): (number | RandomRange)[] {
+  const base: (number | RandomRange)[] = Array.isArray(scales) ? [...scales] : [];
   while (base.length <= lod) base.push(1);
   base[lod] = value;
   return base;
@@ -73,9 +83,25 @@ export function withLodScale(scales: number[] | undefined, lod: number, value: n
 
 /** Removes the scale slot at `index` (if the array reaches that far), so indices stay
  *  aligned with the geom array after removeLodGeom. Undefined stays undefined. */
-export function removeLodScale(scales: number[] | undefined, index: number): number[] | undefined {
+export function removeLodScale(
+  scales: (number | RandomRange)[] | undefined,
+  index: number,
+): (number | RandomRange)[] | undefined {
   if (!Array.isArray(scales) || index >= scales.length) return scales;
   const base = [...scales];
   base.splice(index, 1);
   return base;
+}
+
+export function pickMostDetailedLod(geom: string[] | string | undefined, geoms: LeafGeometry[]): number {
+  let bestLod = 0;
+  let bestPoints = -1;
+  for (let lod = 0; lod < getLodCount(geom); lod++) {
+    const points = geoms.find((g) => g.id === resolveLodGeom(geom, lod))?.points?.length ?? 0;
+    if (points > bestPoints) {
+      bestPoints = points;
+      bestLod = lod;
+    }
+  }
+  return bestLod;
 }

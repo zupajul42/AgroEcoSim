@@ -5,6 +5,8 @@ import { useLocation } from "preact-iso";
 import "./style.css";
 
 import { state } from "../AppState";
+import { pickMostDetailedLod } from "../../utils/lod";
+import { fromExportableLeaf } from "../../utils/leafConfigIO";
 
 function GeomPreview({ geomId }: { geomId: string }) {
   const norm = state.geoms.getNormalized(geomId);
@@ -146,13 +148,23 @@ export function Library() {
     for (const p of promises) {
       try {
         if (p.status === "rejected") throw new Error("File load error");
-        const leaf = JSON.parse(p.value);
+        const leaf = fromExportableLeaf(JSON.parse(p.value));
+
+        let name = leaf.name;
+        let counter = 1;
+        while (state.leafs.has(name)) {
+          counter++;
+          name = `${leaf.name} (${counter})`;
+        }
+        leaf.name = name;
+
         state.leafs.add(leaf);
       } catch (e) {
         console.error(e);
       }
     }
     setLeafs(state.leafs.all());
+    setGeoms(state.geoms.all());
   }
 
   async function dumpGeoms(ev: any) {
@@ -202,7 +214,7 @@ export function Library() {
                   ✕
                 </button>
               </div>
-              <Preview width={"100%"} height={"180px"} leaf={leaf} />
+              <Preview width={"100%"} height={"180px"} leaf={leaf} lod={pickMostDetailedLod(leaf.shape?.[0]?.geom, geoms)} />
               <div style={{ marginTop: "0.5rem", fontWeight: "bold" }}>{leaf.name}</div>
             </div>
           ))}

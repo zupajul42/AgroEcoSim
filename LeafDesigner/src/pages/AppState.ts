@@ -1,6 +1,7 @@
 import * as Geometries from "./PredefinedGeometries";
 import { Leaf, LeafGeometry } from "../types/leaf";
 import { createDefaultLodGeom } from "../utils/lod";
+import { DEFAULT_COLOR_RAMP } from "../utils/colorRamp";
 
 const demoLeaf: Leaf = {
   name: "Chestnut",
@@ -66,6 +67,7 @@ class LeafStorage {
           venation: "pinnate",
         },
       ],
+      colorRamp: DEFAULT_COLOR_RAMP.map((s) => ({ ...s })),
     };
   }
 

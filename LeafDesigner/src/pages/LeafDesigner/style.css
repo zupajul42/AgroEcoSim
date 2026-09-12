@@ -78,6 +78,37 @@ label {
     font-size: 12px;
 }
 
+.preview-overlay-top-right {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    font-size: 12px;
+    color: var(--fg-0);
+    opacity: 0.7;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+.preview-overlay-bottom-right {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    background: var(--bg-1);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
 .lod-switcher {
     display: flex;
     border: 1px solid var(--bg-3);
@@ -101,4 +132,72 @@ label {
     background: var(--accent);
     color: #ffffff;
     font-weight: 600;
+}
+
+.lod-btn .lod-dash {
+    display: none;
+}
+
+.lod-btn.deletable:hover {
+    background: #a33;
+}
+
+.lod-btn.deletable:hover .lod-num {
+    display: none;
+}
+
+.lod-btn.deletable:hover .lod-dash {
+    display: inline;
+}
+
+.drs-track {
+    position: relative;
+    height: 20px;
+}
+
+.drs-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    background: transparent;
+    pointer-events: none;
+}
+
+.drs-input::-webkit-slider-thumb {
+    pointer-events: auto;
+}
+
+.drs-input::-moz-range-thumb {
+    pointer-events: auto;
+}
+
+.drs-input:active {
+    z-index: 1;
+}
+
+/* Color ramp — a Blender-style gradient bar with draggable stops. */
+.color-ramp-track {
+    position: relative;
+    height: 28px;
+    border-radius: 4px;
+    border: 1px solid var(--bg-3);
+    cursor: copy;
+}
+
+.color-ramp-handle {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-sizing: border-box;
+    cursor: grab;
+}
+
+.color-ramp-handle.selected {
+    border-color: var(--accent);
 }
