@@ -5,9 +5,13 @@ import { Library } from "./pages/Lib/index";
 import { LeafDesigner } from "./pages/LeafDesigner/index";
 import { GeomEditorPage } from "./pages/GeomEditor";
 import { NotFound } from "./pages/_404";
+import { RecoverStorage } from "./pages/dump";
+import { state } from "./pages/AppState";
 import "./style.css";
 
 export function App() {
+  const problem = state.storageProblem();
+  if (problem) return <RecoverStorage problem={problem} />;
   return (
     <LocationProvider>
       <main>

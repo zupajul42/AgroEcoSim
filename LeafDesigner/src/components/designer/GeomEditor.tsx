@@ -15,9 +15,9 @@ import {
   getEffectiveTipParams,
   getEffectiveLobeDepth,
   getEffectiveLobeThreshold,
-  MAX_FOLD_ANGLE_DEG,
+  MAX_ROTATION_DEG,
   DEFAULT_VEIN_PARAMS,
-  migrateVeinData,
+  ensureVeinData,
 } from "../../utils/veinGenerator";
 import { SliderInput } from "../common/SliderInput";
 import { applyMarginTeethToOutline } from "../../utils/marginTeeth";
@@ -206,10 +206,11 @@ export function GeomEditor({ id }: { id: string }) {
         geom.margin,
         geom.marginToothSize ?? 1,
         geom.marginToothDepth ?? 1,
+        geom.veins?.params?.subdivisions,
       );
     }
     return geom.points;
-  }, [geom.points, geom.margin, geom.marginToothSize, geom.marginToothDepth]);
+  }, [geom.points, geom.margin, geom.marginToothSize, geom.marginToothDepth, geom.veins?.params?.subdivisions]);
 
   const pointsString = useMemo(() => {
     return displayPoints
@@ -317,7 +318,7 @@ export function GeomEditor({ id }: { id: string }) {
     };
 
     const handleMouseUp = () => {
-      if (!didMoveRef.current && editorMode === "veins") setSelectedNodeId(migrateVeinData(geomRef.current.veins).root.id);
+      if (!didMoveRef.current && editorMode === "veins") setSelectedNodeId(ensureVeinData(geomRef.current.veins).root.id);
       setTimeout(() => {
         isDraggingOriginRef.current = false;
       }, 50);
@@ -370,7 +371,7 @@ export function GeomEditor({ id }: { id: string }) {
   // --- VENATION MODE HANDLERS & TREE-DRIVEN OUTLINE GENERATION ---
 
   const currentVeins: VeinData = useMemo(() => {
-    return migrateVeinData(geom.veins);
+    return ensureVeinData(geom.veins);
   }, [geom.veins]);
 
   // Flattened (parent, node) edges of the vein tree — used for rendering & hit testing.
@@ -403,7 +404,7 @@ export function GeomEditor({ id }: { id: string }) {
     paramsOverride?: VeinGenParams,
     record = true,
   ) => {
-    const v = veinsOverride || migrateVeinData(geomRef.current.veins);
+    const v = veinsOverride || ensureVeinData(geomRef.current.veins);
     const p = paramsOverride || genParamsRef.current;
 
     const generatedPoints = generateOutlineFromVeins(v, {
@@ -456,7 +457,7 @@ export function GeomEditor({ id }: { id: string }) {
       const rect = svg.getBoundingClientRect();
       const pt = toLeafCoord(moveEv.clientX - rect.left, moveEv.clientY - rect.top);
 
-      const veins = migrateVeinData(geomRef.current.veins);
+      const veins = ensureVeinData(geomRef.current.veins);
       const newX = snapToAxis(pt.x);
       const newY = pt.y;
       const updatedRoot = updateVeinTree(veins.root, nodeId, (node) => ({
@@ -476,7 +477,7 @@ export function GeomEditor({ id }: { id: string }) {
       window.removeEventListener("mouseup", handleMouseUp);
 
       // Dropped close to another node? Merge into it instead of leaving a near-duplicate point.
-      const veins = migrateVeinData(geomRef.current.veins);
+      const veins = ensureVeinData(geomRef.current.veins);
       const { root: mergedRoot, mergedInto } = mergeNearbyVeinNode(
         veins.root,
         nodeId,
@@ -495,7 +496,7 @@ export function GeomEditor({ id }: { id: string }) {
   /** Add a new vein node as a child of the selected node (or the root/base if none selected). */
   const addVeinNode = (targetPt?: Point) => {
     pushState(geomRef.current);
-    const veins = migrateVeinData(geomRef.current.veins);
+    const veins = ensureVeinData(geomRef.current.veins);
     const parentId = selectedNodeId || veins.root.id;
     const parent = findVeinNode(veins.root, parentId) || veins.root;
 
@@ -523,7 +524,7 @@ export function GeomEditor({ id }: { id: string }) {
       addVeinNode(targetPt);
       return;
     }
-    const veins = migrateVeinData(geomRef.current.veins);
+    const veins = ensureVeinData(geomRef.current.veins);
     if (selectedNodeId === veins.root.id) {
       addVeinNode(targetPt);
       return;
@@ -547,7 +548,7 @@ export function GeomEditor({ id }: { id: string }) {
   /** Remove the selected vein node and everything branching off it. The root can't be removed. */
   const removeSelectedNode = () => {
     if (!selectedNodeId) return;
-    const veins = migrateVeinData(geomRef.current.veins);
+    const veins = ensureVeinData(geomRef.current.veins);
     if (selectedNodeId === veins.root.id) return;
 
     pushState(geomRef.current);
@@ -556,24 +557,24 @@ export function GeomEditor({ id }: { id: string }) {
     regenOutline({ ...veins, root: updatedRoot }, undefined, false);
   };
 
-  const updateSelectedFoldAngle = (value: number) => {
+  const updateSelectedBend = (value: number) => {
     if (!selectedNodeId) return;
-    const veins = migrateVeinData(geomRef.current.veins);
+    const veins = ensureVeinData(geomRef.current.veins);
 
     const updatedRoot = updateVeinTree(veins.root, selectedNodeId, (node) => ({
       ...node,
-      foldAngle: value,
+      bend: value,
     }));
     regenOutline({ ...veins, root: updatedRoot }, undefined, false);
   };
 
-  const updateSelectedTwistAngle = (value: number) => {
+  const updateSelectedFold = (value: number) => {
     if (!selectedNodeId) return;
-    const veins = migrateVeinData(geomRef.current.veins);
+    const veins = ensureVeinData(geomRef.current.veins);
 
     const updatedRoot = updateVeinTree(veins.root, selectedNodeId, (node) => ({
       ...node,
-      twistAngle: value,
+      fold: value,
     }));
     regenOutline({ ...veins, root: updatedRoot }, undefined, false);
   };
@@ -581,7 +582,7 @@ export function GeomEditor({ id }: { id: string }) {
   /** Lobe depth override only makes sense on a branch joint (it shapes the sinus between its children). */
   const updateSelectedLobeDepth = (value: number) => {
     if (!selectedNodeId) return;
-    const veins = migrateVeinData(geomRef.current.veins);
+    const veins = ensureVeinData(geomRef.current.veins);
 
     const updatedRoot = updateVeinTree(veins.root, selectedNodeId, (node) => ({
       ...node,
@@ -593,7 +594,7 @@ export function GeomEditor({ id }: { id: string }) {
   /** Same as above, for the minimum sibling-gap distance before a lobe forms at all. */
   const updateSelectedLobeThreshold = (value: number) => {
     if (!selectedNodeId) return;
-    const veins = migrateVeinData(geomRef.current.veins);
+    const veins = ensureVeinData(geomRef.current.veins);
 
     const updatedRoot = updateVeinTree(veins.root, selectedNodeId, (node) => ({
       ...node,
@@ -605,7 +606,7 @@ export function GeomEditor({ id }: { id: string }) {
   /** Margin/curvature overrides only make sense on a terminal vein (a tip). */
   const updateSelectedTipParam = (key: "margin" | "curvature", value: number) => {
     if (!selectedNodeId) return;
-    const veins = migrateVeinData(geomRef.current.veins);
+    const veins = ensureVeinData(geomRef.current.veins);
 
     const updatedRoot = updateVeinTree(veins.root, selectedNodeId, (node) => ({
       ...node,
@@ -858,7 +859,7 @@ export function GeomEditor({ id }: { id: string }) {
           />
         </div>
 
-        {/* Shown once a vein node is selected — the root included, since its own Bend/Twist
+        {/* Shown once a vein node is selected — the root included, since its own Bend/Fold
             controls how the whole blade hinges at the petiole (click the red base dot to
             select it). */}
         {selectedVeinNode && (
@@ -867,23 +868,23 @@ export function GeomEditor({ id }: { id: string }) {
 
           <SliderInput
             label="Bend (°)"
-            min={-MAX_FOLD_ANGLE_DEG}
-            max={MAX_FOLD_ANGLE_DEG}
+            min={-MAX_ROTATION_DEG}
+            max={MAX_ROTATION_DEG}
             step={1}
-            value={selectedVeinNode.foldAngle ?? 0}
-            onInput={(v) => updateSelectedFoldAngle(v)}
+            value={selectedVeinNode.bend ?? 0}
+            onInput={(v) => updateSelectedBend(v)}
             defaultValue={0}
             inline
           />
 
           {selectedIsJoint && (
             <SliderInput
-              label="Twist (°)"
-              min={-MAX_FOLD_ANGLE_DEG}
-              max={MAX_FOLD_ANGLE_DEG}
+              label="Fold (°)"
+              min={-MAX_ROTATION_DEG}
+              max={MAX_ROTATION_DEG}
               step={1}
-              value={selectedVeinNode.twistAngle ?? 0}
-              onInput={(v) => updateSelectedTwistAngle(v)}
+              value={selectedVeinNode.fold ?? 0}
+              onInput={(v) => updateSelectedFold(v)}
               defaultValue={0}
               inline
             />
@@ -1050,12 +1051,12 @@ export function GeomEditor({ id }: { id: string }) {
           const nodeLeftScreen = toScreen({ x: -node.x, y: node.y });
           const needsMirrorLine = Math.abs(parent.x) > 0.001 || Math.abs(node.x) > 0.001;
           // Purely a visual hint in the editor — a halo under edges marked to fold later
-          const maxAngle = Math.max(Math.abs(node.foldAngle ?? 0), Math.abs(node.twistAngle ?? 0));
-          const foldOpacity = maxAngle ? Math.min(1, maxAngle / MAX_FOLD_ANGLE_DEG) * 0.7 : 0;
+          const maxAngle = Math.max(Math.abs(node.bend ?? 0), Math.abs(node.fold ?? 0));
+          const rotationOpacity = maxAngle ? Math.min(1, maxAngle / MAX_ROTATION_DEG) * 0.7 : 0;
 
           return (
             <g key={`vein-edge-${node.id}`}>
-              {foldOpacity > 0.02 && (
+              {rotationOpacity > 0.02 && (
                 <>
                   <line
                     x1={parentScreen.x}
@@ -1063,7 +1064,7 @@ export function GeomEditor({ id }: { id: string }) {
                     x2={nodeRightScreen.x}
                     y2={nodeRightScreen.y}
                     className="vein-fold-halo"
-                    style={{ opacity: foldOpacity }}
+                    style={{ opacity: rotationOpacity }}
                   />
                   {mirrorX && needsMirrorLine && (
                     <line
@@ -1072,7 +1073,7 @@ export function GeomEditor({ id }: { id: string }) {
                       x2={nodeLeftScreen.x}
                       y2={nodeLeftScreen.y}
                       className="vein-fold-halo"
-                      style={{ opacity: foldOpacity }}
+                      style={{ opacity: rotationOpacity }}
                     />
                   )}
                 </>
@@ -1152,7 +1153,7 @@ export function GeomEditor({ id }: { id: string }) {
         >
           <title>
             Drag red dot to set Stem Origin (0,0). In Venation Mode, click it (no drag) to select
-            the root vein node — its Bend/Twist (whole-blade hinge at the petiole) and, once it
+            the root vein node — its Bend/Fold (whole-blade hinge at the petiole) and, once it
             branches into more than one vein, Lobe controls appear in the side panel.
           </title>
         </circle>

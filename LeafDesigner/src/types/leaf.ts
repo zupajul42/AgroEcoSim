@@ -3,8 +3,8 @@ export interface VeinNode {
   x: number;
   y: number;
   children: VeinNode[];
-  foldAngle?: number; // fold -> bending
-  twistAngle?: number; // twist -> folding
+  bend?: number; // bends the vein out of the leaf plane
+  fold?: number; // folds the two sides of the vein toward each other
 
   // Per-joint overrides
   margin?: number;
@@ -57,16 +57,11 @@ export interface RandomRange {
 }
 
 export type LeafMargin = "entire" | "serrate" | "dentate" | "lobed" | "incised";
-export type LeafVenation = "arcuate" | "palmate" | "pinnate" | "parallel";
-export type LeafFolding = "none" | "rolled" | "convolute";
 
 export interface LeafShape {
   geom: string[];
   scaleX?: (number | RandomRange)[];
   scaleY?: (number | RandomRange)[];
-  margin: LeafMargin;
-  venation: LeafVenation;
-  folding: LeafFolding;
   petiolule: Petiole;
 }
 

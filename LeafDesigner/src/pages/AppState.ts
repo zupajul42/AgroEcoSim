@@ -1,16 +1,14 @@
 import * as Geometries from "./PredefinedGeometries";
-import { Leaf, LeafGeometry } from "../types/leaf";
+import { Leaf, LeafGeometry, VeinNode } from "../types/leaf";
 import { createDefaultLodGeom } from "../utils/lod";
 import { DEFAULT_COLOR_RAMP } from "../utils/colorRamp";
+import { generateOutlineFromVeins, generateVeinMesh } from "../utils/veinGenerator";
 
 const demoLeaf: Leaf = {
   name: "Chestnut",
   shape: [
     {
       geom: ["def:obovate"],
-      margin: "serrate",
-      venation: "palmate",
-      folding: "none",
       petiolule: { len: 0.2, angle: 0, width: 0.1, x: 0, y: 0 },
     },
   ],
@@ -39,6 +37,31 @@ class AppState {
     this.geoms = new GeometryStorage();
     this.leafs = new LeafStorage();
   }
+
+  // generate meshes and check if there are any problems with the data
+  storageProblem(): string | null {
+    try {
+      for (const g of this.geoms.all()) {
+        if (typeof g.id !== "string" || !Array.isArray(g.points)) return `Geometry ${JSON.stringify(g?.name ?? g?.id)} has no id or points.`;
+        if (g.points.some((p) => typeof p?.x !== "number" || typeof p?.y !== "number")) return `Geometry "${g.name}" has invalid points.`;
+        if (g.veins?.root) {
+          const validNode = (n: VeinNode): boolean =>
+            typeof n?.x === "number" && typeof n?.y === "number" && Array.isArray(n.children) && n.children.every(validNode);
+          if (!validNode(g.veins.root)) return `Geometry "${g.name}" has an invalid vein node.`;
+          generateOutlineFromVeins(g.veins, { mirrorX: true });
+          generateVeinMesh(g.veins);
+        }
+      }
+      for (const l of this.leafs.all()) {
+        if (typeof l.name !== "string" || !Array.isArray(l.shape) || !Array.isArray(l.instances) || !l.petiole) {
+          return `Leaf ${JSON.stringify(l?.name)} is missing shape, instances or petiole.`;
+        }
+      }
+      return null;
+    } catch (e) {
+      return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    }
+  }
 }
 
 class LeafStorage {
@@ -61,10 +84,7 @@ class LeafStorage {
       shape: [
         {
           geom: createDefaultLodGeom(),
-          folding: "none",
-          margin: "serrate",
           petiolule: { len: 0, width: 0, x: 0, y: 0, angle: 0 },
-          venation: "pinnate",
         },
       ],
       colorRamp: DEFAULT_COLOR_RAMP.map((s) => ({ ...s })),

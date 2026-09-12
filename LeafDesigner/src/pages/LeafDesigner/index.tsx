@@ -1,19 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import {
-  Leaf,
-  LeafArrangement,
-  LeafGeometry,
-  LeafInstance,
-  LeafLayout,
-  LeafLayoutType,
-} from "../../types/leaf";
-import { generateMesh, meshToObjString, Preview } from "../../components/designer/Preview";
+import { Leaf, LeafArrangement, LeafGeometry, LeafInstance, LeafLayout, LeafLayoutType } from "../../types/leaf";
+import { generateMesh, geometryTriangleCount, meshToObjString, Preview } from "../../components/designer/Preview";
 import "./style.css";
 import { state } from "../AppState";
 import { useInsertionEffect } from "preact/compat";
 import {
   addLodGeom,
   getLodCount,
+  pickMostDetailedLod,
   removeLodGeom,
   removeLodScale,
   resolveLodGeom,
@@ -21,10 +15,15 @@ import {
   withLodGeom,
   withLodScale,
 } from "../../utils/lod";
+import { resolveRandomValue, rerollSeed, toRange } from "../../utils/random";
 
 import { useLocation } from "preact-iso";
 import { useHistory } from "../../hooks/useHistory";
 import { SliderInput } from "../../components/common/SliderInput";
+import { DoubleRangeSlider } from "../../components/common/DoubleRangeSlider";
+import { ColorRamp } from "../../components/common/ColorRamp";
+import { DEFAULT_COLOR_RAMP, sampleColorRamp } from "../../utils/colorRamp";
+import { toExportableLeaf } from "../../utils/leafConfigIO";
 
 interface SliderProp {
   label: string;
@@ -42,22 +41,17 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
 
   const [isEdit, setIsEdit] = useState<boolean>(!!state.leafs.selected());
 
-  const {
-    state: leaf,
-    set: setLeaf,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-  } = useHistory<Leaf>(startLeaf);
+  const { state: leaf, set: setLeaf, undo, redo, canUndo, canRedo } = useHistory<Leaf>(startLeaf);
   const [leafGeom, setLeafGeom] = useState<LeafGeometry>();
   const [leafGeometries, setLeafGeometries] = useState<LeafGeometry[]>([]);
   const [isCompound, setIsCompound] = useState<boolean>(startLeaf?.instances?.length > 1);
   const [isChanged, setChanged] = useState<boolean>(false);
-  // Which level of detail is being previewed/edited — 0 (highest detail) by default.
-  // Each leaf shape can point at a different geometry per LOD; this just picks which slot
-  // the Geometry select below reads/writes and which one the 3D preview renders.
-  const [activeLod, setActiveLod] = useState<number>(0);
+  const [activeLod, setActiveLod] = useState<number>(() => pickMostDetailedLod(startLeaf?.shape?.[0]?.geom, state.geoms.all()));
+  const [previewLifetime, setPreviewLifetime] = useState<number>(50);
+  const [wireframe, setWireframe] = useState<boolean>(false);
+  const [flatShading, setFlatShading] = useState<boolean>(false);
+  const [lightAngle, setLightAngle] = useState<number>(45);
+  const [meshStats, setMeshStats] = useState<{ verts: number; tris: number }>({ verts: 0, tris: 0 });
   const isInitialLoad = useRef(true);
 
   const savedCompoundInstances = useRef<LeafInstance[]>(
@@ -69,7 +63,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
           { shape: 0, scale: 1 },
           { shape: 0, scale: 1 },
           { shape: 0, scale: 1 },
-        ]
+        ],
   );
 
   const savedCompoundLayout = useRef<LeafLayout>(
@@ -78,7 +72,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
       arrangement: "opposite",
       terminalLeaf: true,
       angle: 140,
-    }
+    },
   );
 
   const handleSetCompound = (compound: boolean) => {
@@ -119,14 +113,16 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     setLeafGeometries(geoms);
 
     if (!leaf) {
-      // Auto-load default if available
       const selected = state.leafs.selected();
-      if (selected) setLeaf(selected);
-      else {
+      if (selected) {
+        setLeaf(selected);
+        setActiveLod(pickMostDetailedLod(selected.shape?.[0]?.geom, geoms));
+      } else {
         const allLeafs = state.leafs.all();
         if (allLeafs.length > 0) {
           state.leafs.select(0);
           setLeaf(allLeafs[0]);
+          setActiveLod(pickMostDetailedLod(allLeafs[0].shape?.[0]?.geom, geoms));
         }
       }
     }
@@ -176,15 +172,19 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     setLeaf((prev) => ({ ...prev, ...updater(prev) }));
   };
 
-  const handleInstance = (action: "add" | "remove" | "scale", index?: number, scale?: number) => {
+  const handleInstance = (action: "add" | "remove" | "scale" | "scaleOffset", index?: number, value?: number) => {
     updateLeaf((prev) => {
       let instances = [...prev.instances];
-      if (action === "add") instances.push({ shape: 0, scale: 1.0 });
+      // New instances join the same shared scale range everyone else uses.
+      if (action === "add") instances.push({ shape: 0, scale: instances[0]?.scale ?? 1, scaleOffset: 0 });
       if (action === "remove" && instances.length > 1 && index !== undefined) {
         instances = instances.filter((_, i) => i !== index);
       }
-      if (action === "scale" && index !== undefined && scale !== undefined) {
-        instances[index] = { ...instances[index], scale };
+      if (action === "scale" && index !== undefined && value !== undefined) {
+        instances[index] = { ...instances[index], scale: value };
+      }
+      if (action === "scaleOffset" && index !== undefined && value !== undefined) {
+        instances[index] = { ...instances[index], scaleOffset: value };
       }
       return { instances };
     });
@@ -207,8 +207,8 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   };
 
   const handleExportMesh = () => {
-    // create Wavefront - Obj file from point array and petiole
-    const objStr = meshToObjString(generateMesh(leaf), leaf.name);
+    // use current LOD for .obj export
+    const objStr = meshToObjString(generateMesh(leaf, activeLod), leaf.name);
     const blob = new Blob([objStr], { type: "text/plain" });
     const a = document.createElement("a");
     a.download = leaf.name + ".obj";
@@ -217,7 +217,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     a.remove();
   };
   const handleExportConfig = () => {
-    const blob = new Blob([JSON.stringify(leaf, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(toExportableLeaf(leaf), null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.download = leaf.name + ".json";
     a.href = URL.createObjectURL(blob);
@@ -262,6 +262,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   const handleDeleteLod = () => {
     if (getLodCount(leaf.shape[0].geom) <= 1) return;
     const removedIndex = activeLod;
+    if (!confirm(`Delete LOD ${removedIndex}?`)) return;
     updateLeaf((prev) => {
       const shape = [...prev.shape];
       shape[0] = {
@@ -274,6 +275,8 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     });
     setActiveLod((prevLod) => Math.min(prevLod, getLodCount(leaf.shape[0].geom) - 2));
   };
+
+  const handleReroll = () => updateLeaf(() => ({ randomSeed: rerollSeed() }));
 
   const editGeom = () => {
     if (leafGeom?.id) location.route("/leaf/geometry/" + leafGeom.id);
@@ -322,8 +325,6 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     setIsEdit(true);
   };
 
-
-
   const renderSelect = (
     label: string,
     value: string,
@@ -350,7 +351,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
       {
         label: "Length",
         field: "len",
-        min: isPetiolule ? 0 : 0.5,
+        min: 0,
         max: isPetiolule ? 5 : 10,
         step: 0.1,
         unit: "m",
@@ -406,12 +407,8 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                 </button>
                 <button onClick={handleExportMesh}>Export Mesh</button>
                 <button onClick={handleExportConfig}>Export Config</button>
-                <button
-                  onClick={handleDeleteLod}
-                  disabled={getLodCount(leaf.shape[0].geom) <= 1}
-                  title={`Delete LOD ${activeLod} (the one shown in the preview)`}
-                >
-                  Delete LOD
+                <button onClick={handleReroll} title="Pick new values for every pseudorandom range on this leaf">
+                  Reroll
                 </button>
               </div>
             </div>
@@ -461,38 +458,47 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                       })),
                   )}
 
-                  {renderSelect(
-                    "Arrangement",
-                    leaf.layout?.arrangement,
-                    [
-                      { value: "opposite", label: "Opposite" },
-                      { value: "alternate", label: "Alternate" },
-                    ],
-                    (val) =>
-                      updateLeaf((prev) => ({ layout: { ...prev.layout, arrangement: val as LeafArrangement } })),
-                  )}
+                  {leaf.layout?.type === "pinnate" &&
+                    renderSelect(
+                      "Arrangement",
+                      leaf.layout?.arrangement,
+                      [
+                        { value: "opposite", label: "Opposite" },
+                        { value: "alternate", label: "Alternate" },
+                      ],
+                      (val) =>
+                        updateLeaf((prev) => ({ layout: { ...prev.layout, arrangement: val as LeafArrangement } })),
+                    )}
 
                   {leaf.layout?.type === "pinnate" ? (
-                    <SliderInput
+                    <DoubleRangeSlider
                       label="Branch Angle"
                       min={5}
                       max={90}
                       step={1}
                       unit="°"
-                      value={leaf.layout?.angle || 0}
-                      onInput={(val) => updateLeaf((prev) => ({ layout: { ...prev.layout, angle: val } }))}
-                      defaultValue={60}
+                      valueMin={toRange(leaf.layout?.angle, 60).min}
+                      valueMax={toRange(leaf.layout?.angle, 60).max}
+                      onChange={(lo, hi) =>
+                        updateLeaf((prev) => ({ layout: { ...prev.layout, angle: { min: lo, max: hi } } }))
+                      }
+                      defaultMin={60}
+                      defaultMax={60}
                     />
                   ) : (
-                    <SliderInput
+                    <DoubleRangeSlider
                       label="Fanning Angle"
                       min={0}
                       max={360}
                       step={5}
                       unit="°"
-                      value={leaf.layout?.angle || 0}
-                      onInput={(val) => updateLeaf((prev) => ({ layout: { ...prev.layout, angle: val } }))}
-                      defaultValue={140}
+                      valueMin={toRange(leaf.layout?.angle, 140).min}
+                      valueMax={toRange(leaf.layout?.angle, 140).max}
+                      onChange={(lo, hi) =>
+                        updateLeaf((prev) => ({ layout: { ...prev.layout, angle: { min: lo, max: hi } } }))
+                      }
+                      defaultMin={140}
+                      defaultMax={140}
                     />
                   )}
 
@@ -504,23 +510,23 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                       step={0.05}
                       unit="x"
                       value={leaf.layout?.distributionCurve || 1}
-                      onInput={(val) =>
-                        updateLeaf((prev) => ({ layout: { ...prev.layout, distributionCurve: val } }))
-                      }
+                      onInput={(val) => updateLeaf((prev) => ({ layout: { ...prev.layout, distributionCurve: val } }))}
                       defaultValue={1}
                     />
                   )}
 
-                  <label class="row" style={{ justifyContent: "flex-start" }}>
-                    <input
-                      type="checkbox"
-                      checked={leaf.layout?.terminalLeaf}
-                      onChange={(e) =>
-                        updateLeaf((prev) => ({ layout: { ...prev.layout, terminalLeaf: e.currentTarget.checked } }))
-                      }
-                    />
-                    <span>Terminal Leaf</span>
-                  </label>
+                  {leaf.layout?.type === "pinnate" && (
+                    <label class="row" style={{ justifyContent: "flex-start" }}>
+                      <input
+                        type="checkbox"
+                        checked={leaf.layout?.terminalLeaf}
+                        onChange={(e) =>
+                          updateLeaf((prev) => ({ layout: { ...prev.layout, terminalLeaf: e.currentTarget.checked } }))
+                        }
+                      />
+                      <span>Terminal Leaf</span>
+                    </label>
+                  )}
                 </div>
 
                 <div class="stack">
@@ -529,26 +535,52 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                     <button onClick={() => handleInstance("add")}>+ Add</button>
                   </div>
 
+                  <DoubleRangeSlider
+                    label="Instance Size"
+                    min={0.1}
+                    max={3.0}
+                    step={0.05}
+                    unit="x"
+                    valueMin={toRange(leaf.instances[0]?.scale, 1).min}
+                    valueMax={toRange(leaf.instances[0]?.scale, 1).max}
+                    defaultMin={1}
+                    defaultMax={1}
+                    onChange={(lo, hi) =>
+                      updateLeaf((prev) => ({
+                        instances: prev.instances.map((inst) => ({ ...inst, scale: { min: lo, max: hi } })),
+                      }))
+                    }
+                  />
+
+                  {/* Each instance can have its own randomized scale */}
                   <div class="instances-list stack">
-                    {leaf.instances.map((instance, index) => (
-                      <div key={index} class="row" style={{ alignItems: "center" }}>
-                        <SliderInput
-                          label={`#${index + 1}`}
-                          min={0.1}
-                          max={3.0}
-                          step={0.05}
-                          unit="x"
-                          value={instance.scale}
-                          onInput={(val) => handleInstance("scale", index, val)}
-                          defaultValue={1}
-                          inline={true}
-                          style={{flex: "1"}}
-                        />
-                        {leaf.instances.length > 1 && (
-                          <button onClick={() => handleInstance("remove", index)} title="Remove instance">✕</button>
-                        )}
-                      </div>
-                    ))}
+                    {leaf.instances.map((instance, index) => {
+                      const resolved =
+                        resolveRandomValue(instance.scale, leaf.randomSeed ?? 0, "instanceScale", index, 1) +
+                        (instance.scaleOffset ?? 0);
+                      return (
+                        <div key={index} class="row" style={{ alignItems: "center" }}>
+                          <SliderInput
+                            label={`#${index + 1}`}
+                            min={-1}
+                            max={1}
+                            step={0.05}
+                            unit="x"
+                            value={instance.scaleOffset ?? 0}
+                            onInput={(val) => handleInstance("scaleOffset", index, val)}
+                            defaultValue={0}
+                            inline={true}
+                            style={{ flex: "1" }}
+                          />
+                          <span title="Rolled + offset">= {resolved.toFixed(2)}x</span>
+                          {leaf.instances.length > 1 && (
+                            <button onClick={() => handleInstance("remove", index)} title="Remove instance">
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -563,7 +595,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                   <select class="full-width" onChange={(e) => handleGeomChange((e.target as any).value)}>
                     {leafGeometries.map((geom) => (
                       <option value={geom.id} selected={geom.id == resolveLodGeom(leaf.shape[0].geom, activeLod)}>
-                        {geom.name} ({geom.points.length} Pts)
+                        {geom.name} ({geometryTriangleCount(geom.id)} tris)
                       </option>
                     ))}
                     <option value="def:__new">New</option>
@@ -579,56 +611,67 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                 </div>
 
                 {!isCompound && (
-                  <SliderInput
+                  <DoubleRangeSlider
                     label="Leaf Scale"
                     min={0.1}
                     max={5.0}
                     step={0.05}
                     unit="x"
-                    value={leaf.instances[0]?.scale || 1.0}
-                    onInput={(val) =>
+                    valueMin={toRange(leaf.instances[0]?.scale, 1).min}
+                    valueMax={toRange(leaf.instances[0]?.scale, 1).max}
+                    onChange={(lo, hi) =>
                       updateLeaf((prev) => ({
-                        instances: [{ shape: 0, scale: val }],
+                        instances: [{ shape: 0, scale: { min: lo, max: hi } }],
                       }))
                     }
-                    defaultValue={1}
+                    defaultMin={1}
+                    defaultMax={1}
                   />
                 )}
 
-                <SliderInput
+                <DoubleRangeSlider
                   label="Blade Scale X"
                   min={0.2}
                   max={3.0}
                   step={0.05}
                   unit="x"
-                  value={resolveLodScale(leaf.shape[0].scaleX, activeLod)}
-                  onInput={(val) =>
+                  valueMin={toRange(resolveLodScale(leaf.shape[0].scaleX, activeLod), 1).min}
+                  valueMax={toRange(resolveLodScale(leaf.shape[0].scaleX, activeLod), 1).max}
+                  onChange={(lo, hi) =>
                     updateLeaf((prev) => {
                       const shape = [...prev.shape];
-                      shape[0] = { ...shape[0], scaleX: withLodScale(shape[0].scaleX, activeLod, val) };
+                      shape[0] = {
+                        ...shape[0],
+                        scaleX: withLodScale(shape[0].scaleX, activeLod, { min: lo, max: hi }),
+                      };
                       return { shape };
                     })
                   }
-                  defaultValue={1}
+                  defaultMin={1}
+                  defaultMax={1}
                 />
-                <SliderInput
+                <DoubleRangeSlider
                   label="Blade Scale Y"
                   min={0.2}
                   max={3.0}
                   step={0.05}
                   unit="x"
-                  value={resolveLodScale(leaf.shape[0].scaleY, activeLod)}
-                  onInput={(val) =>
+                  valueMin={toRange(resolveLodScale(leaf.shape[0].scaleY, activeLod), 1).min}
+                  valueMax={toRange(resolveLodScale(leaf.shape[0].scaleY, activeLod), 1).max}
+                  onChange={(lo, hi) =>
                     updateLeaf((prev) => {
                       const shape = [...prev.shape];
-                      shape[0] = { ...shape[0], scaleY: withLodScale(shape[0].scaleY, activeLod, val) };
+                      shape[0] = {
+                        ...shape[0],
+                        scaleY: withLodScale(shape[0].scaleY, activeLod, { min: lo, max: hi }),
+                      };
                       return { shape };
                     })
                   }
-                  defaultValue={1}
+                  defaultMin={1}
+                  defaultMax={1}
                 />
               </div>
-
             </div>
 
             {/* petiole & stem */}
@@ -679,27 +722,116 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                 ))}
               </div>
             </div>
+
+            {/* color over the leaf's lifetime */}
+            <div class="stack" style={{ gap: "14px" }}>
+              <h3>Color</h3>
+              <div class="stack">
+                <ColorRamp
+                  stops={leaf.colorRamp?.length ? leaf.colorRamp : DEFAULT_COLOR_RAMP}
+                  onChange={(stops) => updateLeaf(() => ({ colorRamp: stops }))}
+                />
+                <SliderInput
+                  label="Preview Lifetime"
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
+                  value={previewLifetime}
+                  onInput={setPreviewLifetime}
+                  defaultValue={50}
+                />
+              </div>
+            </div>
           </aside>
 
           {/* viewwport */}
           <main class="preview-container">
             <div class="preview-overlay-top-left">
-              <div class="lod-switcher" title="Level of detail previewed — the Geometry select edits this LOD's geometry">
-                {Array.from({ length: getLodCount(leaf.shape[0].geom) }, (_, level) => (
-                  <button
-                    key={level}
-                    class={`lod-btn ${activeLod === level ? "active" : ""}`}
-                    onClick={() => setActiveLod(level)}
-                  >
-                    {level}
-                  </button>
-                ))}
+              <div
+                class="lod-switcher"
+                title="Level of detail previewed — the Geometry select edits this LOD's geometry. Hover the active one to delete it."
+              >
+                {Array.from({ length: getLodCount(leaf.shape[0].geom) }, (_, level) => {
+                  const isActive = activeLod === level;
+                  const canDelete = isActive && getLodCount(leaf.shape[0].geom) > 1;
+                  return (
+                    <button
+                      key={level}
+                      class={`lod-btn ${isActive ? "active" : ""} ${canDelete ? "deletable" : ""}`}
+                      onClick={() => {
+                        if (canDelete) handleDeleteLod();
+                        else if (!isActive) setActiveLod(level);
+                      }}
+                      title={canDelete ? `Delete LOD ${level}` : `Level of detail ${level}`}
+                    >
+                      <span class="lod-num">{level}</span>
+                      <span class="lod-dash">−</span>
+                    </button>
+                  );
+                })}
                 <button class="lod-btn" onClick={handleAddLod} title="Add a new LOD">
                   +
                 </button>
               </div>
             </div>
-            <Preview leaf={leaf} width={"100%"} height={"100%"} controls={true} showAxis={true} lod={activeLod} />
+            <div class="preview-overlay-top-right">
+              <span>{meshStats.verts} verts</span>
+              <span>{meshStats.tris} triangles</span>
+            </div>
+            <div class="preview-overlay-bottom-right">
+              <label class="row" style={{ justifyContent: "flex-start", gap: "6px" }}>
+                <input type="checkbox" checked={wireframe} onChange={(e) => setWireframe(e.currentTarget.checked)} />
+                <span>Wireframe</span>
+              </label>
+              <label class="row" style={{ justifyContent: "flex-start", gap: "6px" }}>
+                <input
+                  type="checkbox"
+                  checked={flatShading}
+                  onChange={(e) => setFlatShading(e.currentTarget.checked)}
+                />
+                <span>Flat Shading</span>
+              </label>
+              <label class="row" style={{ justifyContent: "flex-start", gap: "6px" }}>
+                <span>Light</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={360}
+                  step={1}
+                  value={lightAngle}
+                  onInput={(e) => setLightAngle(parseFloat(e.currentTarget.value))}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={360}
+                  step={1}
+                  value={lightAngle}
+                  onInput={(e) => {
+                    const val = parseFloat(e.currentTarget.value);
+                    if (!isNaN(val)) setLightAngle(val);
+                  }}
+                />
+                <span>°</span>
+              </label>
+            </div>
+            <Preview
+              leaf={leaf}
+              width={"100%"}
+              height={"100%"}
+              controls={true}
+              showAxis={true}
+              lod={activeLod}
+              color={sampleColorRamp(leaf.colorRamp, previewLifetime / 100)}
+              wireframe={wireframe}
+              flatShading={flatShading}
+              lightAngle={lightAngle}
+              meshCallback={(mesh) => {
+                setMeshStats({ verts: mesh.position.length / 3, tris: mesh.index.length / 3 });
+                return {};
+              }}
+            />
           </main>
         </div>
       )}

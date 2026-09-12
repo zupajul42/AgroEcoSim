@@ -7,12 +7,12 @@ import {
   BufferGeometry,
   DoubleSide,
   GridHelper,
+  DirectionalLight,
   InstancedMesh,
   Mesh,
-  MeshBasicMaterial,
+  MeshLambertMaterial,
   Object3D,
   PerspectiveCamera,
-  PointLight,
   Scene,
   Shape,
   ShapeGeometry,
@@ -24,9 +24,10 @@ import {
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Leaf, LeafLayout, LeafLayoutType, LeafShape, Petiole } from "../../types/leaf";
 import { state } from "../../pages/AppState";
-import { generateFoldedMeshOutline, veinTreeHasFold } from "../../utils/veinGenerator";
-import { applyMarginTeethToFoldedOutline, applyMarginTeethToOutline } from "../../utils/marginTeeth";
+import { generateVeinMesh } from "../../utils/veinGenerator";
+import { applyMarginTeethToOutline, marginOutlineShaper } from "../../utils/marginTeeth";
 import { resolveLodGeom, resolveLodScale } from "../../utils/lod";
+import { resolveRandomValue } from "../../utils/random";
 
 import { vec3, mat4 } from "gl-matrix";
 
@@ -37,16 +38,33 @@ interface PreviewProps {
   controls?: boolean;
   showAxis?: boolean;
   lod?: number;
+  color?: string;
+  wireframe?: boolean;
+  flatShading?: boolean;
+  lightAngle?: number;
   meshCallback?: (mesh: { position: number[]; index: number[] }) => {};
 }
 
-export function Preview({ leaf, width, height, controls, showAxis, lod = 0, meshCallback }: PreviewProps) {
+export function Preview({
+  leaf,
+  width,
+  height,
+  controls,
+  showAxis,
+  lod = 0,
+  color,
+  wireframe,
+  flatShading,
+  lightAngle = 45,
+  meshCallback,
+}: PreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const threeRef = useRef<{
     scene: Scene;
     leaf?: Mesh;
+    light?: DirectionalLight;
     camera?: PerspectiveCamera;
     controls?: OrbitControls;
   } | null>(null);
@@ -58,7 +76,7 @@ export function Preview({ leaf, width, height, controls, showAxis, lod = 0, mesh
     const accentInt = parseInt(accentHex.replace("#", ""), 16);
 
     // Scene init
-    const material = new MeshBasicMaterial({ color: accentInt, side: DoubleSide });
+    const material = new MeshLambertMaterial({ color: accentInt, side: DoubleSide });
     material.color.multiplyScalar(0.5);
 
     threeRef.current = {
@@ -75,10 +93,11 @@ export function Preview({ leaf, width, height, controls, showAxis, lod = 0, mesh
       threeRef.current.scene.add(axes, grid);
     }
 
-    const ambientLight = new AmbientLight(0xffffff, 0.5);
-    const pointLight = new PointLight(0xffffff, 1);
-    pointLight.position.set(10, 10, 10);
-    threeRef.current.scene.add(ambientLight, pointLight);
+    const ambientLight = new AmbientLight(0xffffff, 0.6);
+    const dirLight = new DirectionalLight(0xffffff, 2.2);
+    dirLight.position.set(10, 10, 10);
+    threeRef.current.light = dirLight;
+    threeRef.current.scene.add(ambientLight, dirLight);
 
     // Renderer init
 
@@ -135,6 +154,41 @@ export function Preview({ leaf, width, height, controls, showAxis, lod = 0, mesh
     };
   }, []);
 
+  useEffect(() => {
+    const three = threeRef.current;
+    if (!three || !three.leaf) return;
+    const material = three.leaf.material as MeshLambertMaterial;
+    if (color) {
+      material.color.set(color);
+    } else {
+      const accentHex = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4e7711";
+      material.color.set(accentHex);
+      material.color.multiplyScalar(0.5);
+    }
+  }, [color]);
+
+  useEffect(() => {
+    const three = threeRef.current;
+    if (!three || !three.leaf) return;
+    (three.leaf.material as MeshLambertMaterial).wireframe = !!wireframe;
+  }, [wireframe]);
+
+  useEffect(() => {
+    const three = threeRef.current;
+    if (!three || !three.leaf) return;
+    const material = three.leaf.material as MeshLambertMaterial;
+    material.flatShading = !!flatShading;
+    material.needsUpdate = true;
+  }, [flatShading]);
+
+  useEffect(() => {
+    const three = threeRef.current;
+    if (!three || !three.light) return;
+    const rad = (lightAngle * Math.PI) / 180;
+    const radius = 14.14; // matches the original fixed (10, 10, 10) light's horizontal distance
+    three.light.position.set(Math.cos(rad) * radius, 10, Math.sin(rad) * radius);
+  }, [lightAngle]);
+
   // On leaf change -> update the mesh
   useEffect(() => {
     const three = threeRef.current;
@@ -143,9 +197,9 @@ export function Preview({ leaf, width, height, controls, showAxis, lod = 0, mesh
     const rawMesh = generateMesh(leaf, lod);
 
     const geom = new BufferGeometry();
-    console.log(rawMesh.position);
     geom.setAttribute("position", new BufferAttribute(new Float32Array(rawMesh.position), 3));
     geom.setIndex(rawMesh.index);
+    geom.computeVertexNormals();
 
     const oldGeom = three.leaf.geometry;
     three.leaf.geometry = geom;
@@ -190,17 +244,24 @@ export function Preview({ leaf, width, height, controls, showAxis, lod = 0, mesh
   );
 }
 
-function calculateLeafletTransform(index: number, count: number, petiole: Petiole, layout?: LeafLayout) {
+function calculateLeafletTransform(
+  index: number,
+  count: number,
+  petiole: Petiole,
+  layout?: LeafLayout,
+  seed = 0,
+) {
   const { type, arrangement, terminalLeaf, angle, distributionCurve = 1 } = layout ?? {
     type: "palmate",
     arrangement: "alternate",
     angle: 60,
     terminalLeaf: true,
   };
-  const petioleLength = petiole.len || 100;
+  const petioleLength = petiole.len ?? 100; // allow 0 -> no stem
   const petioleWidth = petiole.width || 1;
   const petioleWidthHalf = petioleWidth / 2;
-  const angleRad = ((angle ?? 0) * Math.PI) / 180;
+  const resolvedAngle = resolveRandomValue(angle, seed, "angle", type === "palmate" ? 0 : index, 0);
+  const angleRad = (resolvedAngle * Math.PI) / 180;
 
   const position = new Vector3();
   const rotation = new Vector3();
@@ -259,24 +320,30 @@ function generateBoxBuffer(width: number, length: number, height: number = 0.08)
   const hh = height / 2;
 
   const position = [
-    ...[-hw, 0, hh, hw, 0, hh, hw, length, hh, -hw, length, hh], // Front face
-    ...[-hw, 0, -hh, -hw, length, -hh, hw, length, -hh, hw, 0, -hh], // Back face,
-    ...[-hw, length, -hh, -hw, length, hh, hw, length, hh, hw, length, -hh], // Top face
-    ...[-hw, 0, -hh, hw, 0, -hh, hw, 0, hh, -hw, 0, hh], // Bottom face
-    ...[hw, 0, -hh, hw, length, -hh, hw, length, hh, hw, 0, hh], // Right face
-    ...[-hw, 0, -hh, -hw, 0, hh, -hw, length, hh, -hw, length, -hh], // Left face
+    -hw, 0, hh, //0 front-bottom-left
+    hw, 0, hh, //1 front-bottom-right
+    hw, length, hh, //2 front-top-right
+    -hw, length, hh, //3 front-top-left
+    -hw, 0, -hh, //4 back-bottom-left
+    hw, 0, -hh, //5 back-bottom-right
+    hw, length, -hh, //6 back-top-right
+    -hw, length, -hh, //7 back-top-left
   ];
 
   const index = [
-    ...[0, 1, 2, 0, 2, 3],
-    ...[4, 5, 6, 4, 6, 7],
-    ...[8, 9, 10, 8, 10, 11],
-    ...[12, 13, 14, 12, 14, 15],
-    ...[16, 17, 18, 16, 18, 19],
-    ...[20, 21, 22, 20, 22, 23],
+    ...[0, 1, 2, 0, 2, 3], // front
+    ...[4, 7, 6, 4, 6, 5], // back
+    ...[7, 3, 2, 7, 2, 6], // top
+    ...[4, 5, 1, 4, 1, 0], // bottom
+    ...[5, 6, 2, 5, 2, 1], // right
+    ...[4, 0, 3, 4, 3, 7], // left
   ];
 
   return { position, index };
+}
+
+export function geometryTriangleCount(geomId: string): number {
+  return generateShapeMesh({ geom: [geomId], petiolule: { len: 0, width: 0, x: 0, y: 0, angle: 0 } }).index.length / 3;
 }
 
 export function generateShapeMesh(shape: LeafShape, lod: number = 0) {
@@ -289,8 +356,11 @@ export function generateShapeMesh(shape: LeafShape, lod: number = 0) {
   const rawGeom = state.geoms.get(geomId);
   const veins = rawGeom?.veins;
   const marginType = rawGeom?.margin;
+  const toothSize = rawGeom?.marginToothSize ?? 1;
+  const toothDepth = rawGeom?.marginToothDepth ?? 1;
 
-  if (rawGeom && veins?.root && veinTreeHasFold(veins.root)) {
+  // when no veins are present, we can just use the raw "flat" geometry
+  if (rawGeom && veins?.root && veins.root.children.length > 0) {
     const bounds = { x: { min: Infinity, max: -Infinity }, y: { min: Infinity, max: -Infinity } };
     for (const p of rawGeom.points) {
       if (p.x < bounds.x.min) bounds.x.min = p.x;
@@ -300,29 +370,16 @@ export function generateShapeMesh(shape: LeafShape, lod: number = 0) {
     }
     const scale = Math.max(bounds.x.max - bounds.x.min, bounds.y.max - bounds.y.min, 0.0001);
 
-    const folded = generateFoldedMeshOutline(veins, { mirrorX: true, params: veins.params }).map((p) => ({
-      x: p.x / scale,
-      y: p.y / scale,
-      z: p.z / scale,
-    }));
-    const toothed = applyMarginTeethToFoldedOutline(folded, marginType);
+    const built = generateVeinMesh(veins, {
+      mirrorX: true,
+      params: veins.params,
+      shapeOutline: marginOutlineShaper(marginType, toothSize, toothDepth, veins.params?.subdivisions),
+    });
 
-    if (toothed.length >= 3) {
-      const position: number[] = [0, 0, 0];
-      toothed.forEach((p) => position.push(p.x, p.y, p.z));
-
-      const index: number[] = [];
-      const n = toothed.length;
-      for (let i = 0; i < n; i++) {
-        const j = (i + 1) % n;
-        index.push(0, i + 1, j + 1);
-      }
-
-      return { position, index };
-    }
+    return { position: built.position.map((v) => v / scale), index: built.index };
   }
 
-  const toothedPoints = applyMarginTeethToOutline(rawPoints, marginType);
+  const toothedPoints = applyMarginTeethToOutline(rawPoints, marginType, toothSize, toothDepth);
   const adjusted = toothedPoints.map((p) => new Vector2(p.x, p.y));
 
   const faces = ShapeUtils.triangulateShape(adjusted, []);
@@ -358,13 +415,14 @@ export function generateMesh(leaf: Leaf, lod: number = 0) {
     vertexOffset += meshData.position.length / 3;
   };
 
-  // + petiole
-  const petioleLength = leaf.petiole?.len || 1;
+  const petioleLength = leaf.petiole?.len ?? 1;
   const petioleWidth = leaf.petiole?.width || 0.2;
-  const petioleMesh = generateBoxBuffer(petioleWidth, petioleLength, 0.1);
 
-  const petioleMatrix = mat4.create();
-  mergeSubMesh(petioleMesh, petioleMatrix);
+  if (petioleLength > 0) {
+    const petioleMesh = generateBoxBuffer(petioleWidth, petioleLength, petioleWidth);
+    const petioleMatrix = mat4.create();
+    mergeSubMesh(petioleMesh, petioleMatrix);
+  }
 
   // + all leaflets on corrent postions (calculateLeafletTransform)
   const mainShape =
@@ -378,23 +436,24 @@ export function generateMesh(leaf: Leaf, lod: number = 0) {
   //   + leaflet petiole
   const basePetioluleMesh = petioluleLength > 0 ? generateBoxBuffer(petioluleWidth, petioluleLength, 0.08) : null;
 
-  //   + leaflet shape — stretched independently on x/y per LOD, so one geometry can stand
-  //   in for several slightly different LODs instead of needing a near-duplicate each time.
   const baseLeafShapeMesh = generateShapeMesh(mainShape as LeafShape, lod);
-  const bladeScaleX = resolveLodScale((mainShape as LeafShape).scaleX, lod);
-  const bladeScaleY = resolveLodScale((mainShape as LeafShape).scaleY, lod);
-  if (bladeScaleX !== 1 || bladeScaleY !== 1) {
-    for (let i = 0; i < baseLeafShapeMesh.position.length; i += 3) {
-      baseLeafShapeMesh.position[i] *= bladeScaleX;
-      baseLeafShapeMesh.position[i + 1] *= bladeScaleY;
-    }
-  }
+  const rawBladeScaleX = resolveLodScale((mainShape as LeafShape).scaleX, lod);
+  const rawBladeScaleY = resolveLodScale((mainShape as LeafShape).scaleY, lod);
 
   const instances = leaf.instances && leaf.instances.length > 0 ? leaf.instances : [{ shape: 0, scale: 1 }];
+  const seed = leaf.randomSeed ?? 0;
 
   instances.forEach((instance: any, index: number) => {
-    const { position, rotation } = calculateLeafletTransform(index, instances.length, leaf.petiole, leaf.layout);
-    const scale = instance.scale || 1.0;
+    const { position, rotation } = calculateLeafletTransform(
+      index,
+      instances.length,
+      leaf.petiole,
+      leaf.layout,
+      seed,
+    );
+    const scale = resolveRandomValue(instance.scale, seed, "instanceScale", index, 1) + (instance.scaleOffset ?? 0);
+    const bladeScaleX = resolveRandomValue(rawBladeScaleX, seed, "bladeScaleX", index, 1);
+    const bladeScaleY = resolveRandomValue(rawBladeScaleY, seed, "bladeScaleY", index, 1);
 
     const baseMatrix = mat4.create();
     mat4.translate(baseMatrix, baseMatrix, [position.x, position.y, position.z]);
@@ -410,6 +469,7 @@ export function generateMesh(leaf: Leaf, lod: number = 0) {
     const bladeMatrix = mat4.clone(baseMatrix);
     mat4.rotateX(bladeMatrix, bladeMatrix, localPetioluleAngleRad);
     mat4.translate(bladeMatrix, bladeMatrix, [0, petioluleLength, 0]);
+    if (bladeScaleX !== 1 || bladeScaleY !== 1) mat4.scale(bladeMatrix, bladeMatrix, [bladeScaleX, bladeScaleY, 1]);
     mergeSubMesh(baseLeafShapeMesh, bladeMatrix);
   });
 

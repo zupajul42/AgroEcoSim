@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { Preview } from "../../components/designer/Preview";
+import { geometryTriangleCount, Preview } from "../../components/designer/Preview";
 import { Leaf, LeafGeometry } from "../../types/leaf";
 import { useLocation } from "preact-iso";
 import "./style.css";
@@ -260,7 +260,7 @@ export function Library() {
                   <GeomPreview geomId={g.id} />
                 </div>
                 <div style={{ marginTop: "0.5rem", fontWeight: "bold" }}>{g.name}</div>
-                <div style={{ fontSize: "0.8rem", opacity: 0.7 }}>{g.points.length} points</div>
+                <div style={{ fontSize: "0.8rem", opacity: 0.7 }}>{geometryTriangleCount(g.id)} triangles</div>
                 <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: "2px" }}>
                   Used in {usageCount} {usageCount === 1 ? "leaf" : "leaves"}
                 </div>
