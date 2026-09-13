@@ -150,31 +150,64 @@ label {
     display: inline;
 }
 
+/* Double range slider — one track, a filled span between the two handles. */
 .drs-track {
     position: relative;
-    height: 20px;
+    height: 22px;
+    /* keep the handles' centers inside the box at min/max */
+    margin: 0 8px;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
 }
 
-.drs-input {
+.drs-rail,
+.drs-fill {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    margin: 0;
-    background: transparent;
+    top: 50%;
+    height: 4px;
+    margin-top: -2px;
+    border-radius: 2px;
     pointer-events: none;
 }
 
-.drs-input::-webkit-slider-thumb {
-    pointer-events: auto;
+.drs-rail {
+    left: 0;
+    right: 0;
+    background: var(--bg-3);
 }
 
-.drs-input::-moz-range-thumb {
-    pointer-events: auto;
+.drs-fill {
+    background: var(--accent);
 }
 
-.drs-input:active {
-    z-index: 1;
+.drs-handle {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-1);
+    box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    cursor: grab;
+    pointer-events: none;
+    transition: transform 0.1s ease;
+}
+
+.drs-track:active .drs-handle {
+    cursor: grabbing;
+}
+
+.drs-track:hover .drs-handle {
+    transform: scale(1.15);
+}
+
+.drs-handle:focus-visible {
+    outline: 2px solid var(--fg-0);
+    outline-offset: 2px;
 }
 
 /* Color ramp — a Blender-style gradient bar with draggable stops. */

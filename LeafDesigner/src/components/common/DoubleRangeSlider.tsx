@@ -1,3 +1,5 @@
+import { useRef } from "preact/hooks";
+
 export interface DoubleRangeSliderProps {
   label?: string;
   min: number;
@@ -25,13 +27,74 @@ export function DoubleRangeSlider({
   defaultMin,
   defaultMax,
 }: DoubleRangeSliderProps) {
-  const resetToDefault = () => {
-    if (defaultMin !== undefined && defaultMax !== undefined) onChange(defaultMin, defaultMax);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef<"min" | "max" | null>(null);
+
+  const decimals = Math.max(0, -Math.floor(Math.log10(step)));
+  const snap = (v: number) => Math.min(max, Math.max(min, Number((Math.round(v / step) * step).toFixed(decimals))));
+  const percent = (v: number) => ((v - min) / (max - min)) * 100;
+  const setHandle = (handle: "min" | "max", v: number) => {
+    if (handle === "min") onChange(Math.min(snap(v), valueMax), valueMax);
+    else onChange(valueMin, Math.max(snap(v), valueMin));
   };
-  const resetTitle =
-    defaultMin !== undefined && defaultMax !== undefined
-      ? `Double-click to reset to ${defaultMin}-${defaultMax}${unit}`
-      : undefined;
+
+  const valueAt = (clientX: number) => {
+    const rect = trackRef.current!.getBoundingClientRect();
+    return min + ((clientX - rect.left) / rect.width) * (max - min);
+  };
+  // The nearer handle takes the drag; when both sit on the same spot, the side you grab decides.
+  const nearerHandle = (v: number): "min" | "max" => {
+    const dMin = Math.abs(v - valueMin);
+    const dMax = Math.abs(v - valueMax);
+    if (dMin !== dMax) return dMin < dMax ? "min" : "max";
+    return v < valueMin ? "min" : "max";
+  };
+
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    const v = valueAt(e.clientX);
+    dragging.current = nearerHandle(v);
+    trackRef.current!.setPointerCapture(e.pointerId);
+    trackRef.current!.querySelectorAll<HTMLElement>(".drs-handle")[dragging.current === "min" ? 0 : 1]?.focus();
+    setHandle(dragging.current, v);
+    e.preventDefault();
+  };
+  const onPointerMove = (e: PointerEvent) => {
+    if (dragging.current) setHandle(dragging.current, valueAt(e.clientX));
+  };
+  const onPointerUp = () => {
+    dragging.current = null;
+  };
+
+  const onKeyDown = (handle: "min" | "max") => (e: KeyboardEvent) => {
+    const current = handle === "min" ? valueMin : valueMax;
+    const delta = e.shiftKey ? step * 10 : step;
+    if (e.key === "ArrowLeft" || e.key === "ArrowDown") setHandle(handle, current - delta);
+    else if (e.key === "ArrowRight" || e.key === "ArrowUp") setHandle(handle, current + delta);
+    else if (e.key === "Home") setHandle(handle, min);
+    else if (e.key === "End") setHandle(handle, max);
+    else return;
+    e.preventDefault();
+  };
+
+  const canReset = defaultMin !== undefined && defaultMax !== undefined;
+  const resetToDefault = () => {
+    if (canReset) onChange(defaultMin!, defaultMax!);
+  };
+
+  const handle = (which: "min" | "max", value: number) => (
+    <div
+      class="drs-handle"
+      role="slider"
+      tabIndex={0}
+      aria-label={`${label ?? ""} ${which}`}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      style={{ left: `${percent(value)}%` }}
+      onKeyDown={onKeyDown(which)}
+    />
+  );
 
   return (
     <div className={`double-range-slider stack ${className}`}>
@@ -46,7 +109,7 @@ export function DoubleRangeSlider({
             value={valueMin}
             onInput={(e) => {
               const val = parseFloat((e.target as HTMLInputElement).value);
-              if (!isNaN(val)) onChange(Math.min(val, valueMax), valueMax);
+              if (!isNaN(val)) setHandle("min", val);
             }}
           />
           <span>-</span>
@@ -58,31 +121,26 @@ export function DoubleRangeSlider({
             value={valueMax}
             onInput={(e) => {
               const val = parseFloat((e.target as HTMLInputElement).value);
-              if (!isNaN(val)) onChange(valueMin, Math.max(val, valueMin));
+              if (!isNaN(val)) setHandle("max", val);
             }}
           />
           {unit && <span>{unit}</span>}
         </div>
       </div>
-      <div class="drs-track" title={resetTitle} onDblClick={resetToDefault}>
-        <input
-          type="range"
-          class="drs-input"
-          min={min}
-          max={max}
-          step={step}
-          value={valueMin}
-          onInput={(e) => onChange(Math.min(parseFloat((e.target as HTMLInputElement).value), valueMax), valueMax)}
-        />
-        <input
-          type="range"
-          class="drs-input"
-          min={min}
-          max={max}
-          step={step}
-          value={valueMax}
-          onInput={(e) => onChange(valueMin, Math.max(parseFloat((e.target as HTMLInputElement).value), valueMin))}
-        />
+      <div
+        ref={trackRef}
+        class="drs-track"
+        title={canReset ? `Double-click to reset to ${defaultMin}-${defaultMax}${unit}` : undefined}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onDblClick={resetToDefault}
+      >
+        <div class="drs-rail" />
+        <div class="drs-fill" style={{ left: `${percent(valueMin)}%`, width: `${percent(valueMax) - percent(valueMin)}%` }} />
+        {handle("min", valueMin)}
+        {handle("max", valueMax)}
       </div>
     </div>
   );
