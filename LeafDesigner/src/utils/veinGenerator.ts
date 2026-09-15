@@ -492,31 +492,34 @@ function flipToDelaunay(tris: [number, number, number][], pts: Point[]): void {
   }
 }
 
+type Deformer = (q: Point3) => Point3;
+
 /**
- * The deformer for one vein edge (parent -> child; for the root, the stem straight up from the
- * base) carrying the child's bend and fold, or null if it has neither. Both act smoothly over
- * the whole blade past the parent joint along the vein: the angle builds up linearly out to the
- * farthest vertex reached, so the blade curls as one arc instead of kinking. An on-axis vein
- * reaches the whole width; an off-axis vein reaches its own lobe (the width its subtree spans),
- * fading out just beyond it and never crossing the midrib.
+ * The fold and bend deformers of one vein edge (parent -> child; for the root, the stem straight
+ * up from the base), null where the angle is zero. Both act smoothly over the whole blade past
+ * the parent joint along the vein: the angle builds up linearly out to the farthest vertex
+ * reached, so the blade curls as one arc instead of kinking. An on-axis vein reaches the whole
+ * width; an off-axis vein reaches its own lobe (the width its subtree spans), fading out just
+ * beyond it and never crossing the midrib.
  *
  * Bend curves the region out of the leaf plane (positive = toward +z). Fold hinges the two sides
  * of the vein toward each other around it — a lobe cups, the midrib closes the leaf like a book;
  * the vein itself stays put (positive lifts both sides toward +z).
  */
-function bendFoldDeformer(
+function veinDeformers(
   parentFlat: Point,
   childFlat: Point,
   node: VeinNode,
   ownedFlats: Point[],
   allFlats: Point[],
-): ((q: Point3) => Point3) | null {
+): { fold: Deformer | null; bend: Deformer | null } {
+  const none = { fold: null, bend: null };
   const bend = ((node.bend ?? 0) * Math.PI) / 180;
   const fold = ((node.fold ?? 0) * Math.PI) / 180;
-  if (Math.abs(bend) < 1e-9 && Math.abs(fold) < 1e-9) return null;
+  if (Math.abs(bend) < 1e-9 && Math.abs(fold) < 1e-9) return none;
 
   const len = dist(parentFlat, childFlat);
-  if (len < 1e-6) return null;
+  if (len < 1e-6) return none;
   const ax = (childFlat.x - parentFlat.x) / len;
   const ay = (childFlat.y - parentFlat.y) / len;
   const along = (p: Point) => (p.x - parentFlat.x) * ax + (p.y - parentFlat.y) * ay;
@@ -534,37 +537,41 @@ function bendFoldDeformer(
 
   let reach = 0;
   for (const f of allFlats) if (along(f) > 0 && weight(f) > 0) reach = Math.max(reach, along(f));
-  if (reach < 1e-6) return null;
+  if (reach < 1e-6) return none;
 
-  return (q) => {
+  const place = (outAlong: number, l: number, up: number): Point3 => ({
+    x: parentFlat.x + outAlong * ax + l * ay,
+    y: parentFlat.y + outAlong * ay - l * ax,
+    z: up,
+  });
+
+  const foldDeformer: Deformer = (q) => {
+    const a = along(q);
+    const w = weight(q);
+    const l = across(q);
+    if (a <= 0 || w <= 0 || l === 0) return q;
+    const t = (Math.sign(l) * fold * Math.min(a, reach) * w) / reach;
+    return place(a, l * Math.cos(t) - q.z * Math.sin(t), l * Math.sin(t) + q.z * Math.cos(t));
+  };
+
+  const bendDeformer: Deformer = (q) => {
     const a = along(q);
     const w = weight(q);
     if (a <= 0 || w <= 0) return q;
-    let l = across(q);
-    let h = q.z;
-    const share = Math.min(a, reach) / reach;
-
-    if (fold !== 0 && l !== 0) {
-      const t = Math.sign(l) * fold * share * w;
-      [l, h] = [l * Math.cos(t) - h * Math.sin(t), l * Math.sin(t) + h * Math.cos(t)];
+    // Circular arc of curvature k; a point at height h rides the arc of radius r - h.
+    const k = (bend * w) / reach;
+    const r = 1 / k;
+    const phi = k * Math.min(a, reach);
+    let outAlong = (r - q.z) * Math.sin(phi);
+    let up = r - (r - q.z) * Math.cos(phi);
+    if (a > reach) {
+      outAlong += (a - reach) * Math.cos(bend * w);
+      up += (a - reach) * Math.sin(bend * w);
     }
-
-    let outAlong = a;
-    let up = h;
-    if (bend !== 0) {
-      // Circular arc of curvature k; a point at height h rides the arc of radius r - h.
-      const k = (bend * w) / reach;
-      const r = 1 / k;
-      const phi = k * Math.min(a, reach);
-      outAlong = (r - h) * Math.sin(phi);
-      up = r - (r - h) * Math.cos(phi);
-      if (a > reach) {
-        outAlong += (a - reach) * Math.cos(bend * w);
-        up += (a - reach) * Math.sin(bend * w);
-      }
-    }
-    return { x: parentFlat.x + outAlong * ax + l * ay, y: parentFlat.y + outAlong * ay - l * ax, z: up };
+    return place(outAlong, across(q), up);
   };
+
+  return { fold: fold !== 0 ? foldDeformer : null, bend: bend !== 0 ? bendDeformer : null };
 }
 
 export function generateVeinMesh(
@@ -731,17 +738,17 @@ export function generateVeinMesh(
     for (let n: AugNode | null = owner; n && n.depth >= aug.depth; n = n.parent) if (n === aug) return true;
     return false;
   };
-  const deformers = postOrder
-    .map((aug) =>
-      bendFoldDeformer(
-        aug.parent?.flat ?? { x: 0, y: -1 },
-        aug.flat,
-        aug.node,
-        flats.filter((_, v) => isWithin(owners[v], aug)),
-        flats,
-      ),
-    )
-    .filter((d): d is NonNullable<typeof d> => d !== null);
+  // All folds first, then all bends
+  const parts = postOrder.map((aug) =>
+    veinDeformers(
+      aug.parent?.flat ?? { x: 0, y: -1 },
+      aug.flat,
+      aug.node,
+      flats.filter((_, v) => isWithin(owners[v], aug)),
+      flats,
+    ),
+  );
+  const deformers = [...parts.map((p) => p.fold), ...parts.map((p) => p.bend)].filter((d): d is Deformer => d !== null);
 
   const position: number[] = [];
   for (const flat of flats) {
