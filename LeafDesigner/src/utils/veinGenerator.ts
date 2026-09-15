@@ -1,7 +1,8 @@
-import { VeinData, VeinNode, VeinGenParams } from "../types/leaf";
+import { MeshData, Point, VeinData, VeinGenParams, VeinNode } from "../types/leaf";
+import { clamp01, cross, dist, lerp, perimeter, size, smoothstep } from "./math";
+import { newId } from "./random";
 
-export type Point = { x: number; y: number };
-type Point3 = { x: number; y: number; z: number };
+type Point3 = Point & { z: number };
 type KeyPoint = Point & { curvature: number };
 
 export const DEFAULT_VEIN_PARAMS: VeinGenParams = {
@@ -18,25 +19,17 @@ export const MAX_ROTATION_DEG = 180;
 const BASE_WIDTH = 0.25;
 // A point this close to x = 0 counts as sitting on the mirror axis.
 const AXIS_EPS = 0.001;
-// Below this a flat triangle counts as having no area.
+// Below this a triangle counts as having no area.
 const FLAT_AREA_EPS = 1e-7;
 
-// The notch between two sibling veins stays sharper than the tips' roundness — a real sinus is a cusp.
+// The notch between two sibling veins stays sharper than the tips.
 const sinusCurvature = (roundness: number) => roundness * 0.35;
 const round = (v: number) => Math.round(v * 10000) / 10000;
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-const smoothstep = (t: number) => {
-  const c = Math.max(0, Math.min(1, t));
-  return c * c * (3 - 2 * c);
-};
-/** Twice the signed area of (a, b, c) — positive when counter-clockwise. */
-const cross2 = (a: Point, b: Point, c: Point) => (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 
 // --- VEIN TREE ---
 
 export function createVeinNode(x: number, y: number, children: VeinNode[] = [], id?: string): VeinNode {
-  return { id: id || "vein-" + Math.random().toString(36).slice(2, 9), x: round(x), y: round(y), children };
+  return { id: id || newId("vein-"), x: round(x), y: round(y), children };
 }
 
 export function findVeinNode(root: VeinNode, id: string): VeinNode | null {
@@ -73,10 +66,7 @@ function subtreeIds(node: VeinNode): Set<string> {
   return ids;
 }
 
-/**
- * Merges 2 vein points on the same "layer" within threshold.
- * Lets two dragged-together vein tips snap into one instead of pinching the outline.
- */
+/** Merges node `id` into the closest other node within `threshold`, keeping its children. */
 export function mergeNearbyVeinNode(
   root: VeinNode,
   id: string,
@@ -129,8 +119,8 @@ export function getEffectiveLobeThreshold(node: VeinNode, params: VeinGenParams)
   return node.lobeThreshold ?? params.lobeThreshold ?? 0;
 }
 
-/** A simple pinnate default: midrib with three side veins. */
-export function getDefaultVeinData(): VeinData {
+// A simple pinnate default: midrib with three side veins.
+function defaultVeinData(): VeinData {
   const apex = createVeinNode(0, 2.0, [], "vein-apex");
   const mid3 = createVeinNode(0, 1.5, [createVeinNode(0.4, 1.8, [], "vein-3"), apex], "vein-mid-3");
   const mid2 = createVeinNode(0, 1.0, [createVeinNode(0.7, 1.3, [], "vein-2"), mid3], "vein-mid-2");
@@ -140,15 +130,15 @@ export function getDefaultVeinData(): VeinData {
 
 /** Whatever was stored, as complete VeinData (missing params filled from the defaults). */
 export function ensureVeinData(v: VeinData | null | undefined): VeinData {
-  if (!v?.root) return getDefaultVeinData();
+  if (!v?.root) return defaultVeinData();
   return { root: v.root, params: { ...DEFAULT_VEIN_PARAMS, ...(v.params || {}) } };
 }
 
 // --- OUTLINE ---
-// A single Catmull-Rom spline through the base, every tip (pushed out by its margin) and the
-// sinus between neighboring veins, for one half of the leaf; the other half is its mirror.
+// One spline through the base, every tip and every notch between sibling veins, for the right
+// half of the leaf; the left half is its mirror.
 
-/** Centripetal Catmull-Rom tangents for the segment p1 -> p2: stable for unevenly spaced points. */
+// Centripetal Catmull-Rom tangents for the segment p1 -> p2, stable for unevenly spaced points.
 function splineTangents(p0: Point, p1: Point, p2: Point, p3: Point) {
   const d01 = Math.sqrt(Math.max(dist(p0, p1), 1e-4));
   const d12 = Math.sqrt(Math.max(dist(p1, p2), 1e-4));
@@ -164,7 +154,7 @@ function splineTangents(p0: Point, p1: Point, p2: Point, p3: Point) {
   return { t1, t2 };
 }
 
-/** Scales a tangent down so it can never overshoot into a loop. */
+// Scales a tangent down so it can never overshoot into a loop.
 function clampTangent(t: Point, refDist: number): Point {
   const len = Math.hypot(t.x, t.y);
   const maxLen = refDist * 2.5;
@@ -172,11 +162,8 @@ function clampTangent(t: Point, refDist: number): Point {
   return { x: (t.x * maxLen) / len, y: (t.y * maxLen) / len };
 }
 
-/**
- * Hermite spline through the key points, `samples` points per segment plus the last point.
- * A segment's roundness is the average of its two key points' curvature (0 = straight,
- * 0.5 = standard Catmull-Rom, 1 = twice the bulge).
- */
+// Hermite spline through the key points, `samples` points per segment plus the last point.
+// A segment's roundness is the mean curvature of its two key points (0.5 = plain Catmull-Rom).
 function interpolateSpline(points: KeyPoint[], samples: number): Point[] {
   if (points.length < 2) return points.map((p) => ({ x: p.x, y: p.y }));
   const stepCount = Math.max(1, Math.round(samples));
@@ -185,7 +172,7 @@ function interpolateSpline(points: KeyPoint[], samples: number): Point[] {
 
   for (let i = 0; i + 3 < p.length; i++) {
     const [p0, p1, p2, p3] = [p[i], p[i + 1], p[i + 2], p[i + 3]];
-    const tension = 2 * Math.max(0, Math.min(1, (p1.curvature + p2.curvature) / 2));
+    const tension = 2 * clamp01((p1.curvature + p2.curvature) / 2);
     const { t1, t2 } = splineTangents(p0, p1, p2, p3);
     const refDist = Math.max(dist(p1, p2), 1e-4);
     const m1 = clampTangent({ x: t1.x * tension, y: t1.y * tension }, refDist);
@@ -210,24 +197,21 @@ function interpolateSpline(points: KeyPoint[], samples: number): Point[] {
   return result;
 }
 
-/** `to`, pushed `margin` further along the from -> to direction. */
+// `to`, pushed `margin` further along the from -> to direction.
 function extendFrom(from: Point, to: Point, margin: number): Point {
   const len = dist(from, to);
   if (len < 0.001) return { x: round(to.x), y: round(to.y) };
   return { x: round(to.x + ((to.x - from.x) / len) * margin), y: round(to.y + ((to.y - from.y) / len) * margin) };
 }
 
-/** Lobe depth eased in once two sibling veins are more than `threshold` apart (0 disables the gate). */
+// Lobe depth eased in once two sibling veins are more than `threshold` apart (0 disables the gate).
 function gatedLobeDepth(lobeDepth: number, siblingGap: number, threshold: number): number {
   if (threshold <= 0) return lobeDepth;
-  return lobeDepth * Math.max(0, Math.min(1, (siblingGap - threshold) / Math.max(threshold, 0.01)));
+  return lobeDepth * clamp01((siblingGap - threshold) / Math.max(threshold, 0.01));
 }
 
-/**
- * Two children at the exact same angle from their parent (a vein running straight on, with a
- * side vein authored as a separate child instead of nested in that run) would overlap. The
- * farther one is re-nested under the nearer one, which every routine here handles naturally.
- */
+// Two children at the exact same angle from their parent would overlap; the farther one is
+// re-nested under the nearer one.
 function reparentCollinearChildren(node: VeinNode): VeinNode {
   const children = node.children.map(reparentCollinearChildren);
   const angleOf = (c: VeinNode) => Math.atan2(c.x - node.x, c.y - node.y);
@@ -248,11 +232,9 @@ function reparentCollinearChildren(node: VeinNode): VeinNode {
   return { ...node, children: merged };
 }
 
-/**
- * Key points of the un-mirrored half outline, walking the tree with children sorted by y:
- * the base, then every tip (extended by its margin) with a sinus point before each child that
- * has a sibling below it. `tipKeyIndex` maps each tip id to its key point.
- */
+// Key points of the right half outline, walking the tree with children sorted by y: the base,
+// then every tip (extended by its margin) with a notch before each child that has a sibling
+// below it. `tipKeyIndex` maps each tip id to its key point.
 function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
   const { margin, curvature } = params;
   const keyPoints: KeyPoint[] = [{ x: 0, y: 0, curvature }];
@@ -311,14 +293,17 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
 }
 
 /** The half outline (base -> apex), mirrored into a closed ring unless `mirrorX` is false. */
-export function generateOutlineFromVeins(veins: VeinData, options: { mirrorX: boolean; params?: VeinGenParams }): Point[] {
+export function generateOutlineFromVeins(
+  veins: VeinData,
+  options: { mirrorX: boolean; params?: VeinGenParams },
+): Point[] {
   const params = options.params || veins.params || DEFAULT_VEIN_PARAMS;
   const { keyPoints } = buildOutlineKeyPoints(reparentCollinearChildren(veins.root), params);
   const half = interpolateSpline(keyPoints, params.subdivisions);
   return options.mirrorX ? mirrorHalfOutline(half) : half;
 }
 
-/** Forward along the half, then back along its mirror image, skipping points on the axis. */
+// Forward along the half, then back along its mirror image, skipping points on the axis.
 function mirrorHalfOutline(half: Point[]): Point[] {
   const ring = [...half];
   for (let i = half.length - 1; i >= 0; i--) {
@@ -328,34 +313,22 @@ function mirrorHalfOutline(half: Point[]): Point[] {
 }
 
 // --- MESH ---
-// The blade is the outline ring above with the vein tree laid inside it: every joint is a
-// vertex, every tip is pinned to its point on the ring. Between two tips that are neighbors
-// along the ring lies one face — bounded by that stretch of outline and the two vein paths
-// back to the tips' common ancestor joint — which is triangulated on its own. Off-axis
-// branches of an on-axis joint are mirrored to make the left half. Bend and fold are applied
-// last, as smooth deformations of the finished flat mesh.
+// The blade is the outline ring with the vein tree laid inside it. Between two tips that are
+// neighbors along the ring lies one face, bounded by that stretch of outline and the two vein
+// paths back to the tips' common joint; each face is triangulated on its own. Bend and fold are
+// applied last as smooth deformations of the flat mesh.
 
-export interface VeinMesh {
-  position: number[];
-  index: number[];
-}
-
-/**
- * Reshapes the flat outline ring before the blade is triangulated over it (margin teeth). It
- * may move points and insert new ones between them, and reports where each original point
- * ended up so every tip stays pinned to its own outline point.
- */
+/** Reshapes the flat outline ring before triangulation (margin teeth). May move points and
+ *  insert new ones; `originalIndex[i]` is where original point i ended up. */
 export type OutlineShaper = (ring: Point[]) => { ring: Point[]; originalIndex: number[] };
 
-/** A joint or tip of the mirror-augmented tree as placed in the mesh. */
-interface AugNode {
-  node: VeinNode;
+// A joint or tip of the (mirrored) vein tree as placed in the mesh.
+interface MeshNode {
+  vein: VeinNode;
   flat: Point;
   vertex: number;
-  /** Vertices along the vein edge from the parent to this node (parent side first), so the
-   *  interior is sampled as densely as the outline instead of everything meeting at the joint. */
-  strut: number[];
-  parent: AugNode | null;
+  alongVein: number[]; // vertices between the parent and this node, parent side first
+  parent: MeshNode | null;
   depth: number;
 }
 
@@ -363,21 +336,19 @@ function mirrorNode(node: VeinNode): VeinNode {
   return { ...node, x: -node.x, children: node.children.map(mirrorNode) };
 }
 
-/** Smallest interior angle of the flat triangle (a, b, c). */
+// Interior angle of the flat triangle at vertex `at`, between `p` and `q`.
+function angleAt(pts: Point[], at: number, p: number, q: number): number {
+  const dot = (pts[p].x - pts[at].x) * (pts[q].x - pts[at].x) + (pts[p].y - pts[at].y) * (pts[q].y - pts[at].y);
+  return Math.abs(Math.atan2(cross(pts[at], pts[p], pts[q]), dot));
+}
+
 function minAngle(pts: Point[], a: number, b: number, c: number): number {
-  const angleAt = (p: number, q: number, r: number) =>
-    Math.abs(
-      Math.atan2(
-        cross2(pts[p], pts[q], pts[r]),
-        (pts[q].x - pts[p].x) * (pts[r].x - pts[p].x) + (pts[q].y - pts[p].y) * (pts[r].y - pts[p].y),
-      ),
-    );
-  return Math.min(angleAt(a, b, c), angleAt(b, c, a), angleAt(c, a, b));
+  return Math.min(angleAt(pts, a, b, c), angleAt(pts, b, c, a), angleAt(pts, c, a, b));
 }
 
 function distToSegment(p: Point, a: Point, b: Point): number {
   const len2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
-  const t = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / len2)) : 0;
+  const t = len2 > 0 ? clamp01(((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / len2) : 0;
   return dist(p, { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
 }
 
@@ -391,28 +362,24 @@ function insidePolygon(p: Point, poly: Point[]): boolean {
   return inside;
 }
 
-/**
- * Triangulates one face polygon (counter-clockwise vertex indices) with extra interior points:
- * ear clipping that always clips the best-shaped ear first, then the interior points are
- * inserted, then Delaunay edge flips — so triangles spread evenly over the face instead of
- * fanning out of a few vertices. Zero-area ears are only clipped when nothing else is left (a
- * straight vein chain through a joint).
- */
+// Triangulates one counter-clockwise face polygon plus extra interior points: ear clipping that
+// always clips the best-shaped ear, then the interior points are inserted, then Delaunay flips.
+// Zero-area ears are only clipped when nothing else is left (a straight vein chain).
 function triangulatePolygon(poly: number[], interior: number[], pts: Point[], index: number[]): void {
   if (poly.length < 3) return;
   const isEar = (ring: number[], r: number) => {
     const a = ring[(r - 1 + ring.length) % ring.length];
     const b = ring[r];
     const c = ring[(r + 1) % ring.length];
-    if (cross2(pts[a], pts[b], pts[c]) < -FLAT_AREA_EPS) return false;
+    if (cross(pts[a], pts[b], pts[c]) < -FLAT_AREA_EPS) return false;
     return ring.every(
       (o) =>
         o === a ||
         o === b ||
         o === c ||
-        cross2(pts[a], pts[b], pts[o]) <= FLAT_AREA_EPS ||
-        cross2(pts[b], pts[c], pts[o]) <= FLAT_AREA_EPS ||
-        cross2(pts[c], pts[a], pts[o]) <= FLAT_AREA_EPS,
+        cross(pts[a], pts[b], pts[o]) <= FLAT_AREA_EPS ||
+        cross(pts[b], pts[c], pts[o]) <= FLAT_AREA_EPS ||
+        cross(pts[c], pts[a], pts[o]) <= FLAT_AREA_EPS,
     );
   };
 
@@ -426,7 +393,7 @@ function triangulatePolygon(poly: number[], interior: number[], pts: Point[], in
       const a = ring[(r - 1 + ring.length) % ring.length];
       const c = ring[(r + 1) % ring.length];
       let score = minAngle(pts, a, ring[r], c);
-      // With four left, the ear's leftover is the last triangle — it must not be a sliver either.
+      // With four left, the leftover is the last triangle and must not be a sliver either.
       if (ring.length === 4) score = Math.min(score, minAngle(pts, c, ring[(r + 2) % 4], a));
       if (score > bestScore) {
         bestScore = score;
@@ -440,7 +407,9 @@ function triangulatePolygon(poly: number[], interior: number[], pts: Point[], in
 
   for (const p of interior) {
     const inside = (t: [number, number, number]) =>
-      cross2(pts[t[0]], pts[t[1]], pts[p]) >= 0 && cross2(pts[t[1]], pts[t[2]], pts[p]) >= 0 && cross2(pts[t[2]], pts[t[0]], pts[p]) >= 0;
+      cross(pts[t[0]], pts[t[1]], pts[p]) >= 0 &&
+      cross(pts[t[1]], pts[t[2]], pts[p]) >= 0 &&
+      cross(pts[t[2]], pts[t[0]], pts[p]) >= 0;
     const ti = tris.findIndex(inside);
     if (ti < 0) continue;
     const [a, b, c] = tris[ti];
@@ -451,16 +420,8 @@ function triangulatePolygon(poly: number[], interior: number[], pts: Point[], in
   tris.forEach((t) => index.push(...t));
 }
 
-/** Flips interior edges until every pair of neighboring triangles satisfies the Delaunay condition. */
+// Flips interior edges until every pair of neighboring triangles satisfies the Delaunay condition.
 function flipToDelaunay(tris: [number, number, number][], pts: Point[]): void {
-  const angleAt = (w: number, u: number, v: number) =>
-    Math.abs(
-      Math.atan2(
-        cross2(pts[w], pts[u], pts[v]),
-        (pts[u].x - pts[w].x) * (pts[v].x - pts[w].x) + (pts[u].y - pts[w].y) * (pts[v].y - pts[w].y),
-      ),
-    );
-
   for (let pass = 0; pass < 200; pass++) {
     const byEdge = new Map<string, number[]>();
     tris.forEach((t, ti) => {
@@ -482,8 +443,9 @@ function flipToDelaunay(tris: [number, number, number][], pts: Point[]): void {
       const v = t1[(k + 1) % 3];
       const w1 = t1.find((x) => x !== u && x !== v)!;
       const w2 = t2.find((x) => x !== u && x !== v)!;
-      if (angleAt(w1, u, v) + angleAt(w2, u, v) <= Math.PI + 1e-9) continue;
-      if (cross2(pts[u], pts[w2], pts[w1]) <= FLAT_AREA_EPS || cross2(pts[w2], pts[v], pts[w1]) <= FLAT_AREA_EPS) continue;
+      if (angleAt(pts, w1, u, v) + angleAt(pts, w2, u, v) <= Math.PI + 1e-9) continue;
+      if (cross(pts[u], pts[w2], pts[w1]) <= FLAT_AREA_EPS) continue;
+      if (cross(pts[w2], pts[v], pts[w1]) <= FLAT_AREA_EPS) continue;
       tris[owners[0]] = [u, w2, w1];
       tris[owners[1]] = [w2, v, w1];
       changed.add(owners[0]).add(owners[1]);
@@ -494,28 +456,23 @@ function flipToDelaunay(tris: [number, number, number][], pts: Point[]): void {
 
 type Deformer = (q: Point3) => Point3;
 
-/**
- * The fold and bend deformers of one vein edge (parent -> child; for the root, the stem straight
- * up from the base), null where the angle is zero. Both act smoothly over the whole blade past
- * the parent joint along the vein: the angle builds up linearly out to the farthest vertex
- * reached, so the blade curls as one arc instead of kinking. An on-axis vein reaches the whole
- * width; an off-axis vein reaches its own lobe (the width its subtree spans), fading out just
- * beyond it and never crossing the midrib.
- *
- * Bend curves the region out of the leaf plane (positive = toward +z). Fold hinges the two sides
- * of the vein toward each other around it — a lobe cups, the midrib closes the leaf like a book;
- * the vein itself stays put (positive lifts both sides toward +z).
- */
+// The fold and bend deformers of one vein edge (parent -> child; the root uses the stem straight
+// up from the base), null where the angle is zero. Both act on the blade past the parent joint:
+// the angle builds up linearly out to the farthest vertex reached, so the blade curls as one arc.
+// An on-axis vein reaches the whole width; an off-axis vein reaches its own lobe (the width its
+// subtree spans), fading out just beyond it and never crossing the midrib.
+// Bend curves the region out of the plane (positive = toward +z). Fold hinges the two sides of
+// the vein toward each other; the vein itself stays put (positive lifts both sides toward +z).
 function veinDeformers(
   parentFlat: Point,
   childFlat: Point,
-  node: VeinNode,
-  ownedFlats: Point[],
-  allFlats: Point[],
+  vein: VeinNode,
+  ownedPoints: Point[],
+  allPoints: Point[],
 ): { fold: Deformer | null; bend: Deformer | null } {
   const none = { fold: null, bend: null };
-  const bend = ((node.bend ?? 0) * Math.PI) / 180;
-  const fold = ((node.fold ?? 0) * Math.PI) / 180;
+  const bend = ((vein.bend ?? 0) * Math.PI) / 180;
+  const fold = ((vein.fold ?? 0) * Math.PI) / 180;
   if (Math.abs(bend) < 1e-9 && Math.abs(fold) < 1e-9) return none;
 
   const len = dist(parentFlat, childFlat);
@@ -528,7 +485,7 @@ function veinDeformers(
   const onAxis = Math.abs(parentFlat.x) <= AXIS_EPS && Math.abs(childFlat.x) <= AXIS_EPS;
   const side = Math.sign(Math.abs(childFlat.x) > AXIS_EPS ? childFlat.x : parentFlat.x);
   let halfWidth = 0.15 * len;
-  for (const f of ownedFlats) halfWidth = Math.max(halfWidth, Math.abs(across(f)));
+  for (const p of ownedPoints) halfWidth = Math.max(halfWidth, Math.abs(across(p)));
   const weight = (p: Point) => {
     if (onAxis) return 1;
     if (Math.abs(p.x) <= AXIS_EPS || Math.sign(p.x) !== side) return 0;
@@ -536,7 +493,7 @@ function veinDeformers(
   };
 
   let reach = 0;
-  for (const f of allFlats) if (along(f) > 0 && weight(f) > 0) reach = Math.max(reach, along(f));
+  for (const p of allPoints) if (along(p) > 0 && weight(p) > 0) reach = Math.max(reach, along(p));
   if (reach < 1e-6) return none;
 
   const place = (outAlong: number, l: number, up: number): Point3 => ({
@@ -558,7 +515,7 @@ function veinDeformers(
     const a = along(q);
     const w = weight(q);
     if (a <= 0 || w <= 0) return q;
-    // Circular arc of curvature k; a point at height h rides the arc of radius r - h.
+    // Circular arc of curvature k; a point at height z rides the arc of radius r - z.
     const k = (bend * w) / reach;
     const r = 1 / k;
     const phi = k * Math.min(a, reach);
@@ -574,30 +531,31 @@ function veinDeformers(
   return { fold: fold !== 0 ? foldDeformer : null, bend: bend !== 0 ? bendDeformer : null };
 }
 
+/** The blade mesh over the vein tree: flat triangulation, then bend and fold. */
 export function generateVeinMesh(
   veins: VeinData,
   options: { mirrorX?: boolean; params?: VeinGenParams; shapeOutline?: OutlineShaper } = {},
-): VeinMesh {
+): MeshData {
   const mirrorX = options.mirrorX !== false;
   const params = options.params || veins.params || DEFAULT_VEIN_PARAMS;
   const root = reparentCollinearChildren(veins.root);
   if (root.children.length === 0) return { position: [], index: [] };
 
   const index: number[] = [];
-  const flats: Point[] = [];
-  const owners: AugNode[] = [];
-  const addVertex = (flat: Point, owner: AugNode) => {
-    flats.push(flat);
+  const points: Point[] = [];
+  const owners: MeshNode[] = [];
+  const addVertex = (flat: Point, owner: MeshNode) => {
+    points.push(flat);
     owners.push(owner);
-    return flats.length - 1;
+    return points.length - 1;
   };
 
-  // Key point k of the half outline sits at half[k * stepCount] — that's how a tip finds its point.
+  // Key point k of the half outline sits at half[k * stepCount]; that's how a tip finds its point.
   const { keyPoints, tipKeyIndex } = buildOutlineKeyPoints(root, params);
   const stepCount = Math.max(1, Math.round(params.subdivisions));
   const half = interpolateSpline(keyPoints, params.subdivisions);
 
-  // The ring — same construction as `mirrorHalfOutline`, tracked per point.
+  // The ring, built like `mirrorHalfOutline` but tracked per point.
   const ringPoints = half.map((_, i) => ({ halfIdx: i, mirrored: false }));
   const mirroredRingPos = new Map<number, number>();
   if (mirrorX) {
@@ -614,144 +572,157 @@ export function generateVeinMesh(
   }));
   const shaped = options.shapeOutline?.(flatRing) ?? { ring: flatRing, originalIndex: flatRing.map((_, i) => i) };
   const outline = shaped.ring;
-  // Interior sampling distance — veins and the interior grid alike — twice the plain (untoothed)
-  // outline's own point spacing, so `subdivisions` alone controls how dense the blade is; never
-  // finer than 1% of the leaf.
-  const perimeter = flatRing.reduce((sum, p, i) => sum + dist(p, flatRing[(i + 1) % flatRing.length]), 0);
-  const leafSize = Math.max(...flatRing.map((p) => Math.abs(p.x))) * 2 || Math.max(...flatRing.map((p) => p.y));
-  const step = Math.max((2 * perimeter) / flatRing.length, leafSize / 100);
+
+  // Interior spacing (along veins and the grid): twice the untoothed ring's own point spacing,
+  // so `subdivisions` alone controls the density; never finer than 1% of the leaf.
+  const step = Math.max((2 * perimeter(flatRing)) / flatRing.length, size(flatRing) / 100);
   if (!(step > 0)) return { position: [], index: [] };
-  const strutBetween = (from: Point, to: Point, owner: AugNode) => {
+  const verticesBetween = (from: Point, to: Point, owner: MeshNode) => {
     const segments = Math.max(1, Math.round(dist(from, to) / step));
-    const strut: number[] = [];
-    for (let s = 1; s < segments; s++) strut.push(addVertex({ x: lerp(from.x, to.x, s / segments), y: lerp(from.y, to.y, s / segments) }, owner));
-    return strut;
+    const vertices: number[] = [];
+    for (let s = 1; s < segments; s++) {
+      vertices.push(addVertex({ x: lerp(from.x, to.x, s / segments), y: lerp(from.y, to.y, s / segments) }, owner));
+    }
+    return vertices;
   };
 
-  // 1. The mirror-augmented tree. Tips are pinned to the ring in step 2, once it is final.
-  const rootAug: AugNode = { node: root, flat: { x: 0, y: 0 }, vertex: -1, strut: [], parent: null, depth: 0 };
-  rootAug.vertex = addVertex(rootAug.flat, rootAug);
-  const tips: { aug: AugNode; halfIdx: number; mirrored: boolean }[] = [];
-  const postOrder: AugNode[] = [];
+  // 1. The mirrored tree. Tips are pinned to the ring in step 2, once it is final.
+  const meshRoot: MeshNode = { vein: root, flat: { x: 0, y: 0 }, vertex: -1, alongVein: [], parent: null, depth: 0 };
+  meshRoot.vertex = addVertex(meshRoot.flat, meshRoot);
+  const tips: { node: MeshNode; halfIdx: number; mirrored: boolean }[] = [];
+  const childrenFirst: MeshNode[] = [];
 
-  const walk = (node: VeinNode, aug: AugNode, mirrored: boolean) => {
-    const mirrorHere = mirrorX && !mirrored && Math.abs(node.x) <= AXIS_EPS;
+  const walk = (vein: VeinNode, node: MeshNode, mirrored: boolean) => {
+    const mirrorHere = mirrorX && !mirrored && Math.abs(vein.x) <= AXIS_EPS;
     const visit = (child: VeinNode, childMirrored: boolean) => {
-      const childAug: AugNode = { node: child, flat: { x: child.x, y: child.y }, vertex: -1, strut: [], parent: aug, depth: aug.depth + 1 };
+      const childNode: MeshNode = {
+        vein: child,
+        flat: { x: child.x, y: child.y },
+        vertex: -1,
+        alongVein: [],
+        parent: node,
+        depth: node.depth + 1,
+      };
       if (child.children.length === 0) {
-        tips.push({ aug: childAug, halfIdx: tipKeyIndex.get(child.id)! * stepCount, mirrored: childMirrored });
+        tips.push({ node: childNode, halfIdx: tipKeyIndex.get(child.id)! * stepCount, mirrored: childMirrored });
       } else {
-        childAug.strut = strutBetween(aug.flat, childAug.flat, childAug);
-        childAug.vertex = addVertex(childAug.flat, childAug);
-        walk(child, childAug, childMirrored);
+        childNode.alongVein = verticesBetween(node.flat, childNode.flat, childNode);
+        childNode.vertex = addVertex(childNode.flat, childNode);
+        walk(child, childNode, childMirrored);
       }
-      postOrder.push(childAug);
+      childrenFirst.push(childNode);
     };
-    for (const child of node.children) {
+    for (const child of vein.children) {
       visit(child, mirrored);
       if (mirrorHere && Math.abs(child.x) > AXIS_EPS) visit(mirrorNode(child), true);
     }
   };
-  walk(root, rootAug, false);
-  postOrder.push(rootAug);
+  walk(root, meshRoot, false);
+  childrenFirst.push(meshRoot);
 
-  // 2. The tips as stations along the shaped ring: real ones forward, mirrored ones backward.
-  type Station = { aug: AugNode; ringPos: number; mirrored: boolean };
-  const stationOf = (tip: (typeof tips)[number], unshapedPos: number): Station => {
+  // 2. The tips in ring order: right half forward, mirrored ones backward.
+  type RingTip = { node: MeshNode; ringPos: number; mirrored: boolean };
+  const pinTip = (tip: (typeof tips)[number], unshapedPos: number): RingTip => {
     const ringPos = shaped.originalIndex[unshapedPos];
-    tip.aug.flat = outline[ringPos];
-    tip.aug.strut = strutBetween(tip.aug.parent!.flat, tip.aug.flat, tip.aug);
-    tip.aug.vertex = addVertex(outline[ringPos], tip.aug);
-    return { aug: tip.aug, ringPos, mirrored: tip.mirrored };
+    tip.node.flat = outline[ringPos];
+    tip.node.alongVein = verticesBetween(tip.node.parent!.flat, tip.node.flat, tip.node);
+    tip.node.vertex = addVertex(outline[ringPos], tip.node);
+    return { node: tip.node, ringPos, mirrored: tip.mirrored };
   };
-  const stations: Station[] = [
-    { aug: rootAug, ringPos: shaped.originalIndex[0], mirrored: false },
+  const ringTips: RingTip[] = [
+    { node: meshRoot, ringPos: shaped.originalIndex[0], mirrored: false },
     ...tips
       .filter((t) => !t.mirrored)
       .sort((a, b) => a.halfIdx - b.halfIdx)
-      .map((t) => stationOf(t, t.halfIdx)),
+      .map((t) => pinTip(t, t.halfIdx)),
     ...tips
       .filter((t) => t.mirrored && mirroredRingPos.has(t.halfIdx))
       .sort((a, b) => b.halfIdx - a.halfIdx)
-      .map((t) => stationOf(t, mirroredRingPos.get(t.halfIdx)!)),
+      .map((t) => pinTip(t, mirroredRingPos.get(t.halfIdx)!)),
   ];
 
-  // 3. One face per pair of neighboring stations.
-  const commonAncestor = (a: AugNode, b: AugNode) => {
+  // 3. One face per pair of neighboring tips.
+  const commonJoint = (a: MeshNode, b: MeshNode) => {
     while (a !== b) {
       if (a.depth >= b.depth) a = a.parent!;
       else b = b.parent!;
     }
     return a;
   };
-  const pathUpTo = (from: AugNode, stop: AugNode) => {
+  const pathUpTo = (from: MeshNode, stop: MeshNode) => {
     const out: number[] = [];
-    for (let n = from; n !== stop; n = n.parent!) out.push(n.vertex, ...[...n.strut].reverse());
+    for (let n = from; n !== stop; n = n.parent!) out.push(n.vertex, ...[...n.alongVein].reverse());
     return out;
   };
 
-  stations.forEach((a, s) => {
-    const b = stations[(s + 1) % stations.length];
-    const pivot = commonAncestor(a.aug, b.aug);
+  ringTips.forEach((a, s) => {
+    const b = ringTips[(s + 1) % ringTips.length];
+    const joint = commonJoint(a.node, b.node);
 
-    const arcFlat: Point[] = [];
-    for (let r = (a.ringPos + 1) % outline.length; r !== b.ringPos; r = (r + 1) % outline.length) arcFlat.push(outline[r]);
+    const arcPoints: Point[] = [];
+    for (let r = (a.ringPos + 1) % outline.length; r !== b.ringPos; r = (r + 1) % outline.length) {
+      arcPoints.push(outline[r]);
+    }
 
     // Outline points belong to one of the two lobes, switching at the notch (the point closest
-    // to the common joint). The notch itself goes with the lower tip on both halves; the base
-    // has no lobe, so next to the root everything goes with the tip.
-    let ownedByA: (i: number) => boolean = () => false;
-    if (b.aug === rootAug) ownedByA = () => true;
-    else if (a.aug !== rootAug) {
+    // to the joint), which goes with the lower tip on both halves. Next to the root everything
+    // goes with the tip.
+    let belongsToA: (i: number) => boolean = () => false;
+    if (b.node === meshRoot) belongsToA = () => true;
+    else if (a.node !== meshRoot) {
       let notch = -1;
       let best = Infinity;
-      arcFlat.forEach((p, i) => {
-        if (dist(p, pivot.flat) < best) {
-          best = dist(p, pivot.flat);
+      arcPoints.forEach((p, i) => {
+        if (dist(p, joint.flat) < best) {
+          best = dist(p, joint.flat);
           notch = i;
         }
       });
-      ownedByA = a.mirrored || b.mirrored ? (i) => i < notch : (i) => i <= notch;
+      belongsToA = a.mirrored || b.mirrored ? (i) => i < notch : (i) => i <= notch;
     }
-    const arc = arcFlat.map((p, i) => addVertex(p, ownedByA(i) ? a.aug : b.aug));
+    const arc = arcPoints.map((p, i) => addVertex(p, belongsToA(i) ? a.node : b.node));
 
-    const poly = [pivot.vertex, ...pathUpTo(a.aug, pivot).reverse(), ...arc, ...pathUpTo(b.aug, pivot)];
+    const poly = [joint.vertex, ...pathUpTo(a.node, joint).reverse(), ...arc, ...pathUpTo(b.node, joint)];
 
-    // Interior points on a grid with columns on the axis (so both halves get the same points and
-    // none sits exactly half a step from the midrib), kept clear of the face's own boundary.
-    const polyPts = poly.map((v) => flats[v]);
+    // Interior points on a grid with columns on the axis (so both halves get the same points),
+    // kept clear of the face's own boundary.
+    const polyPts = poly.map((v) => points[v]);
     const gridStart = (min: number, offset: number) => (Math.floor(min / step) + offset) * step;
     const clearOfBoundary = (p: Point) =>
-      polyPts.every((a, i) => distToSegment(p, a, polyPts[(i + 1) % polyPts.length]) > step / 2);
+      polyPts.every((q, i) => distToSegment(p, q, polyPts[(i + 1) % polyPts.length]) > step / 2);
     const interior: number[] = [];
-    for (let y = gridStart(Math.min(...polyPts.map((p) => p.y)), 0.5); y < Math.max(...polyPts.map((p) => p.y)); y += step) {
-      for (let x = gridStart(Math.min(...polyPts.map((p) => p.x)), 0); x < Math.max(...polyPts.map((p) => p.x)); x += step) {
+    const minX = Math.min(...polyPts.map((p) => p.x));
+    const maxX = Math.max(...polyPts.map((p) => p.x));
+    const minY = Math.min(...polyPts.map((p) => p.y));
+    const maxY = Math.max(...polyPts.map((p) => p.y));
+    for (let y = gridStart(minY, 0.5); y < maxY; y += step) {
+      for (let x = gridStart(minX, 0); x < maxX; x += step) {
         const p = { x, y };
-        if (insidePolygon(p, polyPts) && clearOfBoundary(p)) interior.push(addVertex(p, pivot));
+        if (insidePolygon(p, polyPts) && clearOfBoundary(p)) interior.push(addVertex(p, joint));
       }
     }
-    triangulatePolygon(poly, interior, flats, index);
+    triangulatePolygon(poly, interior, points, index);
   });
 
-  // 4. Bend and fold, children first so a parent carries its already-shaped subtree along.
-  const isWithin = (owner: AugNode, aug: AugNode) => {
-    for (let n: AugNode | null = owner; n && n.depth >= aug.depth; n = n.parent) if (n === aug) return true;
+  // 4. All folds first, then all bends, children before parents so a parent carries its
+  // already-shaped subtree along. A fold after a bend would shear apart the lifted region.
+  const inSubtree = (owner: MeshNode, node: MeshNode) => {
+    for (let n: MeshNode | null = owner; n && n.depth >= node.depth; n = n.parent) if (n === node) return true;
     return false;
   };
-  // All folds first, then all bends
-  const parts = postOrder.map((aug) =>
+  const parts = childrenFirst.map((node) =>
     veinDeformers(
-      aug.parent?.flat ?? { x: 0, y: -1 },
-      aug.flat,
-      aug.node,
-      flats.filter((_, v) => isWithin(owners[v], aug)),
-      flats,
+      node.parent?.flat ?? { x: 0, y: -1 },
+      node.flat,
+      node.vein,
+      points.filter((_, v) => inSubtree(owners[v], node)),
+      points,
     ),
   );
   const deformers = [...parts.map((p) => p.fold), ...parts.map((p) => p.bend)].filter((d): d is Deformer => d !== null);
 
   const position: number[] = [];
-  for (const flat of flats) {
+  for (const flat of points) {
     let p: Point3 = { x: flat.x, y: flat.y, z: 0 };
     for (const deform of deformers) p = deform(p);
     position.push(p.x, p.y, p.z);

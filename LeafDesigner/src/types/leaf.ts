@@ -1,12 +1,25 @@
+//
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** Indexed triangle mesh: flat xyz positions and vertex indices, three per triangle. */
+export interface MeshData {
+  position: number[];
+  index: number[];
+}
+
 export interface VeinNode {
   id: string;
   x: number;
   y: number;
   children: VeinNode[];
-  bend?: number; // bends the vein out of the leaf plane
-  fold?: number; // folds the two sides of the vein toward each other
+  bend?: number; // degrees the vein curls out of the leaf plane
+  fold?: number; // degrees the two sides of the vein hinge toward each other
 
-  // Per-joint overrides
+  // Per-node overrides of VeinGenParams
   margin?: number;
   curvature?: number;
   lobeDepth?: number;
@@ -14,11 +27,11 @@ export interface VeinNode {
 }
 
 export interface VeinGenParams {
-  lobeDepth: number;  // 0-1: how deep the outline dips toward a branch joint between two child veins (0 = smooth, 1 = follows the joint exactly)
-  lobeThreshold: number; // 0+: minimum distance between two sibling veins before a lobe starts forming between them at all — below it, the transition stays smooth regardless of lobeDepth
-  margin: number;     // 0-0.5: extra distance the outline extends beyond each vein tip
-  curvature: number;  // 0-1: "Roundness" — how rounded each vein tip's curve is (0 = pointed, 1 = fully rounded bulge). The dip between two veins (the sinus) is always kept comparatively sharp regardless of this — see resolveSinusCurvature() in veinGenerator.ts.
-  subdivisions: number;
+  lobeDepth: number; // 0-1: how deep the outline dips toward the joint between two sibling veins
+  lobeThreshold: number; // minimum gap between two sibling veins before a lobe forms between them
+  margin: number; // 0-0.5: how far the outline extends beyond each vein tip
+  curvature: number; // 0-1: roundness of each tip, 0 = pointed
+  subdivisions: number; // outline points per spline segment
 }
 
 export interface VeinData {
@@ -29,7 +42,7 @@ export interface VeinData {
 export interface LeafGeometry {
   id: string;
   name: string;
-  points: { x: number; y: number }[];
+  points: Point[];
   veins?: VeinData | null;
   margin?: LeafMargin;
   marginToothSize?: number;
@@ -59,7 +72,7 @@ export interface RandomRange {
 export type LeafMargin = "entire" | "serrate" | "dentate" | "lobed" | "incised";
 
 export interface LeafShape {
-  geom: string[];
+  geom: string[]; // one geometry id per level of detail
   scaleX?: (number | RandomRange)[];
   scaleY?: (number | RandomRange)[];
   petiolule: Petiole;
@@ -69,7 +82,7 @@ export type LeafLayoutType = "palmate" | "pinnate" | "bipinnate";
 export type LeafArrangement = "alternate" | "opposite" | "whorled";
 
 export interface LeafLayout {
-  angle: number | RandomRange; // Branch/fanning angle
+  angle: number | RandomRange; // branch (pinnate) or fanning (palmate) angle
   type: LeafLayoutType;
   arrangement: LeafArrangement;
   terminalLeaf: boolean;

@@ -1,99 +1,73 @@
 import { LeafGeometry, RandomRange } from "../types/leaf";
 
-/** A leaf shape can pick a different geometry per level of detail — how many LODs a leaf
- *  has is dynamic per leaf (grow/shrink it with addLodGeom/removeLodGeom), not a fixed
- *  count. Kept as small, standalone helpers since both the editor UI and the mesh generator
- *  need to read/write these slots the same way. */
+// A leaf shape picks one geometry per level of detail (slot 0 = most detailed); the number of
+// slots is per leaf. Scale arrays run in parallel to the geometry array.
 
-/** Per-LOD geometry array for a freshly created leaf: 2 LODs, 0 = highest detail. */
+type LodScales = (number | RandomRange)[] | undefined;
+
+/** Geometry slots for a freshly created leaf. */
 export function createDefaultLodGeom(): string[] {
   return ["def:quad", "def:ovate"];
 }
 
-/** How many LODs a shape currently has — legacy plain-string geom counts as 1. */
-export function getLodCount(geom: string[] | string | undefined): number {
-  if (typeof geom === "string") return 1;
-  if (!Array.isArray(geom) || geom.length === 0) return 1;
-  return geom.length;
+export function getLodCount(geom: string[] | undefined): number {
+  return geom?.length || 1;
 }
 
-/**
- * Resolves the geometry id to use for `lod`, tolerating incomplete or legacy data:
- *  - a plain string (how `geom` looked before LOD support) is returned as-is for every LOD
- *  - a sparse array falls back to the nearest lower LOD, then the nearest higher one
- */
-export function resolveLodGeom(geom: string[] | string | undefined, lod: number): string | undefined {
-  if (typeof geom === "string") return geom;
-  if (!Array.isArray(geom) || geom.length === 0) return undefined;
+/** Geometry id for `lod`; a sparse array falls back to the nearest lower, then higher slot. */
+export function resolveLodGeom(geom: string[] | undefined, lod: number): string | undefined {
+  if (!geom?.length) return undefined;
   if (geom[lod]) return geom[lod];
   for (let i = lod - 1; i >= 0; i--) if (geom[i]) return geom[i];
   for (let i = lod + 1; i < geom.length; i++) if (geom[i]) return geom[i];
   return undefined;
 }
 
-/** Returns a NEW per-LOD array with `geomId` set at `lod`. `lod` is expected to already be
- *  an existing slot — use addLodGeom to grow the array with a new one instead. */
-export function withLodGeom(geom: string[] | string | undefined, lod: number, geomId: string): string[] {
-  const base: string[] = typeof geom === "string" ? [geom] : Array.isArray(geom) && geom.length > 0 ? [...geom] : [];
-  while (base.length <= lod) base.push(base[base.length - 1] || "");
-  base[lod] = geomId;
-  return base;
+/** New geometry array with `geomId` at `lod`, padding missing slots with the last one. */
+export function withLodGeom(geom: string[] | undefined, lod: number, geomId: string): string[] {
+  const next = [...(geom ?? [])];
+  while (next.length <= lod) next.push(next[next.length - 1] || "");
+  next[lod] = geomId;
+  return next;
 }
 
-/** Appends a new LOD slot at the end, seeded with `geomId` (defaults to a copy of the last
- *  slot so it never comes up empty). Returns the new array and the index it was added at. */
-export function addLodGeom(
-  geom: string[] | string | undefined,
-  geomId?: string,
-): { geom: string[]; index: number } {
-  const base: string[] = typeof geom === "string" ? [geom] : Array.isArray(geom) && geom.length > 0 ? [...geom] : [];
-  base.push(geomId ?? base[base.length - 1] ?? "def:quad");
-  return { geom: base, index: base.length - 1 };
+/** Appends a slot seeded with `geomId` (default: a copy of the last slot). */
+export function addLodGeom(geom: string[] | undefined, geomId?: string): { geom: string[]; index: number } {
+  const next = [...(geom ?? [])];
+  next.push(geomId ?? next[next.length - 1] ?? "def:quad");
+  return { geom: next, index: next.length - 1 };
 }
 
-/** Removes the LOD slot at `index`. Refuses to drop the array below 1 slot. */
-export function removeLodGeom(geom: string[] | string | undefined, index: number): string[] {
-  const base: string[] = typeof geom === "string" ? [geom] : Array.isArray(geom) && geom.length > 0 ? [...geom] : [""];
-  if (base.length <= 1) return base;
-  base.splice(index, 1);
-  return base;
+/** Removes the slot at `index`, never dropping below one slot. */
+export function removeLodGeom(geom: string[] | undefined, index: number): string[] {
+  const next = geom?.length ? [...geom] : [""];
+  if (next.length > 1) next.splice(index, 1);
+  return next;
 }
 
-/** Resolves the X/Y blade stretch slot for `lod` — a fixed number, a pseudorandom range
- *  (resolve with resolveRandomValue()), or 1 (no stretch) when the slot is unset. */
-export function resolveLodScale(
-  scales: (number | RandomRange)[] | undefined,
-  lod: number,
-): number | RandomRange {
-  if (!Array.isArray(scales) || !scales[lod]) return 1;
-  return scales[lod];
+/** Blade stretch for `lod`: a number, a random range, or 1 when unset. */
+export function resolveLodScale(scales: LodScales, lod: number): number | RandomRange {
+  return scales?.[lod] || 1;
 }
 
-/** Returns a NEW per-LOD scale array with `value` set at `lod`, padding unset slots to 1. */
-export function withLodScale(
-  scales: (number | RandomRange)[] | undefined,
-  lod: number,
-  value: number | RandomRange,
-): (number | RandomRange)[] {
-  const base: (number | RandomRange)[] = Array.isArray(scales) ? [...scales] : [];
-  while (base.length <= lod) base.push(1);
-  base[lod] = value;
-  return base;
+/** New scale array with `value` at `lod`, padding missing slots with 1. */
+export function withLodScale(scales: LodScales, lod: number, value: number | RandomRange): (number | RandomRange)[] {
+  const next = [...(scales ?? [])];
+  while (next.length <= lod) next.push(1);
+  next[lod] = value;
+  return next;
 }
 
-/** Removes the scale slot at `index` (if the array reaches that far), so indices stay
- *  aligned with the geom array after removeLodGeom. Undefined stays undefined. */
-export function removeLodScale(
-  scales: (number | RandomRange)[] | undefined,
-  index: number,
-): (number | RandomRange)[] | undefined {
-  if (!Array.isArray(scales) || index >= scales.length) return scales;
-  const base = [...scales];
-  base.splice(index, 1);
-  return base;
+/** Removes the scale slot at `index` so it stays aligned with the geometry array. */
+export function removeLodScale(scales: LodScales, index: number): LodScales {
+  if (!scales || index >= scales.length) return scales;
+  const next = [...scales];
+  next.splice(index, 1);
+  return next;
 }
 
-export function pickMostDetailedLod(geom: string[] | string | undefined, geoms: LeafGeometry[]): number {
+/** The LOD whose geometry has the most outline points. */
+export function pickMostDetailedLod(geom: string[] | undefined, geoms: LeafGeometry[]): number {
   let bestLod = 0;
   let bestPoints = -1;
   for (let lod = 0; lod < getLodCount(geom); lod++) {

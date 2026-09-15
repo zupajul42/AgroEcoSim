@@ -5,7 +5,7 @@ import { Library } from "./pages/Lib/index";
 import { LeafDesigner } from "./pages/LeafDesigner/index";
 import { GeomEditorPage } from "./pages/GeomEditor";
 import { NotFound } from "./pages/_404";
-import { RecoverStorage } from "./pages/dump";
+import { RecoverStorage } from "./pages/RecoverStorage";
 import { state } from "./pages/AppState";
 import "./style.css";
 
@@ -18,7 +18,6 @@ export function App() {
         <Router>
           <Route path="/" component={Library} />
           <Route path="/leaf" component={LeafDesigner} />
-          <Route path="/leaf/geometry" component={GeomEditorPage} />
           <Route path="/leaf/geometry/:id" component={GeomEditorPage} />
           <Route default component={NotFound} />
         </Router>

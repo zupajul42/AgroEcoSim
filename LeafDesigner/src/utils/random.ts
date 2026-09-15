@@ -1,8 +1,10 @@
 import { RandomRange } from "../types/leaf";
 
-export function isRandomRange(value: unknown): value is RandomRange {
-  return !!value && typeof value === "object" && "min" in (value as any) && "max" in (value as any);
-}
+/** A short random id, e.g. newId("geom:") -> "geom:k8w1fxm". */
+export const newId = (prefix: string) => prefix + Math.random().toString(36).slice(2, 9);
+
+const isRandomRange = (value: unknown): value is RandomRange =>
+  typeof value === "object" && value !== null && "min" in value && "max" in value;
 
 export function toRange(value: number | RandomRange | undefined, fallback: number): RandomRange {
   if (isRandomRange(value)) return value;
@@ -32,6 +34,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+/** A fixed number as-is; a range is rolled deterministically from seed, key and index. */
 export function resolveRandomValue(
   value: number | RandomRange | undefined,
   seed: number,

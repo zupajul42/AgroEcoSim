@@ -1,14 +1,17 @@
+import { TargetedPointerEvent } from "preact";
 import { useRef, useState } from "preact/hooks";
 import { ColorStop } from "../../types/leaf";
 import { sampleColorRamp } from "../../utils/colorRamp";
+import { clamp01 } from "../../utils/math";
 
-export interface ColorRampProps {
+interface ColorRampProps {
   stops: ColorStop[];
   onChange: (stops: ColorStop[]) => void;
 }
 
 const HANDLE_SIZE = 12;
 
+/** A gradient bar with draggable color stops; double-click the bar to add one. */
 export function ColorRamp({ stops, onChange }: ColorRampProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragIndex = useRef<number | null>(null);
@@ -18,33 +21,30 @@ export function ColorRamp({ stops, onChange }: ColorRampProps) {
   const selectedIndex = Math.min(selected, stops.length - 1);
   const selectedStop = stops[selectedIndex];
 
-  const tFromEvent = (e: { clientX: number }) => {
+  const tAt = (clientX: number) => {
     const rect = trackRef.current!.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    return clamp01((clientX - rect.left) / rect.width);
   };
 
   const updateStop = (index: number, patch: Partial<ColorStop>) => {
     onChange(stops.map((s, i) => (i === index ? { ...s, ...patch } : s)));
   };
 
-  const handlePointerDown = (index: number) => (e: PointerEvent) => {
+  const startDrag = (index: number) => (e: TargetedPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
     setSelected(index);
     dragIndex.current = index;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
-
-  const handlePointerMove = (e: PointerEvent) => {
-    if (dragIndex.current === null) return;
-    updateStop(dragIndex.current, { t: tFromEvent(e) });
+  const onPointerMove = (e: PointerEvent) => {
+    if (dragIndex.current !== null) updateStop(dragIndex.current, { t: tAt(e.clientX) });
   };
-
-  const handlePointerUp = () => {
+  const endDrag = () => {
     dragIndex.current = null;
   };
 
   const addStop = (e: MouseEvent) => {
-    const t = tFromEvent(e);
+    const t = tAt(e.clientX);
     onChange([...stops, { t, color: sampleColorRamp(stops, t) }]);
     setSelected(stops.length);
   };
@@ -55,19 +55,17 @@ export function ColorRamp({ stops, onChange }: ColorRampProps) {
     setSelected(0);
   };
 
-  const gradientCss = `linear-gradient(to right, ${sorted
-    .map((s) => `${s.color} ${(s.t * 100).toFixed(1)}%`)
-    .join(", ")})`;
+  const gradient = `linear-gradient(to right, ${sorted.map((s) => `${s.color} ${(s.t * 100).toFixed(1)}%`).join(", ")})`;
 
   return (
     <div class="color-ramp stack">
       <div
         ref={trackRef}
         class="color-ramp-track"
-        style={{ background: gradientCss }}
+        style={{ background: gradient }}
         onDblClick={addStop}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
         title="Double-click to add a color stop"
       >
         {stops.map((stop, index) => (
@@ -75,7 +73,7 @@ export function ColorRamp({ stops, onChange }: ColorRampProps) {
             key={index}
             class={`color-ramp-handle ${index === selectedIndex ? "selected" : ""}`}
             style={{ left: `calc((100% - ${HANDLE_SIZE}px) * ${stop.t})`, background: stop.color }}
-            onPointerDown={handlePointerDown(index)}
+            onPointerDown={startDrag(index)}
           />
         ))}
       </div>
@@ -83,7 +81,7 @@ export function ColorRamp({ stops, onChange }: ColorRampProps) {
         <input
           type="color"
           value={selectedStop?.color ?? "#ffffff"}
-          onInput={(e) => updateStop(selectedIndex, { color: (e.target as HTMLInputElement).value })}
+          onInput={(e) => updateStop(selectedIndex, { color: e.currentTarget.value })}
         />
         <input
           type="number"
@@ -92,8 +90,8 @@ export function ColorRamp({ stops, onChange }: ColorRampProps) {
           step={1}
           value={Math.round((selectedStop?.t ?? 0) * 100)}
           onInput={(e) => {
-            const val = parseFloat((e.target as HTMLInputElement).value);
-            if (!isNaN(val)) updateStop(selectedIndex, { t: Math.max(0, Math.min(100, val)) / 100 });
+            const val = parseFloat(e.currentTarget.value);
+            if (!isNaN(val)) updateStop(selectedIndex, { t: clamp01(val / 100) });
           }}
         />
         <span>%</span>

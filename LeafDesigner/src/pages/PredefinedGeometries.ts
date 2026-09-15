@@ -1,6 +1,6 @@
 import { LeafGeometry } from "../types/leaf";
 
-export const quad: LeafGeometry = {
+const quad: LeafGeometry = {
   id: "def:quad",
   name: "quad",
   points: [
@@ -12,7 +12,7 @@ export const quad: LeafGeometry = {
   veins: null,
 };
 
-export const ovate: LeafGeometry = {
+const ovate: LeafGeometry = {
   id: "def:ovate",
   name: "ovate",
   points: [
@@ -84,7 +84,7 @@ export const ovate: LeafGeometry = {
   },
 };
 
-export const obovate = {
+const obovate: LeafGeometry = {
   id: "def:obovate",
   name: "obovate",
   points: [
@@ -220,7 +220,7 @@ export const obovate = {
   },
 };
 
-export const elliptic: LeafGeometry = {
+const elliptic: LeafGeometry = {
   id: "def:elliptic",
   name: "elliptic",
   points: [
@@ -294,7 +294,7 @@ export const elliptic: LeafGeometry = {
   },
 };
 
-export const lanceolate = {
+const lanceolate: LeafGeometry = {
   id: "def:lanceolate",
   name: "lanceolate",
   points: [
@@ -395,7 +395,7 @@ export const lanceolate = {
   },
 };
 
-export const orbicular = {
+const orbicular: LeafGeometry = {
   id: "def:orbicular",
   name: "orbicular",
   points: [
@@ -511,7 +511,7 @@ export const orbicular = {
   },
 };
 
-export const lobbed = {
+const lobbed: LeafGeometry = {
   id: "def:lobbed",
   name: "lobbed",
   points: [
@@ -687,12 +687,4 @@ export const lobbed = {
   },
 };
 
-export const all = [
-  quad, //
-  ovate,
-  obovate,
-  elliptic,
-  lanceolate,
-  orbicular,
-  lobbed,
-];
+export const PREDEFINED_GEOMETRIES: LeafGeometry[] = [quad, ovate, obovate, elliptic, lanceolate, orbicular, lobbed];

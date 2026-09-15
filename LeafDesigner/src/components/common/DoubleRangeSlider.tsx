@@ -1,6 +1,6 @@
 import { useRef } from "preact/hooks";
 
-export interface DoubleRangeSliderProps {
+interface DoubleRangeSliderProps {
   label?: string;
   min: number;
   max: number;
@@ -9,11 +9,14 @@ export interface DoubleRangeSliderProps {
   valueMin: number;
   valueMax: number;
   onChange: (min: number, max: number) => void;
-  className?: string;
+  class?: string;
   defaultMin?: number;
   defaultMax?: number;
 }
 
+type Handle = "min" | "max";
+
+/** One track with two handles for picking a range; double-click the track to reset. */
 export function DoubleRangeSlider({
   label,
   min,
@@ -23,17 +26,17 @@ export function DoubleRangeSlider({
   valueMin,
   valueMax,
   onChange,
-  className = "",
+  class: className = "",
   defaultMin,
   defaultMax,
 }: DoubleRangeSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef<"min" | "max" | null>(null);
+  const dragging = useRef<Handle | null>(null);
 
   const decimals = Math.max(0, -Math.floor(Math.log10(step)));
   const snap = (v: number) => Math.min(max, Math.max(min, Number((Math.round(v / step) * step).toFixed(decimals))));
   const percent = (v: number) => ((v - min) / (max - min)) * 100;
-  const setHandle = (handle: "min" | "max", v: number) => {
+  const setHandle = (handle: Handle, v: number) => {
     if (handle === "min") onChange(Math.min(snap(v), valueMax), valueMax);
     else onChange(valueMin, Math.max(snap(v), valueMin));
   };
@@ -43,7 +46,7 @@ export function DoubleRangeSlider({
     return min + ((clientX - rect.left) / rect.width) * (max - min);
   };
   // The nearer handle takes the drag; when both sit on the same spot, the side you grab decides.
-  const nearerHandle = (v: number): "min" | "max" => {
+  const nearerHandle = (v: number): Handle => {
     const dMin = Math.abs(v - valueMin);
     const dMax = Math.abs(v - valueMax);
     if (dMin !== dMax) return dMin < dMax ? "min" : "max";
@@ -66,7 +69,7 @@ export function DoubleRangeSlider({
     dragging.current = null;
   };
 
-  const onKeyDown = (handle: "min" | "max") => (e: KeyboardEvent) => {
+  const onKeyDown = (handle: Handle) => (e: KeyboardEvent) => {
     const current = handle === "min" ? valueMin : valueMax;
     const delta = e.shiftKey ? step * 10 : step;
     if (e.key === "ArrowLeft" || e.key === "ArrowDown") setHandle(handle, current - delta);
@@ -82,7 +85,7 @@ export function DoubleRangeSlider({
     if (canReset) onChange(defaultMin!, defaultMax!);
   };
 
-  const handle = (which: "min" | "max", value: number) => (
+  const handle = (which: Handle, value: number) => (
     <div
       class="drs-handle"
       role="slider"
@@ -95,35 +98,28 @@ export function DoubleRangeSlider({
       onKeyDown={onKeyDown(which)}
     />
   );
+  const number = (which: Handle, value: number) => (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onInput={(e) => {
+        const val = parseFloat(e.currentTarget.value);
+        if (!isNaN(val)) setHandle(which, val);
+      }}
+    />
+  );
 
   return (
-    <div className={`double-range-slider stack ${className}`}>
-      <div className="row">
+    <div class={`double-range-slider stack ${className}`}>
+      <div class="row">
         {label && <label>{label}</label>}
         <div class="row" style={{ gap: "4px" }}>
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={valueMin}
-            onInput={(e) => {
-              const val = parseFloat((e.target as HTMLInputElement).value);
-              if (!isNaN(val)) setHandle("min", val);
-            }}
-          />
+          {number("min", valueMin)}
           <span>-</span>
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={valueMax}
-            onInput={(e) => {
-              const val = parseFloat((e.target as HTMLInputElement).value);
-              if (!isNaN(val)) setHandle("max", val);
-            }}
-          />
+          {number("max", valueMax)}
           {unit && <span>{unit}</span>}
         </div>
       </div>
@@ -138,7 +134,10 @@ export function DoubleRangeSlider({
         onDblClick={resetToDefault}
       >
         <div class="drs-rail" />
-        <div class="drs-fill" style={{ left: `${percent(valueMin)}%`, width: `${percent(valueMax) - percent(valueMin)}%` }} />
+        <div
+          class="drs-fill"
+          style={{ left: `${percent(valueMin)}%`, width: `${percent(valueMax) - percent(valueMin)}%` }}
+        />
         {handle("min", valueMin)}
         {handle("max", valueMax)}
       </div>

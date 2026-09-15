@@ -38,13 +38,6 @@
   font-size: 0.85rem;
 }
 
-.overlay-header h3 {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--accent);
-}
-
 .toolbar-group select,
 .toolbar-group input[type="text"],
 .toolbar-group input[type="number"] {
@@ -56,29 +49,14 @@
   font-size: 0.85rem;
 }
 
-.mode-btn-group {
-  display: flex;
-  border: 1px solid var(--bg-3);
-  border-radius: 6px;
-  overflow: hidden;
+.toolbar-group .geom-name {
+  padding: 2px 8px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  width: 140px;
 }
 
-.mode-btn {
-  background: var(--bg-1);
-  color: var(--fg-0);
-  border: none;
-  border-radius: 0;
-  padding: 4px 10px;
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.mode-btn.active {
-  background: var(--accent);
-  color: #ffffff;
-  font-weight: 600;
-}
+/* --- canvas --- */
 
 .axis-line {
   stroke: var(--bg-3);
@@ -116,7 +94,6 @@
   stroke: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-/* NO CSS transition on point handle to prevent mouse drag jitter */
 .point-handle {
   fill: var(--fg-0);
   stroke: var(--bg-0);
@@ -140,7 +117,6 @@
   opacity: 0.6;
 }
 
-/* Vein rendering and handle styles */
 .vein-line {
   stroke: #f1c40f;
   stroke-width: 2.5;
@@ -206,7 +182,9 @@
   stroke: var(--fg-0);
   stroke-width: 2;
   cursor: grab;
-  transition: r 0.15s ease, fill 0.15s ease;
+  transition:
+    r 0.15s ease,
+    fill 0.15s ease;
 }
 
 .petiole-base-dot:hover {
@@ -219,6 +197,8 @@
   stroke: #f1c40f;
   stroke-width: 3.5;
 }
+
+/* --- venation side panel --- */
 
 .vein-controls-box {
   position: absolute;

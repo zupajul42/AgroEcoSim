@@ -1,4 +1,6 @@
-export interface SliderInputProps {
+import { CSSProperties, HTMLAttributes } from "preact";
+
+interface SliderInputProps {
   label?: string;
   min: number;
   max: number;
@@ -6,12 +8,13 @@ export interface SliderInputProps {
   unit?: string;
   value: number;
   onInput: (val: number) => void;
-  className?: string;
-  style?: any;
+  class?: string;
+  style?: CSSProperties;
   inline?: boolean;
   defaultValue?: number;
 }
 
+/** A range slider with a matching number field; double-click the slider to reset. */
 export function SliderInput({
   label,
   min,
@@ -20,81 +23,64 @@ export function SliderInput({
   unit = "",
   value,
   onInput,
-  className = "",
+  class: className = "",
   inline = false,
   style = {},
   defaultValue,
 }: SliderInputProps) {
-  const resetToDefault = () => { if (defaultValue !== undefined) onInput(defaultValue); };
+  const resetToDefault = () => {
+    if (defaultValue !== undefined) onInput(defaultValue);
+  };
   const resetTitle = defaultValue !== undefined ? `Double-click to reset to ${defaultValue}${unit}` : undefined;
 
-  if (inline) return (
-    <div className={`slider-input ${className}`} style={style}>
-      <div className="row">
-        {label && <label>{label}</label>}
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onInput={(e) => onInput(parseFloat((e.target as HTMLInputElement).value))}
-          onDblClick={resetToDefault}
-          title={resetTitle}
-          style={{ flex: 1 }}
-        />
-        <div>
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onInput={(e) => {
-              const val = parseFloat((e.target as HTMLInputElement).value);
-              if (!isNaN(val)) {
-                onInput(val);
-              }
-            }}
-          />
-          <span>{unit}</span>
-        </div>
-      </div>
-    </div>
+  const range = (extra: HTMLAttributes<HTMLInputElement>) => (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onInput={(e) => onInput(parseFloat(e.currentTarget.value))}
+      onDblClick={resetToDefault}
+      title={resetTitle}
+      {...extra}
+    />
   );
-
-  return (
-    <div className={`slider-input stack ${className}`} style={style}>
-      <div className="row">
-        {label && <label>{label}</label>}
-        <div>
-          <input
-            type="number"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onInput={(e) => {
-              const val = parseFloat((e.target as HTMLInputElement).value);
-              if (!isNaN(val)) {
-                onInput(val);
-              }
-            }}
-          />
-          {unit && <span>{unit}</span>}
-        </div>
-      </div>
+  const number = (
+    <div>
       <input
-        type="range"
-        className="full-width"
+        type="number"
         min={min}
         max={max}
         step={step}
         value={value}
-        onInput={(e) => onInput(parseFloat((e.target as HTMLInputElement).value))}
-        onDblClick={resetToDefault}
-        title={resetTitle}
+        onInput={(e) => {
+          const val = parseFloat(e.currentTarget.value);
+          if (!isNaN(val)) onInput(val);
+        }}
       />
+      {unit && <span>{unit}</span>}
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div class={`slider-input ${className}`} style={style}>
+        <div class="row">
+          {label && <label>{label}</label>}
+          {range({ style: { flex: 1 } })}
+          {number}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div class={`slider-input stack ${className}`} style={style}>
+      <div class="row">
+        {label && <label>{label}</label>}
+        {number}
+      </div>
+      {range({ class: "full-width" })}
     </div>
   );
 }

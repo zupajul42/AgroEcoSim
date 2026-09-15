@@ -1,10 +1,11 @@
-import { LeafMargin } from "../types/leaf";
-import { OutlineShaper, Point } from "./veinGenerator";
+import { LeafMargin, Point } from "../types/leaf";
+import { OutlineShaper } from "./veinGenerator";
+import { cross, dist, lerp, perimeter, size, smoothstep } from "./math";
 
 interface MarginConfig {
-  baseCount: number;
-  depthRatio: number;
-  forwardLean: number;
+  baseCount: number; // teeth per side at tooth size 1
+  depthRatio: number; // tooth depth relative to its wavelength
+  forwardLean: number; // how far a tooth leans toward the apex
   shape: "sawtooth" | "triangle" | "sine";
 }
 
@@ -15,212 +16,146 @@ const MARGIN_CONFIGS: Record<Exclude<LeafMargin, "entire">, MarginConfig> = {
   incised: { baseCount: 8, depthRatio: 0.7, forwardLean: 0.25, shape: "triangle" },
 };
 
-// Height (0-1) of one tooth period at phase t in [0, 1) running from base toward apex.
+function marginConfig(marginType: LeafMargin | undefined): MarginConfig | undefined {
+  return marginType && marginType !== "entire" ? MARGIN_CONFIGS[marginType] : undefined;
+}
+
+// Height (0-1) of one tooth at phase t in [0, 1), running from base toward apex.
 function toothWave(shape: MarginConfig["shape"], phase: number): number {
   switch (shape) {
-    case "sawtooth": {
-      // Gentle organic rise towards apex up to 0.75, steep forward drop from 0.75 to 1.0
-      if (phase < 0.75) {
-        return Math.sin((phase / 0.75) * (Math.PI / 2));
-      } else {
-        return (1 - phase) / 0.25;
-      }
-    }
+    case "sawtooth":
+      // Gentle rise toward the apex up to 0.75, steep drop after.
+      return phase < 0.75 ? Math.sin((phase / 0.75) * (Math.PI / 2)) : (1 - phase) / 0.25;
     case "triangle":
       return phase < 0.5 ? phase / 0.5 : (1 - phase) / 0.5;
     case "sine":
       return (Math.sin(phase * Math.PI * 2 - Math.PI / 2) + 1) / 2;
-    default:
-      return 0;
   }
 }
 
-// Full teeth everywhere; eased out only over the last half tooth into the base and the apex point.
-function marginEnvelope(s: number, total: number, wavelength: number): number {
+// Full teeth everywhere, eased out over the last half tooth into the base and the apex.
+function fadeAtEnds(along: number, total: number, wavelength: number): number {
   const ramp = Math.max(1e-6, wavelength / 2);
-  const ease = (t: number) => {
-    const c = Math.max(0, Math.min(1, t));
-    return c * c * (3 - 2 * c);
-  };
-  return ease(s / ramp) * ease((total - s) / ramp);
+  return smoothstep(along / ramp) * smoothstep((total - along) / ramp);
 }
 
+// Tooth size follows the leaf's size, not the length of its edge.
 function toothWavelength(ring: Point[], config: MarginConfig, toothSize: number): number {
   const perSide = Math.max(3, Math.round(config.baseCount / Math.max(0.2, toothSize)));
-  return (leafSize(ring) * 0.85) / perSide;
+  return (size(ring) * 0.85) / perSide;
 }
 
-function leafSize(ring: Point[]): number {
-  const xs = ring.map((p) => p.x);
-  const ys = ring.map((p) => p.y);
-  return Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
+  const d1 = cross(c, d, a);
+  const d2 = cross(c, d, b);
+  const d3 = cross(a, b, c);
+  const d4 = cross(a, b, d);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
-/**
- * Displaces the points of a closed (already dense enough — see `marginOutlineShaper`) outline
- * ring into botanical margin teeth:
- * - The ring is split at its lowest and highest point into two sides, both walked base -> apex,
- *   so the tooth phase runs the same way on both and a symmetric ring gets symmetric teeth.
- * - Teeth run the whole length, easing out only over the last half tooth into the base and the
- *   apex (`marginEnvelope`), and lean forward toward the apex by the margin type's `forwardLean`.
- * - Tooth size follows the leaf's height (`toothWavelength`), not the length of its edge.
- * - Displacement is kept from ever folding the edge over itself: outward normals come from the
- *   ring's winding, teeth shrink into notches too narrow for them (`clearance`), the forward
- *   lean stays under the local sample spacing, and any remaining local crossing is relaxed away.
- */
-function applyBotanicalMarginTeeth(
-  ring: Point[],
-  marginType: LeafMargin | undefined,
-  toothSize = 1,
-  toothDepth = 1,
-): Point[] {
-  if (!marginType || marginType === "entire" || ring.length < 6) {
-    return ring;
-  }
-  const config = MARGIN_CONFIGS[marginType as Exclude<LeafMargin, "entire">];
-  if (!config) return ring;
-
+// Pushes the points of a dense closed ring into teeth. The ring is split at its lowest and
+// highest point into two sides, both walked base -> apex so a symmetric ring gets symmetric
+// teeth. Nothing may fold the edge over itself: teeth shrink into notches too narrow for them,
+// the forward lean stays under the local point spacing, and leftover crossings are relaxed away.
+function addTeeth(ring: Point[], config: MarginConfig, toothSize: number, toothDepth: number): Point[] {
   const n = ring.length;
+  if (n < 6) return ring;
 
-  // 1. Find Apex (max y) and Base (min y)
   let apexIdx = 0;
   let baseIdx = 0;
-  let maxY = -Infinity;
-  let minY = Infinity;
-
   for (let i = 0; i < n; i++) {
-    if (ring[i].y > maxY) {
-      maxY = ring[i].y;
-      apexIdx = i;
-    }
-    if (ring[i].y < minY) {
-      minY = ring[i].y;
-      baseIdx = i;
-    }
+    if (ring[i].y > ring[apexIdx].y) apexIdx = i;
+    if (ring[i].y < ring[baseIdx].y) baseIdx = i;
   }
-
-  // 2. Identify the two sides (both from Base to Apex):
-  // Right side: base -> apex (increasing around CCW loop)
-  const rightIndices: number[] = [];
-  let cur = baseIdx;
-  while (cur !== apexIdx) {
-    rightIndices.push(cur);
-    cur = (cur + 1) % n;
-  }
-  rightIndices.push(apexIdx);
-
-  // Left side: base -> apex (decreasing around CCW loop)
-  const leftIndices: number[] = [];
-  cur = baseIdx;
-  while (cur !== apexIdx) {
-    leftIndices.push(cur);
-    cur = (cur - 1 + n) % n;
-  }
-  leftIndices.push(apexIdx);
+  const sideIndices = (direction: 1 | -1) => {
+    const indices: number[] = [];
+    for (let cur = baseIdx; cur !== apexIdx; cur = (cur + direction + n) % n) indices.push(cur);
+    indices.push(apexIdx);
+    return indices;
+  };
 
   const wavelength = toothWavelength(ring, config, toothSize);
   const amplitude = wavelength * config.depthRatio * Math.max(0, toothDepth);
+  const minGap = wavelength / 12;
 
-  // How far each point may be pushed outward before it could collide with the next one
-  const cum: number[] = [0];
-  for (let i = 0; i < n; i++) {
-    const p = ring[i];
-    const q = ring[(i + 1) % n];
-    cum.push(cum[i] + Math.hypot(q.x - p.x, q.y - p.y));
-  }
-  const perimeter = cum[n];
+  // How far each point may move outward before it could hit a point at least a tooth away
+  // along the ring (the opposite flank of a notch).
+  const arcLength: number[] = [0];
+  for (let i = 0; i < n; i++) arcLength.push(arcLength[i] + dist(ring[i], ring[(i + 1) % n]));
+  const total = arcLength[n];
   const clearance = new Array<number>(n).fill(Infinity);
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
-      const alongRing = Math.min(cum[j] - cum[i], perimeter - (cum[j] - cum[i]));
+      const alongRing = Math.min(arcLength[j] - arcLength[i], total - (arcLength[j] - arcLength[i]));
       if (alongRing < wavelength) continue;
-      const half = Math.hypot(ring[j].x - ring[i].x, ring[j].y - ring[i].y) / 2;
-      if (half < clearance[i]) clearance[i] = half;
-      if (half < clearance[j]) clearance[j] = half;
+      const half = dist(ring[i], ring[j]) / 2;
+      clearance[i] = Math.min(clearance[i], half);
+      clearance[j] = Math.min(clearance[j], half);
     }
   }
-  const dispAll: Point[] = ring.map(() => ({ x: 0, y: 0 }));
 
   let twiceArea = 0;
-  for (let i = 0; i < n; i++) {
-    const p = ring[i];
-    const q = ring[(i + 1) % n];
-    twiceArea += p.x * q.y - q.x * p.y;
-  }
+  for (let i = 0; i < n; i++) twiceArea += ring[i].x * ring[(i + 1) % n].y - ring[(i + 1) % n].x * ring[i].y;
   const ringIsCcw = twiceArea >= 0;
 
-  const processSide = (indices: number[], alongRing: boolean) => {
-    const outwardSign = (ringIsCcw ? 1 : -1) * (alongRing ? 1 : -1);
-    const sideLen = indices.length;
-    if (sideLen < 3) return;
+  const shift: Point[] = ring.map(() => ({ x: 0, y: 0 }));
 
-    // Cumulative arc length from base to apex
-    const s: number[] = [0];
-    for (let i = 0; i < sideLen - 1; i++) {
-      const pA = ring[indices[i]];
-      const pB = ring[indices[i + 1]];
-      s.push(s[i] + Math.hypot(pB.x - pA.x, pB.y - pA.y));
-    }
-    const totalL = s[sideLen - 1];
-    if (totalL < 1e-4) return;
+  const shapeSide = (indices: number[], direction: 1 | -1) => {
+    const outwardSign = (ringIsCcw ? 1 : -1) * direction;
+    const count = indices.length;
+    if (count < 3) return;
 
-    const minGap = wavelength / 12;
-    const disp: Point[] = indices.map(() => ({ x: 0, y: 0 }));
+    const along: number[] = [0];
+    for (let i = 0; i < count - 1; i++) along.push(along[i] + dist(ring[indices[i]], ring[indices[i + 1]]));
+    const sideLength = along[count - 1];
+    if (sideLength < 1e-4) return;
 
-    for (let i = 0; i < sideLen; i++) {
-      const env = marginEnvelope(s[i], totalL, wavelength);
-      if (env <= 1e-5) continue; // base or apex untouched
+    const sideShift: Point[] = indices.map(() => ({ x: 0, y: 0 }));
+    for (let i = 0; i < count; i++) {
+      const fade = fadeAtEnds(along[i], sideLength, wavelength);
+      if (fade <= 1e-5) continue;
 
-      // Tangent toward the apex, read over a window of at least a fraction of a tooth on each
-      // side, so it isn't thrown off by two ring points that happen to sit very close together.
+      // Tangent toward the apex over a window of at least minGap on each side, so two ring
+      // points sitting very close together don't throw it off.
       let prev = i;
-      while (prev > 0 && s[i] - s[prev] < minGap) prev--;
+      while (prev > 0 && along[i] - along[prev] < minGap) prev--;
       let next = i;
-      while (next < sideLen - 1 && s[next] - s[i] < minGap) next++;
-      const prevIdx = indices[prev];
-      const nextIdx = indices[next];
-      let tx = ring[nextIdx].x - ring[prevIdx].x;
-      let ty = ring[nextIdx].y - ring[prevIdx].y;
+      while (next < count - 1 && along[next] - along[i] < minGap) next++;
+      let tx = ring[indices[next]].x - ring[indices[prev]].x;
+      let ty = ring[indices[next]].y - ring[indices[prev]].y;
       const tlen = Math.hypot(tx, ty) || 1;
       tx /= tlen;
       ty /= tlen;
-
       const nx = ty * outwardSign;
       const ny = -tx * outwardSign;
 
-      const phase = (((s[i] % wavelength) + wavelength) % wavelength) / wavelength;
+      const phase = (((along[i] % wavelength) + wavelength) % wavelength) / wavelength;
       const wave = toothWave(config.shape, phase);
-
-      const origIdx = indices[i];
-      const dispNorm = wave * Math.min(amplitude, clearance[origIdx] * 0.8) * env;
-      // The forward lean shifts a point ALONG the edge; keep that well under the local sample
-      // spacing so no point can ever overtake its neighbor (which would knot the edge).
+      const outward = wave * Math.min(amplitude, clearance[indices[i]] * 0.8) * fade;
+      // The lean moves a point along the edge; keep it under the local spacing so no point can
+      // overtake its neighbor.
       const spacing = Math.min(
-        i > 0 ? s[i] - s[i - 1] : Infinity,
-        i < sideLen - 1 ? s[i + 1] - s[i] : Infinity,
+        i > 0 ? along[i] - along[i - 1] : Infinity,
+        i < count - 1 ? along[i + 1] - along[i] : Infinity,
       );
-      const lean = wave * amplitude * env * config.forwardLean;
-      const dispTang = Math.max(-0.3 * spacing, Math.min(0.3 * spacing, lean));
+      const lean = wave * amplitude * fade * config.forwardLean;
+      const forward = Math.max(-0.3 * spacing, Math.min(0.3 * spacing, lean));
 
-      disp[i] = { x: nx * dispNorm + tx * dispTang, y: ny * dispNorm + ty * dispTang };
+      sideShift[i] = { x: nx * outward + tx * forward, y: ny * outward + ty * forward };
     }
 
-    // Two ring points practically on top of each other (a vein tip's own outline point right
-    // next to a spline sample, say) move as one — displaced even slightly differently, the
-    // second could land behind the first and knot the edge into a microscopic loop.
-    for (let i = 1; i < sideLen; i++) {
-      if (s[i] - s[i - 1] < minGap) disp[i] = disp[i - 1];
-    }
-    indices.forEach((origIdx, i) => {
-      dispAll[origIdx] = disp[i];
+    // Two ring points practically on top of each other move as one.
+    for (let i = 1; i < count; i++) if (along[i] - along[i - 1] < minGap) sideShift[i] = sideShift[i - 1];
+    indices.forEach((ringIdx, i) => {
+      shift[ringIdx] = sideShift[i];
     });
   };
 
-  processSide(rightIndices, true);
-  processSide(leftIndices, false);
+  shapeSide(sideIndices(1), 1);
+  shapeSide(sideIndices(-1), -1);
 
-  // Wherever two nearby edge segments end up crossing, ease the points between them back toward the outline.
-  const at = (i: number): Point => ({ x: ring[i].x + dispAll[i].x, y: ring[i].y + dispAll[i].y });
+  // Wherever two nearby edge segments cross, ease the points between them back toward the outline.
+  const at = (i: number): Point => ({ x: ring[i].x + shift[i].x, y: ring[i].y + shift[i].y });
   for (let pass = 0; pass < 10; pass++) {
     let crossed = false;
     for (let i = 0; i < n; i++) {
@@ -229,7 +164,7 @@ function applyBotanicalMarginTeeth(
         if (!segmentsCross(at(i), at((i + 1) % n), at(j), at((j + 1) % n))) continue;
         for (let m = 1; m <= k; m++) {
           const idx = (i + m) % n;
-          dispAll[idx] = { x: dispAll[idx].x * 0.5, y: dispAll[idx].y * 0.5 };
+          shift[idx] = { x: shift[idx].x * 0.5, y: shift[idx].y * 0.5 };
         }
         crossed = true;
       }
@@ -237,34 +172,18 @@ function applyBotanicalMarginTeeth(
     if (!crossed) break;
   }
 
-  return ring.map((p, i) => ({ x: p.x + dispAll[i].x, y: p.y + dispAll[i].y }));
+  return ring.map((p, i) => ({ x: p.x + shift[i].x, y: p.y + shift[i].y }));
 }
 
-function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
-  const orient = (p: Point, q: Point, r: Point) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
-  const d1 = orient(c, d, a);
-  const d2 = orient(c, d, b);
-  const d3 = orient(a, b, c);
-  const d4 = orient(a, b, d);
-  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
-}
-
-/**
- * The margin as an outline shaper (see `OutlineShaper` in veinGenerator.ts): first the ring is
- * densified along its own edges — every new point sits exactly ON the outline it subdivides,
- * about six per tooth so the shaping below reads as smooth teeth rather than as the ring's own
- * (usually much coarser) vein-derived sampling — then the botanical tooth shaping is applied to
- * the dense ring. `undefined` for a margin that has no teeth. Both the 2D editor's preview and
- * the 3D blade run the outline through this same shaper, so they always show the same teeth.
- */
+/** The margin as an OutlineShaper: the ring is first densified along its own edges (about
+ *  subdivisions/2 points per tooth), then pushed into teeth. `undefined` for an entire margin. */
 export function marginOutlineShaper(
   marginType: LeafMargin | undefined,
   toothSize = 1,
   toothDepth = 1,
   subdivisions = 6,
 ): OutlineShaper | undefined {
-  if (!marginType || marginType === "entire") return undefined;
-  const config = MARGIN_CONFIGS[marginType as Exclude<LeafMargin, "entire">];
+  const config = marginConfig(marginType);
   if (!config) return undefined;
 
   return (ring) => {
@@ -272,10 +191,8 @@ export function marginOutlineShaper(
     const identity = { ring: ring.map((p) => ({ x: p.x, y: p.y })), originalIndex: ring.map((_, i) => i) };
     if (n < 6) return identity;
 
-    let perimeter = 0;
-    for (let i = 0; i < n; i++) perimeter += Math.hypot(ring[(i + 1) % n].x - ring[i].x, ring[(i + 1) % n].y - ring[i].y);
     const samplesPerTooth = Math.max(3, Math.round(subdivisions / 2));
-    const spacing = Math.max(toothWavelength(ring, config, toothSize) / samplesPerTooth, perimeter / 3000);
+    const spacing = Math.max(toothWavelength(ring, config, toothSize) / samplesPerTooth, perimeter(ring) / 3000);
     if (!(spacing > 1e-6)) return identity;
 
     const dense: Point[] = [];
@@ -285,18 +202,16 @@ export function marginOutlineShaper(
       const b = ring[(i + 1) % n];
       originalIndex.push(dense.length);
       dense.push({ x: a.x, y: a.y });
-      const segCount = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / spacing));
-      for (let s = 1; s < segCount; s++) {
-        const t = s / segCount;
-        dense.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
-      }
+      const segCount = Math.max(1, Math.round(dist(a, b) / spacing));
+      for (let s = 1; s < segCount; s++)
+        dense.push({ x: lerp(a.x, b.x, s / segCount), y: lerp(a.y, b.y, s / segCount) });
     }
 
-    return { ring: applyBotanicalMarginTeeth(dense, marginType, toothSize, toothDepth), originalIndex };
+    return { ring: addTeeth(dense, config, toothSize, toothDepth), originalIndex };
   };
 }
 
-/** The shaped (toothed) outline itself — what the 2D editor draws as its margin preview. */
+/** The toothed outline itself, as drawn by the 2D editor's margin preview. */
 export function applyMarginTeethToOutline(
   points: Point[],
   marginType: LeafMargin | undefined,

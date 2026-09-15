@@ -1,236 +1,79 @@
 .designer-layout {
-    display: flex;
-    font-family: sans-serif;
-
-    height: 100vh;
-    overflow: hidden;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-    margin: 0;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .config-sidebar {
-    width: clamp(300px, 50%, 500px);
-    overflow: auto;
-    background-color: var(--bg-1);
-    padding: 0.5rem;
-}
-
-.stack {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.full-width {
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.flex-grow {
-    flex-grow: 1;
-}
-
-label {
-    font-size: 13px;
-    cursor: pointer;
+  width: clamp(300px, 50%, 500px);
+  overflow: auto;
+  background-color: var(--bg-1);
+  padding: 0.5rem;
+  gap: 24px;
 }
 
 .instances-list {
-    max-height: 150px;
-    overflow-y: auto;
-    gap: 5px;
+  max-height: 150px;
+  overflow-y: auto;
+  gap: 5px;
 }
 
 .preview-container {
-    flex-grow: 1;
-    position: relative;
+  flex-grow: 1;
+  position: relative;
 }
 
 .preview-overlay-top-left {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-}
-
-.preview-badge {
-    background: var(--bg-1);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
 }
 
 .preview-overlay-top-right {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-    font-size: 12px;
-    color: var(--fg-0);
-    opacity: 0.7;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-    pointer-events: none;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--fg-0);
+  opacity: 0.7;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
 }
 
 .preview-overlay-bottom-right {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
-    background: var(--bg-1);
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 12px;
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  background: var(--bg-1);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
 }
 
-.lod-switcher {
-    display: flex;
-    border: 1px solid var(--bg-3);
-    border-radius: 6px;
-    overflow: hidden;
-    background: var(--bg-1);
+/* LOD switcher: hovering the active segment turns it into a delete button. */
+.seg-btn .lod-dash {
+  display: none;
 }
 
-.lod-btn {
-    background: var(--bg-1);
-    color: var(--fg-0);
-    border: none;
-    border-radius: 0;
-    padding: 4px 10px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+.seg-btn.deletable:hover {
+  background: #a33;
 }
 
-.lod-btn.active {
-    background: var(--accent);
-    color: #ffffff;
-    font-weight: 600;
+.seg-btn.deletable:hover .lod-num {
+  display: none;
 }
 
-.lod-btn .lod-dash {
-    display: none;
-}
-
-.lod-btn.deletable:hover {
-    background: #a33;
-}
-
-.lod-btn.deletable:hover .lod-num {
-    display: none;
-}
-
-.lod-btn.deletable:hover .lod-dash {
-    display: inline;
-}
-
-/* Double range slider — one track, a filled span between the two handles. */
-.drs-track {
-    position: relative;
-    height: 22px;
-    /* keep the handles' centers inside the box at min/max */
-    margin: 0 8px;
-    cursor: pointer;
-    touch-action: none;
-    user-select: none;
-}
-
-.drs-rail,
-.drs-fill {
-    position: absolute;
-    top: 50%;
-    height: 4px;
-    margin-top: -2px;
-    border-radius: 2px;
-    pointer-events: none;
-}
-
-.drs-rail {
-    left: 0;
-    right: 0;
-    background: var(--bg-3);
-}
-
-.drs-fill {
-    background: var(--accent);
-}
-
-.drs-handle {
-    position: absolute;
-    top: 50%;
-    width: 16px;
-    height: 16px;
-    margin: -8px 0 0 -8px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: 2px solid var(--bg-1);
-    box-sizing: border-box;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-    cursor: grab;
-    pointer-events: none;
-    transition: transform 0.1s ease;
-}
-
-.drs-track:active .drs-handle {
-    cursor: grabbing;
-}
-
-.drs-track:hover .drs-handle {
-    transform: scale(1.15);
-}
-
-.drs-handle:focus-visible {
-    outline: 2px solid var(--fg-0);
-    outline-offset: 2px;
-}
-
-/* Color ramp — a Blender-style gradient bar with draggable stops. */
-.color-ramp-track {
-    position: relative;
-    height: 28px;
-    border-radius: 4px;
-    border: 1px solid var(--bg-3);
-    cursor: copy;
-}
-
-.color-ramp-handle {
-    position: absolute;
-    top: 50%;
-    width: 12px;
-    height: 12px;
-    margin-top: -6px;
-    border-radius: 50%;
-    border: 2px solid #ffffff;
-    box-sizing: border-box;
-    cursor: grab;
-}
-
-.color-ramp-handle.selected {
-    border-color: var(--accent);
+.seg-btn.deletable:hover .lod-dash {
+  display: inline;
 }
