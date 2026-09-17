@@ -1,6 +1,6 @@
 import { LeafMargin, Point } from "../types/leaf";
 import { OutlineShaper } from "./veinGenerator";
-import { cross, dist, lerp, perimeter, size, smoothstep } from "./math";
+import { dist, lerp, perimeter, segmentsCross, size, smoothstep } from "./math";
 
 interface MarginConfig {
   baseCount: number; // teeth per side at tooth size 1
@@ -43,14 +43,6 @@ function fadeAtEnds(along: number, total: number, wavelength: number): number {
 function toothWavelength(ring: Point[], config: MarginConfig, toothSize: number): number {
   const perSide = Math.max(3, Math.round(config.baseCount / Math.max(0.2, toothSize)));
   return (size(ring) * 0.85) / perSide;
-}
-
-function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
-  const d1 = cross(c, d, a);
-  const d2 = cross(c, d, b);
-  const d3 = cross(a, b, c);
-  const d4 = cross(a, b, d);
-  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
 // Pushes the points of a dense closed ring into teeth. The ring is split at its lowest and

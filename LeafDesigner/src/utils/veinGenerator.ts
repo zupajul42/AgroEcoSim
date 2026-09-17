@@ -1,5 +1,5 @@
 import { MeshData, Point, VeinData, VeinGenParams, VeinNode } from "../types/leaf";
-import { clamp01, cross, dist, lerp, perimeter, size, smoothstep } from "./math";
+import { clamp01, cross, dist, lerp, perimeter, segmentsCross, size, smoothstep } from "./math";
 import { newId } from "./random";
 
 type Point3 = Point & { z: number };
@@ -8,7 +8,8 @@ type KeyPoint = Point & { curvature: number };
 export const DEFAULT_VEIN_PARAMS: VeinGenParams = {
   lobeDepth: 0.15,
   lobeThreshold: 0.15,
-  margin: 0.15,
+  tipOffset: 0.15,
+  lateralOffset: 0,
   curvature: 0.5,
   subdivisions: 6,
 };
@@ -108,7 +109,11 @@ export function flattenVeinEdges(root: VeinNode): { parent: VeinNode; node: Vein
 }
 
 export function getEffectiveTipParams(node: VeinNode, params: VeinGenParams) {
-  return { margin: node.margin ?? params.margin, curvature: node.curvature ?? params.curvature };
+  return { tipOffset: node.tipOffset ?? params.tipOffset, curvature: node.curvature ?? params.curvature };
+}
+
+export function getEffectiveLateralOffset(node: VeinNode, params: VeinGenParams): number {
+  return node.lateralOffset ?? params.lateralOffset ?? 0;
 }
 
 export function getEffectiveLobeDepth(node: VeinNode, params: VeinGenParams): number {
@@ -132,6 +137,23 @@ function defaultVeinData(): VeinData {
 export function ensureVeinData(v: VeinData | null | undefined): VeinData {
   if (!v?.root) return defaultVeinData();
   return { root: v.root, params: { ...DEFAULT_VEIN_PARAMS, ...(v.params || {}) } };
+}
+
+type WithLegacyMargin<T> = T & { margin?: number };
+
+/** `veins` with the old `margin` of params and nodes renamed to `tipOffset`, null when there was none. */
+export function migrateLegacyMargin(veins: VeinData): VeinData | null {
+  let found = false;
+  const rename = <T extends { tipOffset?: number }>(o: WithLegacyMargin<T>): T => {
+    if (o.margin === undefined) return o;
+    found = true;
+    const { margin, ...rest } = o;
+    return { ...rest, tipOffset: rest.tipOffset ?? margin } as T;
+  };
+  const walk = (n: WithLegacyMargin<VeinNode>): VeinNode => ({ ...rename(n), children: n.children.map(walk) });
+  const root = walk(veins.root);
+  const params = veins.params && rename<VeinGenParams>(veins.params);
+  return found ? { root, params } : null;
 }
 
 // --- OUTLINE ---
@@ -197,11 +219,38 @@ function interpolateSpline(points: KeyPoint[], samples: number): Point[] {
   return result;
 }
 
-// `to`, pushed `margin` further along the from -> to direction.
-function extendFrom(from: Point, to: Point, margin: number): Point {
+// `to`, pushed `offset` further along the from -> to direction.
+function extendFrom(from: Point, to: Point, offset: number): Point {
   const len = dist(from, to);
   if (len < 0.001) return { x: round(to.x), y: round(to.y) };
-  return { x: round(to.x + ((to.x - from.x) / len) * margin), y: round(to.y + ((to.y - from.y) / len) * margin) };
+  return { x: round(to.x + ((to.x - from.x) / len) * offset), y: round(to.y + ((to.y - from.y) / len) * offset) };
+}
+
+function unit(from: Point, to: Point): Point | null {
+  const len = dist(from, to);
+  return len < 1e-6 ? null : { x: (to.x - from.x) / len, y: (to.y - from.y) / len };
+}
+
+// The node pushed `offset` out along the normal of its vein, on both sides. The vein direction
+// is the mean of parent -> node and node -> the child continuing most in that direction (for a
+// tip just parent -> node), so a kink at a joint doesn't skew it and side branches don't tilt
+// it. `entry` is the side the outline walk reaches first (+x for the midrib).
+function lateralPoints(parent: Point, node: VeinNode, offset: number): { entry: Point; exit: Point } | null {
+  if (offset <= 0.001) return null;
+  const inDir = unit(parent, node);
+  const outDirs = node.children.map((c) => unit(node, c)).filter((d): d is Point => d !== null);
+  const dot = (a: Point, b: Point) => a.x * b.x + a.y * b.y;
+  const onward = inDir
+    ? outDirs.reduce<Point | null>((best, d) => (!best || dot(d, inDir) > dot(best, inDir) ? d : best), null)
+    : outDirs[0];
+  const sum = { x: (inDir?.x ?? 0) + (onward?.x ?? 0), y: (inDir?.y ?? 0) + (onward?.y ?? 0) };
+  const d = unit({ x: 0, y: 0 }, sum);
+  if (!d) return null;
+  const normal = { x: d.y * offset, y: -d.x * offset };
+  return {
+    entry: { x: round(node.x + normal.x), y: round(node.y + normal.y) },
+    exit: { x: round(node.x - normal.x), y: round(node.y - normal.y) },
+  };
 }
 
 // Lobe depth eased in once two sibling veins are more than `threshold` apart (0 disables the gate).
@@ -232,38 +281,95 @@ function reparentCollinearChildren(node: VeinNode): VeinNode {
   return { ...node, children: merged };
 }
 
+// A key point that knows which tip or which joint's side point (and where that joint is) it is.
+type KeyEntry = KeyPoint & { tipId?: string; lateralId?: string; joint?: Point };
+
+// remove lateral points that are inside the leaf polygon
+function dropInwardSidePoints(entries: KeyEntry[], root: VeinNode): KeyEntry[] {
+  const edges = flattenVeinEdges(root);
+  const core = entries.filter((e) => !e.lateralId);
+  const mirror = (p: Point): Point => ({ x: -p.x, y: p.y });
+  const coreAfter = (k: number): Point => core[k + 1] ?? mirror(core[k].x > AXIS_EPS ? core[k] : core[k - 1]);
+  const convex = (a: Point, b: Point, c: Point) => cross(a, b, c) > 0;
+  const convexInCore = (k: number) => k > 0 && convex(core[k - 1], core[k], coreAfter(k));
+
+  const kept: KeyEntry[] = [];
+  let coreIdx = -1;
+  entries.forEach((e) => {
+    if (!e.lateralId) {
+      coreIdx++;
+      kept.push(e);
+      return;
+    }
+    const [prev2, prev] = [kept[kept.length - 2], kept[kept.length - 1]];
+    const next: Point & { tipId?: string } = core[coreIdx + 1] ?? mirror(e);
+    const bendsPrevTip = !!prev.tipId && convexInCore(coreIdx) && !convex(prev2, prev, e);
+    const bendsNextTip = !!next.tipId && convexInCore(coreIdx + 1) && !convex(e, next, coreAfter(coreIdx + 1));
+    const crossesVein = edges.some(
+      ({ parent, node }) =>
+        parent.id !== e.lateralId && node.id !== e.lateralId && segmentsCross(e.joint!, e, parent, node),
+    );
+    if (e.x > AXIS_EPS && convex(prev, e, next) && !bendsPrevTip && !bendsNextTip && !crossesVein) kept.push(e);
+  });
+  return kept;
+}
+
 // Key points of the right half outline, walking the tree with children sorted by y: the base,
-// then every tip (extended by its margin) with a notch before each child that has a sibling
-// below it. `tipKeyIndex` maps each tip id to its key point.
+// then every tip (extended by its tip offset) with a notch before each child that has a sibling
+// below it, and a side point on each side of a node with a lateral offset: before and after a
+// tip's own point, before and after a joint's subtree. `tipKeyIndex` maps each tip id to its key
+// point, `lateralKeyIndex` each node id to its side points.
 function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
-  const { margin, curvature } = params;
-  const keyPoints: KeyPoint[] = [{ x: 0, y: 0, curvature }];
-  const tipKeyIndex = new Map<string, number>();
+  const { tipOffset, curvature } = params;
+  const entries: KeyEntry[] = [{ x: 0, y: 0, curvature }];
+
+  const indexed = (list: KeyEntry[]) => {
+    const tipKeyIndex = new Map<string, number>();
+    const lateralKeyIndex = new Map<string, number[]>();
+    list.forEach((e, i) => {
+      if (e.tipId) tipKeyIndex.set(e.tipId, i);
+      if (e.lateralId) lateralKeyIndex.set(e.lateralId, [...(lateralKeyIndex.get(e.lateralId) ?? []), i]);
+    });
+    const keyPoints: KeyPoint[] = list.map(({ x, y, curvature }) => ({ x, y, curvature }));
+    return { keyPoints, tipKeyIndex, lateralKeyIndex };
+  };
 
   if (root.children.length === 0) {
     // Nothing placed yet: a plain oval.
-    const w = 0.5 + margin;
-    keyPoints.push(
+    const w = 0.5 + tipOffset;
+    entries.push(
       { x: round(w * BASE_WIDTH * 2), y: 0.5, curvature },
       { x: round(w), y: 1, curvature },
       { x: round(w * 0.6), y: 1.6, curvature },
       { x: 0, y: 2, curvature },
     );
-    return { keyPoints, tipKeyIndex };
+    return indexed(entries);
   }
 
-  let maxTipX = 0.3;
+  // How wide the blade reaches: every node, pushed out by its lateral offset.
+  let maxReach = 0.3;
   flattenVeinEdges(root).forEach(({ node }) => {
-    if (node.children.length === 0) maxTipX = Math.max(maxTipX, Math.abs(node.x));
+    maxReach = Math.max(maxReach, Math.abs(node.x) + getEffectiveLateralOffset(node, params));
   });
   // A single stem widens a little right after the base before the first vein.
   if (root.children.length === 1) {
-    const baseW = BASE_WIDTH * maxTipX;
-    if (baseW > 0.01) keyPoints.push({ x: round(baseW), y: round(root.children[0].y * 0.35), curvature });
+    const baseW = BASE_WIDTH * maxReach;
+    if (baseW > 0.01) entries.push({ x: round(baseW), y: round(root.children[0].y * 0.35), curvature });
   }
 
-  const walk = (node: VeinNode) => {
-    const children = [...node.children].sort((a, b) => a.y - b.y);
+  const childrenInOutlineOrder = (node: VeinNode, parent: Point | null) => {
+    const back = parent ? unit(node, parent) : { x: 0, y: -1 };
+    const angle = (c: VeinNode) => {
+      const d = unit(node, c);
+      if (!d || !back) return 0;
+      const a = Math.atan2(back.x * d.y - back.y * d.x, back.x * d.x + back.y * d.y);
+      return a < 0 ? a + 2 * Math.PI : a;
+    };
+    return [...node.children].sort((a, b) => angle(a) - angle(b) || dist(node, a) - dist(node, b));
+  };
+
+  const walk = (node: VeinNode, parent: Point | null) => {
+    const children = childrenInOutlineOrder(node, parent);
     const lobeDepth = getEffectiveLobeDepth(node, params);
     const lobeThreshold = getEffectiveLobeThreshold(node, params);
 
@@ -271,25 +377,61 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
       if (idx > 0) {
         const depth = gatedLobeDepth(lobeDepth, dist(children[idx - 1], child), lobeThreshold);
         if (depth > 0.001) {
-          const prev = keyPoints[keyPoints.length - 1];
-          keyPoints.push({
+          // Measured from the last tip or notch: side points may still be dropped.
+          const prev = [...entries].reverse().find((e) => !e.lateralId)!;
+          entries.push({
             x: round(Math.max(lerp((prev.x + child.x) / 2, node.x, depth), 0)),
             y: round(lerp((prev.y + child.y) / 2, node.y, depth)),
             curvature: sinusCurvature(curvature),
           });
         }
       }
+      // The child's own key points, between its side points if it has a lateral offset.
+      const side = lateralPoints(node, child, getEffectiveLateralOffset(child, params));
+      const sideCurvature = child.curvature ?? curvature;
+      if (side) entries.push({ ...side.entry, curvature: sideCurvature, lateralId: child.id, joint: child });
       if (child.children.length === 0) {
         const tip = getEffectiveTipParams(child, params);
-        keyPoints.push({ ...extendFrom(node, child, tip.margin), curvature: tip.curvature });
-        tipKeyIndex.set(child.id, keyPoints.length - 1);
+        entries.push({ ...extendFrom(node, child, tip.tipOffset), curvature: tip.curvature, tipId: child.id });
       } else {
-        walk(child);
+        walk(child, node);
+      }
+      if (side && Math.abs(child.x) > AXIS_EPS) {
+        entries.push({ ...side.exit, curvature: sideCurvature, lateralId: child.id, joint: child });
       }
     });
   };
-  walk(root);
-  return { keyPoints, tipKeyIndex };
+  walk(root, null);
+  return indexed(dropInwardSidePoints(entries, root));
+}
+
+// Where the segments a-b and c-d cross (they must, see `segmentsCross`).
+function crossingPoint(a: Point, b: Point, c: Point, d: Point): Point {
+  const denom = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
+  const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / denom;
+  return { x: round(lerp(a.x, b.x, t)), y: round(lerp(a.y, b.y, t)) };
+}
+
+function halfOutline(keyPoints: KeyPoint[], subdivisions: number, protect: Set<number>) {
+  const stepCount = Math.max(1, Math.round(subdivisions));
+  const sampled = interpolateSpline(keyPoints, subdivisions).map((p) => (p.x < AXIS_EPS ? { x: 0, y: p.y } : p));
+  const protectedIdx = new Set([...protect].map((k) => k * stepCount));
+
+  let half = sampled;
+  let origin = sampled.map((_, i) => i);
+  for (let i = 0; i < half.length - 1; i++) {
+    for (let j = i + 2; j < half.length - 1; j++) {
+      if (!segmentsCross(half[i], half[i + 1], half[j], half[j + 1])) continue;
+      if (origin.slice(i + 1, j + 1).some((o) => protectedIdx.has(o))) break;
+      const x = crossingPoint(half[i], half[i + 1], half[j], half[j + 1]);
+      half = [...half.slice(0, i + 1), x, ...half.slice(j + 1)];
+      origin = [...origin.slice(0, i + 1), -1, ...origin.slice(j + 1)];
+      i--;
+      break;
+    }
+  }
+  const keyAt = keyPoints.map((_, k) => origin.indexOf(k * stepCount));
+  return { half, keyAt };
 }
 
 /** The half outline (base -> apex), mirrored into a closed ring unless `mirrorX` is false. */
@@ -298,8 +440,8 @@ export function generateOutlineFromVeins(
   options: { mirrorX: boolean; params?: VeinGenParams },
 ): Point[] {
   const params = options.params || veins.params || DEFAULT_VEIN_PARAMS;
-  const { keyPoints } = buildOutlineKeyPoints(reparentCollinearChildren(veins.root), params);
-  const half = interpolateSpline(keyPoints, params.subdivisions);
+  const { keyPoints, tipKeyIndex } = buildOutlineKeyPoints(reparentCollinearChildren(veins.root), params);
+  const { half } = halfOutline(keyPoints, params.subdivisions, new Set(tipKeyIndex.values()));
   return options.mirrorX ? mirrorHalfOutline(half) : half;
 }
 
@@ -313,10 +455,10 @@ function mirrorHalfOutline(half: Point[]): Point[] {
 }
 
 // --- MESH ---
-// The blade is the outline ring with the vein tree laid inside it. Between two tips that are
-// neighbors along the ring lies one face, bounded by that stretch of outline and the two vein
-// paths back to the tips' common joint; each face is triangulated on its own. Bend and fold are
-// applied last as smooth deformations of the flat mesh.
+// The blade is the outline ring with the vein tree laid inside it. Tips and the side points of
+// joints touch the ring; between two neighbors along the ring lies one face, bounded by that
+// stretch of outline and the two vein paths back to their common joint; each face is
+// triangulated on its own. Bend and fold are applied last as smooth deformations of the flat mesh.
 
 /** Reshapes the flat outline ring before triangulation (margin teeth). May move points and
  *  insert new ones; `originalIndex[i]` is where original point i ended up. */
@@ -550,10 +692,10 @@ export function generateVeinMesh(
     return points.length - 1;
   };
 
-  // Key point k of the half outline sits at half[k * stepCount]; that's how a tip finds its point.
-  const { keyPoints, tipKeyIndex } = buildOutlineKeyPoints(root, params);
-  const stepCount = Math.max(1, Math.round(params.subdivisions));
-  const half = interpolateSpline(keyPoints, params.subdivisions);
+  // `keyAt[k]` is where key point k sits in the half outline; that's how a tip or a joint's side
+  // point finds its ring point. A side point cut off with an overlapping lobe has none.
+  const { keyPoints, tipKeyIndex, lateralKeyIndex } = buildOutlineKeyPoints(root, params);
+  const { half, keyAt } = halfOutline(keyPoints, params.subdivisions, new Set(tipKeyIndex.values()));
 
   // The ring, built like `mirrorHalfOutline` but tracked per point.
   const ringPoints = half.map((_, i) => ({ halfIdx: i, mirrored: false }));
@@ -586,10 +728,11 @@ export function generateVeinMesh(
     return vertices;
   };
 
-  // 1. The mirrored tree. Tips are pinned to the ring in step 2, once it is final.
+  // 1. The mirrored tree. Tips and side points are pinned to the ring in step 2, once it is final.
   const meshRoot: MeshNode = { vein: root, flat: { x: 0, y: 0 }, vertex: -1, alongVein: [], parent: null, depth: 0 };
   meshRoot.vertex = addVertex(meshRoot.flat, meshRoot);
-  const tips: { node: MeshNode; halfIdx: number; mirrored: boolean }[] = [];
+  type Pin = { node: MeshNode; halfIdx: number; mirrored: boolean };
+  const pins: Pin[] = [];
   const childrenFirst: MeshNode[] = [];
 
   const walk = (vein: VeinNode, node: MeshNode, mirrored: boolean) => {
@@ -604,10 +747,17 @@ export function generateVeinMesh(
         depth: node.depth + 1,
       };
       if (child.children.length === 0) {
-        tips.push({ node: childNode, halfIdx: tipKeyIndex.get(child.id)! * stepCount, mirrored: childMirrored });
+        pins.push({ node: childNode, halfIdx: keyAt[tipKeyIndex.get(child.id)!], mirrored: childMirrored });
       } else {
         childNode.alongVein = verticesBetween(node.flat, childNode.flat, childNode);
         childNode.vertex = addVertex(childNode.flat, childNode);
+        // A joint on the axis is never mirrored itself, but its side point reaches both halves. A
+        // tip's side points are plain ring points of the faces next to it and need no node here.
+        for (const halfIdx of (lateralKeyIndex.get(child.id) ?? []).map((k) => keyAt[k])) {
+          if (halfIdx < 0) continue;
+          pins.push({ node: childNode, halfIdx, mirrored: childMirrored });
+          if (mirrorHere && Math.abs(child.x) <= AXIS_EPS) pins.push({ node: childNode, halfIdx, mirrored: true });
+        }
         walk(child, childNode, childMirrored);
       }
       childrenFirst.push(childNode);
@@ -620,28 +770,34 @@ export function generateVeinMesh(
   walk(root, meshRoot, false);
   childrenFirst.push(meshRoot);
 
-  // 2. The tips in ring order: right half forward, mirrored ones backward.
-  type RingTip = { node: MeshNode; ringPos: number; mirrored: boolean };
-  const pinTip = (tip: (typeof tips)[number], unshapedPos: number): RingTip => {
+  // 2. Everything touching the ring, in ring order: right half forward, mirrored ones backward.
+  // A tip moves onto its ring point; a joint stays on its vein and gets a short path `toRing`
+  // from its vertex to its own vertex on the ring.
+  type RingNode = { node: MeshNode; ringPos: number; mirrored: boolean; ringVertex: number; toRing: number[] };
+  const pin = ({ node, mirrored }: Pin, unshapedPos: number): RingNode => {
     const ringPos = shaped.originalIndex[unshapedPos];
-    tip.node.flat = outline[ringPos];
-    tip.node.alongVein = verticesBetween(tip.node.parent!.flat, tip.node.flat, tip.node);
-    tip.node.vertex = addVertex(outline[ringPos], tip.node);
-    return { node: tip.node, ringPos, mirrored: tip.mirrored };
+    if (node.vein.children.length === 0) {
+      node.flat = outline[ringPos];
+      node.alongVein = verticesBetween(node.parent!.flat, node.flat, node);
+      node.vertex = addVertex(outline[ringPos], node);
+      return { node, ringPos, mirrored, ringVertex: node.vertex, toRing: [] };
+    }
+    const toRing = verticesBetween(node.flat, outline[ringPos], node);
+    return { node, ringPos, mirrored, ringVertex: addVertex(outline[ringPos], node), toRing };
   };
-  const ringTips: RingTip[] = [
-    { node: meshRoot, ringPos: shaped.originalIndex[0], mirrored: false },
-    ...tips
-      .filter((t) => !t.mirrored)
+  const ringNodes: RingNode[] = [
+    { node: meshRoot, ringPos: shaped.originalIndex[0], mirrored: false, ringVertex: meshRoot.vertex, toRing: [] },
+    ...pins
+      .filter((p) => !p.mirrored)
       .sort((a, b) => a.halfIdx - b.halfIdx)
-      .map((t) => pinTip(t, t.halfIdx)),
-    ...tips
-      .filter((t) => t.mirrored && mirroredRingPos.has(t.halfIdx))
+      .map((p) => pin(p, p.halfIdx)),
+    ...pins
+      .filter((p) => p.mirrored && mirroredRingPos.has(p.halfIdx))
       .sort((a, b) => b.halfIdx - a.halfIdx)
-      .map((t) => pinTip(t, mirroredRingPos.get(t.halfIdx)!)),
+      .map((p) => pin(p, mirroredRingPos.get(p.halfIdx)!)),
   ];
 
-  // 3. One face per pair of neighboring tips.
+  // 3. One face per pair of neighboring ring nodes.
   const commonJoint = (a: MeshNode, b: MeshNode) => {
     while (a !== b) {
       if (a.depth >= b.depth) a = a.parent!;
@@ -649,14 +805,16 @@ export function generateVeinMesh(
     }
     return a;
   };
-  const pathUpTo = (from: MeshNode, stop: MeshNode) => {
-    const out: number[] = [];
-    for (let n = from; n !== stop; n = n.parent!) out.push(n.vertex, ...[...n.alongVein].reverse());
+  // From the ring back up to (not including) `stop`: a joint's ring vertex and `toRing` first,
+  // then vertex and `alongVein` of every node on the way.
+  const pathUpTo = (from: RingNode, stop: MeshNode) => {
+    const out = from.ringVertex === from.node.vertex ? [] : [from.ringVertex, ...[...from.toRing].reverse()];
+    for (let n = from.node; n !== stop; n = n.parent!) out.push(n.vertex, ...[...n.alongVein].reverse());
     return out;
   };
 
-  ringTips.forEach((a, s) => {
-    const b = ringTips[(s + 1) % ringTips.length];
+  ringNodes.forEach((a, s) => {
+    const b = ringNodes[(s + 1) % ringNodes.length];
     const joint = commonJoint(a.node, b.node);
 
     const arcPoints: Point[] = [];
@@ -665,11 +823,12 @@ export function generateVeinMesh(
     }
 
     // Outline points belong to one of the two lobes, switching at the notch (the point closest
-    // to the joint), which goes with the lower tip on both halves. Next to the root everything
-    // goes with the tip.
+    // to the joint), which goes with the lower tip on both halves. Next to the common joint
+    // itself (the root, or a joint reaching the ring with a side point) everything goes with
+    // the other node.
     let belongsToA: (i: number) => boolean = () => false;
-    if (b.node === meshRoot) belongsToA = () => true;
-    else if (a.node !== meshRoot) {
+    if (b.node === joint) belongsToA = () => true;
+    else if (a.node !== joint) {
       let notch = -1;
       let best = Infinity;
       arcPoints.forEach((p, i) => {
@@ -682,7 +841,7 @@ export function generateVeinMesh(
     }
     const arc = arcPoints.map((p, i) => addVertex(p, belongsToA(i) ? a.node : b.node));
 
-    const poly = [joint.vertex, ...pathUpTo(a.node, joint).reverse(), ...arc, ...pathUpTo(b.node, joint)];
+    const poly = [joint.vertex, ...pathUpTo(a, joint).reverse(), ...arc, ...pathUpTo(b, joint)];
 
     // Interior points on a grid with columns on the axis (so both halves get the same points),
     // kept clear of the face's own boundary.

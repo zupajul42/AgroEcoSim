@@ -8,6 +8,7 @@ interface SliderInputProps {
   unit?: string;
   value: number;
   onInput: (val: number) => void;
+  onChange?: (val: number) => void;
   class?: string;
   style?: CSSProperties;
   inline?: boolean;
@@ -23,15 +24,22 @@ export function SliderInput({
   unit = "",
   value,
   onInput,
+  onChange,
   class: className = "",
   inline = false,
   style = {},
   defaultValue,
 }: SliderInputProps) {
   const resetToDefault = () => {
-    if (defaultValue !== undefined) onInput(defaultValue);
+    if (defaultValue === undefined) return;
+    onInput(defaultValue);
+    onChange?.(defaultValue);
   };
   const resetTitle = defaultValue !== undefined ? `Double-click to reset to ${defaultValue}${unit}` : undefined;
+  const commit = (e: Event) => {
+    const val = parseFloat((e.currentTarget as HTMLInputElement).value);
+    if (!isNaN(val)) onChange?.(val);
+  };
 
   const range = (extra: HTMLAttributes<HTMLInputElement>) => (
     <input
@@ -41,6 +49,7 @@ export function SliderInput({
       step={step}
       value={value}
       onInput={(e) => onInput(parseFloat(e.currentTarget.value))}
+      onChange={commit}
       onDblClick={resetToDefault}
       title={resetTitle}
       {...extra}
@@ -58,6 +67,7 @@ export function SliderInput({
           const val = parseFloat(e.currentTarget.value);
           if (!isNaN(val)) onInput(val);
         }}
+        onChange={commit}
       />
       {unit && <span>{unit}</span>}
     </div>

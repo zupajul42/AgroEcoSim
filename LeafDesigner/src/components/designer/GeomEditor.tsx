@@ -13,6 +13,7 @@ import {
   mergeNearbyVeinNode,
   flattenVeinEdges,
   getEffectiveTipParams,
+  getEffectiveLateralOffset,
   getEffectiveLobeDepth,
   getEffectiveLobeThreshold,
   MAX_ROTATION_DEG,
@@ -354,11 +355,17 @@ export function GeomEditor({ id }: { id: string }) {
     setVeinRoot(removeVeinNode(currentVeins.root, selectedNodeId));
   };
 
+  const nodeEditStart = useRef<LeafGeometry | null>(null);
   const updateSelectedNode = (patch: Partial<VeinNode>) => {
     if (!selectedNodeId) return;
+    nodeEditStart.current ??= geomRef.current;
     setVeinRoot(
       updateVeinTree(ensureVeinData(geomRef.current.veins).root, selectedNodeId, (node) => ({ ...node, ...patch })),
     );
+  };
+  const commitNodeEdit = () => {
+    if (nodeEditStart.current) pushState(nodeEditStart.current);
+    nodeEditStart.current = null;
   };
 
   const onCanvasClick = (e: MouseEvent) => {
@@ -529,13 +536,13 @@ export function GeomEditor({ id }: { id: string }) {
               inline
             />
             <SliderInput
-              label="Default Margin"
+              label="Default Tip Offset"
               min={0}
               max={0.5}
               step={0.01}
-              value={genParams.margin}
-              onInput={(v) => updateParam("margin", v)}
-              defaultValue={DEFAULT_VEIN_PARAMS.margin}
+              value={genParams.tipOffset}
+              onInput={(v) => updateParam("tipOffset", v)}
+              defaultValue={DEFAULT_VEIN_PARAMS.tipOffset}
               inline
             />
             <SliderInput
@@ -570,6 +577,7 @@ export function GeomEditor({ id }: { id: string }) {
                 step={1}
                 value={selectedVeinNode.bend ?? 0}
                 onInput={(v) => updateSelectedNode({ bend: v })}
+                onChange={commitNodeEdit}
                 defaultValue={0}
                 inline
               />
@@ -582,6 +590,7 @@ export function GeomEditor({ id }: { id: string }) {
                     step={1}
                     value={selectedVeinNode.fold ?? 0}
                     onInput={(v) => updateSelectedNode({ fold: v })}
+                    onChange={commitNodeEdit}
                     defaultValue={0}
                     inline
                   />
@@ -592,6 +601,7 @@ export function GeomEditor({ id }: { id: string }) {
                     step={0.02}
                     value={getEffectiveLobeDepth(selectedVeinNode, genParams)}
                     onInput={(v) => updateSelectedNode({ lobeDepth: v })}
+                    onChange={commitNodeEdit}
                     defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
                     inline
                   />
@@ -602,21 +612,36 @@ export function GeomEditor({ id }: { id: string }) {
                     step={0.02}
                     value={getEffectiveLobeThreshold(selectedVeinNode, genParams)}
                     onInput={(v) => updateSelectedNode({ lobeThreshold: v })}
+                    onChange={commitNodeEdit}
                     defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
                     inline
                   />
                 </>
               )}
+              {!selectedIsRoot && (
+                <SliderInput
+                  label="Lateral Offset"
+                  min={0}
+                  max={2}
+                  step={0.02}
+                  value={getEffectiveLateralOffset(selectedVeinNode, genParams)}
+                  onInput={(v) => updateSelectedNode({ lateralOffset: v })}
+                  onChange={commitNodeEdit}
+                  defaultValue={DEFAULT_VEIN_PARAMS.lateralOffset}
+                  inline
+                />
+              )}
               {selectedIsTip && (
                 <>
                   <SliderInput
-                    label="Margin"
+                    label="Tip Offset"
                     min={0}
                     max={0.5}
                     step={0.01}
-                    value={getEffectiveTipParams(selectedVeinNode, genParams).margin}
-                    onInput={(v) => updateSelectedNode({ margin: v })}
-                    defaultValue={DEFAULT_VEIN_PARAMS.margin}
+                    value={getEffectiveTipParams(selectedVeinNode, genParams).tipOffset}
+                    onInput={(v) => updateSelectedNode({ tipOffset: v })}
+                    onChange={commitNodeEdit}
+                    defaultValue={DEFAULT_VEIN_PARAMS.tipOffset}
                     inline
                   />
                   <SliderInput
@@ -626,6 +651,7 @@ export function GeomEditor({ id }: { id: string }) {
                     step={0.02}
                     value={getEffectiveTipParams(selectedVeinNode, genParams).curvature}
                     onInput={(v) => updateSelectedNode({ curvature: v })}
+                    onChange={commitNodeEdit}
                     defaultValue={DEFAULT_VEIN_PARAMS.curvature}
                     inline
                   />

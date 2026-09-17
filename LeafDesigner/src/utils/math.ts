@@ -37,3 +37,12 @@ export function size(points: Point[]): number {
 export function perimeter(points: Point[]): number {
   return points.reduce((sum, p, i) => sum + dist(p, points[(i + 1) % points.length]), 0);
 }
+
+/** Whether the segments a-b and c-d properly cross (touching or collinear doesn't count). */
+export function segmentsCross(a: Point, b: Point, c: Point, d: Point): boolean {
+  const d1 = cross(c, d, a);
+  const d2 = cross(c, d, b);
+  const d3 = cross(a, b, c);
+  const d4 = cross(a, b, d);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+}
