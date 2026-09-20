@@ -139,26 +139,28 @@ export function GeomEditor({ id }: { id: string }) {
     return { x: Math.round(rawX / gridSnap) * gridSnap, y: Math.round(rawY / gridSnap) * gridSnap };
   };
 
-  const leafCoordAt = (e: MouseEvent): Point => {
+  const leafCoordAt = (e: MouseEvent | PointerEvent): Point => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return toLeafCoord(e.clientX - rect.left, e.clientY - rect.top);
   };
 
-  // Tracks the mouse until release; the drag flag clears shortly after so the trailing click is ignored.
-  const dragUntilRelease = (onMove: (e: MouseEvent) => void, onRelease?: () => void) => {
+  // Tracks the pointer (mouse, touch or pen) until release; the drag flag clears shortly after so the trailing click is ignored.
+  const dragUntilRelease = (onMove: (e: PointerEvent) => void, onRelease?: () => void) => {
     dragRef.current = { moved: false };
-    const onMouseMove = (e: MouseEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
       dragRef.current!.moved = true;
       onMove(e);
     };
-    const onMouseUp = () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
       onRelease?.();
       setTimeout(() => (dragRef.current = null), 50);
     };
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
   };
 
   const displayPoints = useMemo(() => {
@@ -196,9 +198,10 @@ export function GeomEditor({ id }: { id: string }) {
     if (enabled) setGeom({ ...geom, points: buildSymmetricContour(geom.points) });
   };
 
-  const onPointMouseDown = (e: MouseEvent, index: number) => {
+  const onPointPointerDown = (e: PointerEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
     pushState(geomRef.current);
     setSelectedPoint(index);
     dragUntilRelease((moveEv) => {
@@ -211,9 +214,10 @@ export function GeomEditor({ id }: { id: string }) {
     });
   };
 
-  const onOriginMouseDown = (e: MouseEvent) => {
+  const onOriginPointerDown = (e: PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
     pushState(geomRef.current);
     const initialPoints = [...geomRef.current.points];
     const startX = e.clientX;
@@ -250,7 +254,7 @@ export function GeomEditor({ id }: { id: string }) {
     setPoints(geom.points.filter((_, i) => i !== selectedPoint));
   };
 
-  const insertPointOnSegment = (e: MouseEvent, afterIndex: number) => {
+  const insertPointOnSegment = (e: PointerEvent, afterIndex: number) => {
     const pt = leafCoordAt(e);
     if (mirrorX) pt.x = Math.abs(pt.x);
     const points = [...geom.points];
@@ -259,7 +263,7 @@ export function GeomEditor({ id }: { id: string }) {
     const insertedIdx = stored.findIndex((p) => Math.abs(p.x - pt.x) < 0.001 && Math.abs(p.y - pt.y) < 0.001);
     const targetIdx = insertedIdx !== -1 ? insertedIdx : afterIndex + 1;
     setSelectedPoint(targetIdx);
-    onPointMouseDown(e, targetIdx);
+    onPointPointerDown(e, targetIdx);
   };
 
   // --- VENATION MODE ---
@@ -297,9 +301,10 @@ export function GeomEditor({ id }: { id: string }) {
     return ax <= veinMergeThreshold() ? 0 : ax;
   };
 
-  const onVeinNodeMouseDown = (e: MouseEvent, nodeId: string) => {
+  const onVeinNodePointerDown = (e: PointerEvent, nodeId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
     pushState(geomRef.current);
     setSelectedNodeId(nodeId);
     dragUntilRelease(
@@ -706,7 +711,7 @@ export function GeomEditor({ id }: { id: string }) {
                   x2={sp2.x}
                   y2={sp2.y}
                   class="line-helper"
-                  onMouseDown={(e) => insertPointOnSegment(e, i)}
+                  onPointerDown={(e) => insertPointOnSegment(e, i)}
                 />
               );
             })}
@@ -721,7 +726,7 @@ export function GeomEditor({ id }: { id: string }) {
                   class="point-handle"
                   data-selected={i === selectedPoint}
                   data-mirrored={mirrorX && p.x < -0.001}
-                  onMouseDown={(e) => onPointMouseDown(e, i)}
+                  onPointerDown={(e) => onPointPointerDown(e, i)}
                 />
               );
             })}
@@ -792,7 +797,7 @@ export function GeomEditor({ id }: { id: string }) {
                   class="vein-handle"
                   data-selected={selectedNodeId === node.id}
                   data-tip={isTip}
-                  onMouseDown={(e) => onVeinNodeMouseDown(e, node.id)}
+                  onPointerDown={(e) => onVeinNodePointerDown(e, node.id)}
                 >
                   <title>
                     {isTip
@@ -813,7 +818,7 @@ export function GeomEditor({ id }: { id: string }) {
           r="7"
           class="petiole-base-dot"
           data-selected={editorMode === "veins" && selectedNodeId === currentVeins.root.id}
-          onMouseDown={onOriginMouseDown}
+          onPointerDown={onOriginPointerDown}
         >
           <title>
             Drag red dot to set Stem Origin (0,0). In Venation Mode, click it (no drag) to select the root vein node —
