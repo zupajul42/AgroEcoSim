@@ -24,7 +24,10 @@ import { applyMarginTeethToOutline } from "../../utils/marginTeeth";
 import { SliderInput } from "../common/SliderInput";
 import "./GeomEditor.css";
 
-const ZOOM = 140; // screen pixels per leaf unit
+const ZOOM = 140; // screen pixels per leaf unit at zoom 1
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 8;
+const TOUCH_DRAG_THRESHOLD = 4;
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
 // The right half (x >= 0) followed by its mirror image, so the outline stays symmetric.
@@ -83,6 +86,13 @@ export function GeomEditor({ id }: { id: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<SVGSVGElement>(null);
   const [viewSize, setViewSize] = useState({ width: 800, height: 600 });
+  // Zoom factor and pan offset (screen px, relative to the default centre) of the canvas.
+  const [view, setView] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
+  const viewRef = useRef(view);
+  const updateView = (next: typeof view) => {
+    viewRef.current = next;
+    setView(next);
+  };
 
   // A drag in progress; stays set briefly after release so the click that follows is ignored.
   const dragRef = useRef<{ moved: boolean } | null>(null);
@@ -127,14 +137,18 @@ export function GeomEditor({ id }: { id: string }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedPoint, selectedNodeId, editorMode, geom, mirrorX, undo, redo]);
 
-  const centerX = viewSize.width / 2;
-  const centerY = viewSize.height / 2 + 80;
+  const viewCenter = (width: number, height: number): Point => ({ x: width / 2, y: height / 2 + 80 });
+  const { x: centerX, y: centerY } = viewCenter(viewSize.width, viewSize.height);
+  const scale = ZOOM * view.zoom;
 
-  const toScreen = (p: Point): Point => ({ x: centerX + p.x * ZOOM, y: centerY - p.y * ZOOM });
+  const toScreen = (p: Point): Point => ({
+    x: centerX + view.pan.x + p.x * scale,
+    y: centerY + view.pan.y - p.y * scale,
+  });
 
   const toLeafCoord = (screenX: number, screenY: number): Point => {
-    const rawX = (screenX - centerX) / ZOOM;
-    const rawY = (centerY - screenY) / ZOOM;
+    const rawX = (screenX - centerX - view.pan.x) / scale;
+    const rawY = (centerY + view.pan.y - screenY) / scale;
     if (!enableSnap || gridSnap <= 0) return { x: round2(rawX), y: round2(rawY) };
     return { x: Math.round(rawX / gridSnap) * gridSnap, y: Math.round(rawY / gridSnap) * gridSnap };
   };
@@ -142,6 +156,93 @@ export function GeomEditor({ id }: { id: string }) {
   const leafCoordAt = (e: MouseEvent | PointerEvent): Point => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return toLeafCoord(e.clientX - rect.left, e.clientY - rect.top);
+  };
+
+  // --- ZOOM & PAN ---
+
+  const panBy = (dx: number, dy: number) => {
+    const { zoom, pan } = viewRef.current;
+    updateView({ zoom, pan: { x: pan.x + dx, y: pan.y + dy } });
+  };
+
+  // Zooms by `factor` so that the leaf point under the client position stays where it is.
+  const zoomAt = (clientX: number, clientY: number, factor: number) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const center = viewCenter(rect.width, rect.height);
+    const { zoom, pan } = viewRef.current;
+    const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * factor));
+    const f = nextZoom / zoom;
+    const sx = clientX - rect.left - center.x;
+    const sy = clientY - rect.top - center.y;
+    updateView({ zoom: nextZoom, pan: { x: sx - (sx - pan.x) * f, y: sy - (sy - pan.y) * f } });
+  };
+
+  useEffect(() => {
+    const svg = canvasRef.current;
+    if (!svg) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 16 : e.deltaY;
+      zoomAt(e.clientX, e.clientY, Math.exp(-delta * 0.002));
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // Fingers currently down on the empty canvas, by pointer id (client coordinates).
+  const touchesRef = useRef(new Map<number, Point>());
+
+  // Mouse: shift + drag pans. Touch: one finger pans (a tap still adds a point), two fingers pinch-zoom and pan.
+  const onCanvasPointerDown = (e: PointerEvent) => {
+    if (e.pointerType === "mouse") {
+      if (!e.shiftKey || e.button !== 0) return;
+      e.preventDefault();
+      let last = { x: e.clientX, y: e.clientY };
+      dragUntilRelease((moveEv) => {
+        panBy(moveEv.clientX - last.x, moveEv.clientY - last.y);
+        last = { x: moveEv.clientX, y: moveEv.clientY };
+      });
+      return;
+    }
+
+    const touches = touchesRef.current;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size > 1) {
+      // A second finger turns the gesture into pinch/pan; the trailing click must not add a point.
+      dragRef.current = { moved: true };
+      return;
+    }
+
+    const onPointerMove = (ev: PointerEvent) => {
+      const prev = touches.get(ev.pointerId);
+      if (!prev) return;
+      const cur = { x: ev.clientX, y: ev.clientY };
+      if (touches.size === 1) {
+        if (!dragRef.current && Math.hypot(cur.x - prev.x, cur.y - prev.y) < TOUCH_DRAG_THRESHOLD) return;
+        dragRef.current = { moved: true };
+        panBy(cur.x - prev.x, cur.y - prev.y);
+      } else {
+        const other = [...touches].find(([id]) => id !== ev.pointerId)![1];
+        const d0 = Math.hypot(prev.x - other.x, prev.y - other.y);
+        const d1 = Math.hypot(cur.x - other.x, cur.y - other.y);
+        const mid0 = { x: (prev.x + other.x) / 2, y: (prev.y + other.y) / 2 };
+        const mid1 = { x: (cur.x + other.x) / 2, y: (cur.y + other.y) / 2 };
+        if (d0 > 0) zoomAt(mid0.x, mid0.y, d1 / d0);
+        panBy(mid1.x - mid0.x, mid1.y - mid0.y);
+      }
+      touches.set(ev.pointerId, cur);
+    };
+    const onPointerUp = (ev: PointerEvent) => {
+      touches.delete(ev.pointerId);
+      if (touches.size > 0) return;
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+      if (dragRef.current) setTimeout(() => (dragRef.current = null), 50);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
   };
 
   // Tracks the pointer (mouse, touch or pen) until release; the drag flag clears shortly after so the trailing click is ignored.
@@ -181,7 +282,7 @@ export function GeomEditor({ id }: { id: string }) {
         .map((p) => toScreen(p))
         .map((sp) => `${sp.x.toFixed(1)},${sp.y.toFixed(1)}`)
         .join(" "),
-    [displayPoints, viewSize],
+    [displayPoints, viewSize, view],
   );
 
   // --- OUTLINE MODE ---
@@ -224,8 +325,8 @@ export function GeomEditor({ id }: { id: string }) {
     const startY = e.clientY;
     dragUntilRelease(
       (moveEv) => {
-        let dx = (moveEv.clientX - startX) / ZOOM;
-        let dy = -(moveEv.clientY - startY) / ZOOM;
+        let dx = (moveEv.clientX - startX) / scale;
+        let dy = -(moveEv.clientY - startY) / scale;
         if (enableSnap && gridSnap > 0) {
           dx = Math.round(dx / gridSnap) * gridSnap;
           dy = Math.round(dy / gridSnap) * gridSnap;
@@ -374,7 +475,7 @@ export function GeomEditor({ id }: { id: string }) {
   };
 
   const onCanvasClick = (e: MouseEvent) => {
-    if (dragRef.current) return;
+    if (dragRef.current || e.shiftKey) return;
     const pt = leafCoordAt(e);
     if (editorMode === "outline") {
       if (mirrorX) pt.x = Math.abs(pt.x);
@@ -386,7 +487,7 @@ export function GeomEditor({ id }: { id: string }) {
   };
 
   const originScreen = toScreen({ x: 0, y: 0 });
-  const patternStep = Math.max(gridSnap * ZOOM, 4);
+  const patternStep = Math.max(gridSnap * scale, 4);
   const hasTeeth = geom.margin && geom.margin !== "entire";
 
   return (
@@ -667,7 +768,7 @@ export function GeomEditor({ id }: { id: string }) {
         </div>
       )}
 
-      <svg id="canvas" ref={canvasRef} onClick={onCanvasClick}>
+      <svg id="canvas" ref={canvasRef} onClick={onCanvasClick} onPointerDown={onCanvasPointerDown}>
         <defs>
           <pattern
             id="dot-grid"
