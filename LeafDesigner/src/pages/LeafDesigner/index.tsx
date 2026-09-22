@@ -234,25 +234,28 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     const isPetiolule = type === "petiolule";
     const target = isPetiolule ? leaf.shape[0]?.petiolule : leaf.petiole;
     const fields = [
+      // The petiole runs on a log scale (1 cm..3 m long, 5 mm..1 m wide), so centimetre stems are as easy to set as metre ones.
       {
         label: "Length",
         field: "len",
-        min: 0,
-        max: isPetiolule ? 5 : 10,
-        step: 0.1,
+        min: isPetiolule ? 0 : 0.01,
+        max: isPetiolule ? 5 : 3,
+        step: isPetiolule ? 0.1 : 0.005,
         unit: "m",
         value: target?.len || 0,
-        defaultValue: isPetiolule ? 0 : 3,
+        defaultValue: isPetiolule ? 0 : 1.5,
+        log: !isPetiolule,
       },
       {
         label: "Width",
         field: "width",
-        min: 0.05,
-        max: isPetiolule ? 1 : 1.5,
-        step: 0.05,
+        min: isPetiolule ? 0.05 : 0.005,
+        max: 1,
+        step: isPetiolule ? 0.05 : 0.005,
         unit: "m",
         value: target?.width || 0.1,
-        defaultValue: 0.1,
+        defaultValue: isPetiolule ? 0.1 : 0.05,
+        log: !isPetiolule,
       },
       {
         label: "Angle",
@@ -263,6 +266,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         unit: "°",
         value: target?.angle || 0,
         defaultValue: 0,
+        log: false,
       },
     ] as const;
     return fields.map((f) => (
@@ -275,6 +279,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         unit={f.unit}
         value={f.value}
         defaultValue={f.defaultValue}
+        log={f.log}
         onInput={(val) =>
           isPetiolule
             ? updateShape((s) => ({ petiolule: { ...s.petiolule, [f.field]: val } }))

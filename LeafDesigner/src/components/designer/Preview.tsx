@@ -311,7 +311,10 @@ function generateShapeMesh(shape: LeafShape, lod = 0): MeshData {
   return { position: mesh.position.map((v) => v / scale), index: mesh.index };
 }
 
-/** The whole leaf: petiole, then every leaflet with its petiolule and blade, tilted by the petiole angle. */
+/**
+ * The whole leaf: an upright petiole, then every leaflet with its petiolule and blade. The petiole angle
+ * tilts the leaflets away from the petiole at their attachment points; the petiole itself stays upright.
+ */
 export function generateMesh(leaf: Leaf, lod = 0): MeshData {
   if (!leaf) return EMPTY_MESH;
 
@@ -329,12 +332,14 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
 
   const petioleLength = leaf.petiole?.len ?? 1;
   const petioleWidth = leaf.petiole?.width || 0.2;
+  const petioleAngleRad = -((leaf.petiole?.angle || 0) / 180) * Math.PI;
   if (petioleLength > 0) append(boxMesh(petioleWidth, petioleLength, petioleWidth), mat4.create());
 
   const shape: LeafShape = leaf.shape?.[0] ?? { geom: ["def:obovate"], petiolule: NO_STEM };
   const petioluleLength = shape.petiolule?.len || 0;
   const petioluleAngleRad = -((shape.petiolule?.angle || 0) / 180) * Math.PI;
-  const petioluleMesh = petioluleLength > 0 ? boxMesh(shape.petiolule.width || 0, petioluleLength, 0.08) : null;
+  const petioluleMesh =
+    petioluleLength > 0 ? boxMesh(shape.petiolule.width || 0, petioluleLength, shape.petiolule.width || 0) : null;
   const bladeMesh = generateShapeMesh(shape, lod);
   const bladeScaleX = resolveLodScale(shape.scaleX, lod);
   const bladeScaleY = resolveLodScale(shape.scaleY, lod);
@@ -349,6 +354,7 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
 
     const base = mat4.create();
     mat4.translate(base, base, [position.x, position.y, position.z]);
+    mat4.rotateX(base, base, petioleAngleRad);
     mat4.rotateZ(base, base, rotationZ);
     mat4.scale(base, base, [scale, scale, scale]);
     mat4.rotateX(base, base, petioluleAngleRad);
@@ -359,16 +365,6 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
     if (scaleX !== 1 || scaleY !== 1) mat4.scale(blade, blade, [scaleX, scaleY, 1]);
     append(bladeMesh, blade);
   });
-
-  const tilt = mat4.create();
-  mat4.rotateX(tilt, tilt, -((leaf.petiole.angle || 0) / 180) * Math.PI);
-  const v = vec3.create();
-  for (let i = 0; i < position.length; i += 3) {
-    vec3.transformMat4(v, [position[i], position[i + 1], position[i + 2]], tilt);
-    position[i] = v[0];
-    position[i + 1] = v[1];
-    position[i + 2] = v[2];
-  }
 
   return { position, index };
 }
