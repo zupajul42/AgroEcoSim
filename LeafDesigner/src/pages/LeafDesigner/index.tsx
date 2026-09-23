@@ -9,7 +9,13 @@ import {
   LeafLayoutType,
   LeafShape,
 } from "../../types/leaf";
-import { generateMesh, geometryTriangleCount, meshToObjString, Preview } from "../../components/designer/Preview";
+import {
+  defaultRachis,
+  generateMesh,
+  geometryTriangleCount,
+  meshToObjString,
+  Preview,
+} from "../../components/designer/Preview";
 import { state } from "../AppState";
 import { historyKey, useHistory } from "../../hooks/useHistory";
 import {
@@ -230,32 +236,38 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     </div>
   );
 
-  const stemSliders = (type: "petiolule" | "petiole") => {
-    const isPetiolule = type === "petiolule";
-    const target = isPetiolule ? leaf.shape[0]?.petiolule : leaf.petiole;
+  const stemSliders = (type: "petiolule" | "petiole" | "rachis") => {
+    const isPetiole = type === "petiole";
+    const rachisFallback = defaultRachis(leaf.petiole);
+    const target =
+      type === "petiolule"
+        ? leaf.shape[0]?.petiolule
+        : isPetiole
+          ? leaf.petiole
+          : (leaf.layout?.rachis ?? rachisFallback);
     const fields = [
       // The petiole runs on a log scale (1 cm..3 m long, 5 mm..1 m wide), so centimetre stems are as easy to set as metre ones.
       {
         label: "Length",
         field: "len",
-        min: isPetiolule ? 0 : 0.01,
-        max: isPetiolule ? 5 : 3,
-        step: isPetiolule ? 0.1 : 0.005,
+        min: isPetiole ? 0.01 : 0,
+        max: isPetiole ? 3 : 5,
+        step: isPetiole ? 0.005 : 0.1,
         unit: "m",
         value: target?.len || 0,
-        defaultValue: isPetiolule ? 0 : 1.5,
-        log: !isPetiolule,
+        defaultValue: isPetiole ? 1.5 : type === "rachis" ? rachisFallback.len : 0,
+        log: isPetiole,
       },
       {
         label: "Width",
         field: "width",
-        min: isPetiolule ? 0.05 : 0.005,
+        min: isPetiole ? 0.005 : 0.05,
         max: 1,
-        step: isPetiolule ? 0.05 : 0.005,
+        step: isPetiole ? 0.005 : 0.05,
         unit: "m",
         value: target?.width || 0.1,
-        defaultValue: isPetiolule ? 0.1 : 0.05,
-        log: !isPetiolule,
+        defaultValue: isPetiole ? 0.05 : type === "rachis" ? rachisFallback.width : 0.1,
+        log: isPetiole,
       },
       {
         label: "Angle",
@@ -269,6 +281,11 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         log: false,
       },
     ] as const;
+    const update = (field: "len" | "width" | "angle", val: number) => {
+      if (type === "petiolule") updateShape((s) => ({ petiolule: { ...s.petiolule, [field]: val } }));
+      else if (isPetiole) updateLeaf((prev) => ({ petiole: { ...prev.petiole, [field]: val } }));
+      else updateLayout({ rachis: { ...(leaf.layout?.rachis ?? rachisFallback), [field]: val } });
+    };
     return fields.map((f) => (
       <SliderInput
         key={f.label}
@@ -280,11 +297,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         value={f.value}
         defaultValue={f.defaultValue}
         log={f.log}
-        onInput={(val) =>
-          isPetiolule
-            ? updateShape((s) => ({ petiolule: { ...s.petiolule, [f.field]: val } }))
-            : updateLeaf((prev) => ({ petiole: { ...prev.petiole, [f.field]: val } }))
-        }
+        onInput={(val) => update(f.field, val)}
       />
     ));
   };
@@ -315,6 +328,8 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   }
 
   const lodCount = getLodCount(leaf.shape[0].geom);
+  const isBipinnate = leaf.layout?.type === "bipinnate";
+  const isPinnate = leaf.layout?.type === "pinnate" || isBipinnate;
 
   return (
     <div class="designer-layout">
@@ -370,19 +385,43 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                 [
                   { value: "palmate", label: "Palmate" },
                   { value: "pinnate", label: "Pinnate" },
+                  { value: "bipinnate", label: "Bipinnate" },
                 ],
-                (val) => updateLayout({ type: val as LeafLayoutType, angle: val === "pinnate" ? 60 : 140 }),
+                (val) => updateLayout({ type: val as LeafLayoutType, angle: val === "palmate" ? 140 : 60 }),
               )}
-              {leaf.layout?.type === "pinnate" ? (
+              {isPinnate ? (
                 <>
+                  {isBipinnate && (
+                    <SliderInput
+                      label="Pinnae"
+                      min={1}
+                      max={15}
+                      step={1}
+                      value={leaf.layout?.pinnaCount ?? 5}
+                      onInput={(val) => updateLayout({ pinnaCount: val })}
+                      defaultValue={5}
+                    />
+                  )}
                   {renderSelect(
                     "Arrangement",
                     leaf.layout?.arrangement,
                     [
                       { value: "opposite", label: "Opposite" },
                       { value: "alternate", label: "Alternate" },
+                      { value: "whorled", label: "Whorled" },
                     ],
                     (val) => updateLayout({ arrangement: val as LeafArrangement }),
+                  )}
+                  {leaf.layout?.arrangement === "whorled" && (
+                    <SliderInput
+                      label="Leaflets per Whorl"
+                      min={2}
+                      max={8}
+                      step={1}
+                      value={leaf.layout?.whorlSize ?? 3}
+                      onInput={(val) => updateLayout({ whorlSize: val })}
+                      defaultValue={3}
+                    />
                   )}
                   {angleSlider("Branch Angle", 5, 90, 1, 60)}
                   <SliderInput
@@ -411,7 +450,9 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
 
             <div class="stack">
               <div class="row">
-                <h4>Instances ({leaf.instances.length})</h4>
+                <h4>
+                  {isBipinnate ? "Leaflets per Pinna" : "Instances"} ({leaf.instances.length})
+                </h4>
                 <button onClick={() => updateInstances("add")}>+ Add</button>
               </div>
               <DoubleRangeSlider
@@ -531,6 +572,12 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
             <div class="stack">
               <h4>Leaflet Stem (Petiolule)</h4>
               {stemSliders("petiolule")}
+            </div>
+          )}
+          {isCompound && isBipinnate && (
+            <div class="stack">
+              <h4>Pinna Stem (Rachis)</h4>
+              {stemSliders("rachis")}
             </div>
           )}
           <div class="stack">

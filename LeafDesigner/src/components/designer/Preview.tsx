@@ -15,7 +15,6 @@ import {
   ShapeUtils,
   Vector2,
   Vector3,
-  WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Leaf, LeafLayout, LeafShape, MeshData, Petiole } from "../../types/leaf";
@@ -23,6 +22,7 @@ import { state } from "../../pages/AppState";
 import { generateVeinMesh } from "../../utils/veinGenerator";
 import { applyMarginTeethToOutline, marginOutlineShaper } from "../../utils/marginTeeth";
 import { resolveLodGeom, resolveLodScale } from "../../utils/lod";
+import { renderTo } from "../../utils/sharedRenderer";
 import { resolveRandomValue } from "../../utils/random";
 import { clamp01, size } from "../../utils/math";
 import { vec3, mat4 } from "gl-matrix";
@@ -46,7 +46,7 @@ const NO_STEM: Petiole = { len: 0, width: 0, x: 0, y: 0, angle: 0 };
 
 const accentColor = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4e7711";
 
-/** Three.js view of a leaf; the camera re-fits whenever the mesh changes. */
+/** Three.js view of a leaf drawn through the shared renderer; the camera re-fits whenever the mesh changes. */
 export function Preview({
   leaf,
   width,
@@ -68,6 +68,7 @@ export function Preview({
     light: DirectionalLight;
     camera: PerspectiveCamera;
     controls?: OrbitControls;
+    requestRender: () => void;
   } | null>(null);
 
   useEffect(() => {
@@ -88,43 +89,49 @@ export function Preview({
     scene.add(new AmbientLight(0xffffff, 0.6), light);
 
     const container = containerRef.current!;
-    const camera = new PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const canvas = canvasRef.current!;
+    const camera = new PerspectiveCamera(75, 1, 0.1, 1000);
     camera.position.set(0, 4, 10);
-    const renderer = new WebGLRenderer({ canvas: canvasRef.current!, antialias: true, alpha: true });
 
-    const resize = () => {
-      requestAnimationFrame(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        renderer.setSize(el.clientWidth, el.clientHeight, false);
-        camera.aspect = el.clientWidth / el.clientHeight;
-        camera.updateProjectionMatrix();
+    const render = () => {
+      const el = containerRef.current;
+      if (!el || el.clientHeight === 0) return;
+      camera.aspect = el.clientWidth / el.clientHeight;
+      camera.updateProjectionMatrix();
+      renderTo(canvas, scene, camera);
+    };
+
+    // A static preview renders once per change; with orbit controls the loop runs every frame for the damping.
+    let orbit: OrbitControls | undefined;
+    let frameId = 0;
+    const requestRender = () => {
+      if (frameId || orbit) return;
+      frameId = requestAnimationFrame(() => {
+        frameId = 0;
+        render();
       });
     };
-    const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(container);
-    resize();
-
-    let orbit: OrbitControls | undefined;
     if (controls) {
-      orbit = new OrbitControls(camera, renderer.domElement);
+      orbit = new OrbitControls(camera, canvas);
       orbit.enableDamping = true;
+      const loop = () => {
+        orbit!.update();
+        render();
+        frameId = requestAnimationFrame(loop);
+      };
+      loop();
     }
-    threeRef.current = { scene, leaf: leafMesh, light, camera, controls: orbit };
 
-    let requestId: number;
-    const render = () => {
-      orbit?.update();
-      renderer.render(scene, camera);
-      requestId = requestAnimationFrame(render);
-    };
-    render();
+    const resizeObserver = new ResizeObserver(requestRender);
+    resizeObserver.observe(container);
+    threeRef.current = { scene, leaf: leafMesh, light, camera, controls: orbit, requestRender };
 
     return () => {
-      cancelAnimationFrame(requestId);
+      cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
-      renderer.dispose();
       orbit?.dispose();
+      leafMesh.geometry.dispose();
+      material.dispose();
       threeRef.current = null;
     };
   }, []);
@@ -136,11 +143,13 @@ export function Preview({
     if (!m) return;
     m.color.set(color || accentColor());
     if (!color) m.color.multiplyScalar(0.5);
+    threeRef.current?.requestRender();
   }, [color]);
 
   useEffect(() => {
     const m = material();
     if (m) m.wireframe = !!wireframe;
+    threeRef.current?.requestRender();
   }, [wireframe]);
 
   useEffect(() => {
@@ -148,6 +157,7 @@ export function Preview({
     if (!m) return;
     m.flatShading = !!flatShading;
     m.needsUpdate = true;
+    threeRef.current?.requestRender();
   }, [flatShading]);
 
   useEffect(() => {
@@ -156,6 +166,7 @@ export function Preview({
     const rad = (lightAngle * Math.PI) / 180;
     const radius = 14.14; // horizontal distance of the original (10, 10, 10) light
     three.light.position.set(Math.cos(rad) * radius, 10, Math.sin(rad) * radius);
+    three.requestRender();
   }, [lightAngle]);
 
   useEffect(() => {
@@ -186,6 +197,7 @@ export function Preview({
         three.controls.update();
       }
     }
+    three.requestRender();
 
     onMesh?.(mesh);
   }, [leaf, lod]);
@@ -201,13 +213,15 @@ export function Preview({
   );
 }
 
-// Where leaflet `index` of `count` sits on the petiole and how it is turned.
-function leafletTransform(
+// Where child `index` of `count` (a leaflet, or a pinna of a bipinnate leaf) sits on a stem of
+// `stem.len` and how it is turned; `key` picks the random roll of the branch angle.
+function childTransform(
   index: number,
   count: number,
-  petiole: Petiole,
+  stem: Petiole,
   layout: LeafLayout | undefined,
   seed: number,
+  key: number,
 ) {
   const {
     type,
@@ -215,46 +229,79 @@ function leafletTransform(
     terminalLeaf,
     angle,
     distributionCurve = 1,
+    whorlSize = 3,
   } = layout ?? {
     type: "palmate",
     arrangement: "alternate",
     angle: 60,
     terminalLeaf: true,
   };
-  const petioleLength = petiole.len ?? 100;
-  const angleRad = (resolveRandomValue(angle, seed, "angle", type === "palmate" ? 0 : index, 0) * Math.PI) / 180;
+  const stemLength = stem.len ?? 100;
+  const angleRad = (resolveRandomValue(angle, seed, "angle", type === "palmate" ? 0 : key, 0) * Math.PI) / 180;
 
   const position = new Vector3();
+  let whorl = false;
+  let rotationY = 0;
   let rotationZ = 0;
 
   if (type === "palmate") {
-    position.set(0, petioleLength, 0);
+    position.set(0, stemLength, 0);
     rotationZ = count === 1 ? 0 : -angleRad / 2 + (index / (count - 1)) * angleRad;
-  } else if (type === "pinnate") {
-    const hasTerminal = terminalLeaf && count % 2 !== 0;
+  } else {
+    // Children per node along the stem: a pair (opposite), a whorl, or one (alternate).
+    whorl = arrangement === "whorled";
+    const perNode = whorl ? Math.max(2, Math.round(whorlSize)) : arrangement === "opposite" ? 2 : 1;
+    const hasTerminal = terminalLeaf && (perNode === 1 ? count % 2 !== 0 : count % perNode === 1);
     if (hasTerminal && index === count - 1) {
-      position.set(0, petioleLength, 0);
+      position.set(0, stemLength, 0);
     } else {
       const sideCount = hasTerminal ? count - 1 : count;
-      const isLeft = index % 2 === 0;
-      rotationZ = isLeft ? angleRad : -angleRad;
-      position.x = ((petiole.width || 1) / 2) * (isLeft ? -1 : 1);
+      const halfWidth = (stem.width || 1) / 2;
+      if (whorl) {
+        // The children of a whorl stand around the stem, each leaning out by the branch angle.
+        rotationY = ((index % perNode) / perNode) * Math.PI * 2;
+        rotationZ = -angleRad;
+        position.x = halfWidth;
+      } else {
+        const isLeft = index % 2 === 0;
+        rotationZ = isLeft ? angleRad : -angleRad;
+        position.x = halfWidth * (isLeft ? -1 : 1);
+      }
 
-      // Leaflets spread over the top `distributionCurve` share of the petiole, ending at 95%.
+      // Children spread over the top `distributionCurve` share of the stem, ending at 95%.
       const maxH = 0.95;
       const minH = maxH - Math.max(0.02, Math.min(1, distributionCurve)) * maxH;
       const heightAt = (t: number) => minH + clamp01(t) * (maxH - minH);
-      if (arrangement === "opposite") {
-        const pairIndex = Math.floor(index / 2);
-        const totalPairs = Math.ceil(sideCount / 2);
-        position.y = petioleLength * heightAt(totalPairs > 1 ? pairIndex / (totalPairs - 1) : 0);
-      } else {
-        position.y = petioleLength * heightAt(sideCount > 1 ? index / (sideCount - 1) : 0);
-      }
+      const nodeIndex = Math.floor(index / perNode);
+      const nodeCount = Math.ceil(sideCount / perNode);
+      position.y = stemLength * heightAt(nodeCount > 1 ? nodeIndex / (nodeCount - 1) : 0);
     }
   }
 
-  return { position, rotationZ };
+  return { position, whorl, rotationY, rotationZ };
+}
+
+// Matrix of child `index` of `count` on the stem whose base `parent` places. The stem angle tilts the
+// child away from the stem; a whorl turns the child around the stem before it steps out to its side,
+// then spins the blade onto its own midrib so its face points along the stem, not around it.
+function childMatrix(
+  parent: mat4,
+  index: number,
+  count: number,
+  stem: Petiole,
+  layout: LeafLayout | undefined,
+  seed: number,
+  key: number,
+): mat4 {
+  const { position, whorl, rotationY, rotationZ } = childTransform(index, count, stem, layout, seed, key);
+  const m = mat4.clone(parent);
+  mat4.translate(m, m, [0, position.y, position.z]);
+  mat4.rotateX(m, m, -((stem.angle || 0) / 180) * Math.PI);
+  if (whorl) mat4.rotateY(m, m, rotationY);
+  mat4.translate(m, m, [position.x, 0, 0]);
+  mat4.rotateZ(m, m, rotationZ);
+  if (whorl) mat4.rotateY(m, m, Math.PI / 2);
+  return m;
 }
 
 // An axis-aligned box from y = 0 to y = length, centered on x and z.
@@ -311,9 +358,16 @@ function generateShapeMesh(shape: LeafShape, lod = 0): MeshData {
   return { position: mesh.position.map((v) => v / scale), index: mesh.index };
 }
 
+/** The pinna stem a bipinnate leaf gets until one is set: a shorter, thinner copy of its petiole. */
+export function defaultRachis(petiole: Petiole): Petiole {
+  const round2 = (v: number) => Math.round(v * 100) / 100;
+  return { len: round2((petiole?.len ?? 1) * 0.4), width: round2((petiole?.width || 0.2) * 0.6), angle: 0, x: 0, y: 0 };
+}
+
 /**
- * The whole leaf: an upright petiole, then every leaflet with its petiolule and blade. The petiole angle
- * tilts the leaflets away from the petiole at their attachment points; the petiole itself stays upright.
+ * The whole leaf: an upright petiole, then every leaflet with its petiolule and blade. A bipinnate leaf
+ * first puts pinnae on the petiole and then the leaflets on each pinna's rachis. A stem's angle tilts
+ * what it carries away from it at the attachment points; the petiole itself stays upright.
  */
 export function generateMesh(leaf: Leaf, lod = 0): MeshData {
   if (!leaf) return EMPTY_MESH;
@@ -330,9 +384,9 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
     for (const i of mesh.index) index.push(i + offset);
   };
 
-  const petioleLength = leaf.petiole?.len ?? 1;
-  const petioleWidth = leaf.petiole?.width || 0.2;
-  const petioleAngleRad = -((leaf.petiole?.angle || 0) / 180) * Math.PI;
+  const petiole: Petiole = leaf.petiole ?? { ...NO_STEM, len: 1 };
+  const petioleLength = petiole.len ?? 1;
+  const petioleWidth = petiole.width || 0.2;
   if (petioleLength > 0) append(boxMesh(petioleWidth, petioleLength, petioleWidth), mat4.create());
 
   const shape: LeafShape = leaf.shape?.[0] ?? { geom: ["def:obovate"], petiolule: NO_STEM };
@@ -346,25 +400,40 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
 
   const instances = leaf.instances?.length ? leaf.instances : [{ shape: 0, scale: 1 }];
   const seed = leaf.randomSeed ?? 0;
-  instances.forEach((instance, i) => {
-    const { position, rotationZ } = leafletTransform(i, instances.length, leaf.petiole, leaf.layout, seed);
-    const scale = resolveRandomValue(instance.scale, seed, "instanceScale", i, 1) + (instance.scaleOffset ?? 0);
-    const scaleX = resolveRandomValue(bladeScaleX, seed, "bladeScaleX", i, 1);
-    const scaleY = resolveRandomValue(bladeScaleY, seed, "bladeScaleY", i, 1);
+  const layout = leaf.layout;
 
-    const base = mat4.create();
-    mat4.translate(base, base, [position.x, position.y, position.z]);
-    mat4.rotateX(base, base, petioleAngleRad);
-    mat4.rotateZ(base, base, rotationZ);
-    mat4.scale(base, base, [scale, scale, scale]);
-    mat4.rotateX(base, base, petioluleAngleRad);
-    if (petioluleMesh) append(petioluleMesh, base);
+  // All instances along `stem`, whose base `parent` places; `keyOffset` gives every pinna its own rolls.
+  const placeLeaflets = (parent: mat4, stem: Petiole, keyOffset: number) => {
+    instances.forEach((instance, i) => {
+      const key = keyOffset + i;
+      const scale = resolveRandomValue(instance.scale, seed, "instanceScale", key, 1) + (instance.scaleOffset ?? 0);
+      const scaleX = resolveRandomValue(bladeScaleX, seed, "bladeScaleX", key, 1);
+      const scaleY = resolveRandomValue(bladeScaleY, seed, "bladeScaleY", key, 1);
 
-    const blade = mat4.clone(base);
-    mat4.translate(blade, blade, [0, petioluleLength, 0]);
-    if (scaleX !== 1 || scaleY !== 1) mat4.scale(blade, blade, [scaleX, scaleY, 1]);
-    append(bladeMesh, blade);
-  });
+      const base = childMatrix(parent, i, instances.length, stem, layout, seed, key);
+      mat4.scale(base, base, [scale, scale, scale]);
+      mat4.rotateX(base, base, petioluleAngleRad);
+      if (petioluleMesh) append(petioluleMesh, base);
+
+      const blade = mat4.clone(base);
+      mat4.translate(blade, blade, [0, petioluleLength, 0]);
+      if (scaleX !== 1 || scaleY !== 1) mat4.scale(blade, blade, [scaleX, scaleY, 1]);
+      append(bladeMesh, blade);
+    });
+  };
+
+  if (layout?.type === "bipinnate") {
+    const rachis = layout.rachis ?? defaultRachis(petiole);
+    const pinnaCount = Math.max(1, Math.round(layout.pinnaCount ?? 5));
+    const rachisMesh = rachis.len > 0 ? boxMesh(rachis.width || 0, rachis.len, rachis.width || 0) : null;
+    for (let p = 0; p < pinnaCount; p++) {
+      const pinna = childMatrix(mat4.create(), p, pinnaCount, petiole, layout, seed, p);
+      if (rachisMesh) append(rachisMesh, pinna);
+      placeLeaflets(pinna, rachis, pinnaCount + p * instances.length);
+    }
+  } else {
+    placeLeaflets(mat4.create(), petiole, 0);
+  }
 
   return { position, index };
 }

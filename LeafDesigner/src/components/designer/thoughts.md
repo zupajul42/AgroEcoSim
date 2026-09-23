@@ -11,8 +11,11 @@ Every leaf has:
 2 types of leaf: simple and compound.
 
 A simple leaf has a single instance of its shape. A compound leaf has several instances of the
-same shape, laid out palmately (fanning from the petiole tip) or pinnately (in pairs or
-alternating along the petiole, optionally with a terminal leaflet).
+same shape, laid out palmately (fanning from the petiole tip) or pinnately (along the petiole,
+alternating, in pairs or in whorls of `whorlSize`, optionally with a terminal leaflet). A
+bipinnate leaf puts `layout.pinnaCount` pinnae on the petiole the pinnate way and repeats the
+instances on each pinna's own stem (`layout.rachis`); the instances stay the leaflets, the
+pinnae are copies of each other apart from the random rolls.
 
 A shape points at one geometry per level of detail. A geometry is an outline polygon plus,
 optionally, the vein tree it was generated from; margin type and tooth size/depth also belong
@@ -24,12 +27,14 @@ const chestnutLeaf = {
     name: "Chestnut",
     shape: [
         {
-            geom: ["def:obovate"], // one geometry id per LOD, 0 = most detailed
+            geom: ["def:obovate"], // one geometry id per LOD, 0 = coarsest, last = most detailed
             scaleX: [1], // per LOD; number or { min, max }
             petiolule: { len: 0.2, width: 0.1, angle: 0 },
         },
     ],
     layout: { type: "palmate", arrangement: "opposite", terminalLeaf: true, angle: 210 },
+    // bipinnate: { type: "bipinnate", arrangement: "opposite", terminalLeaf: true, angle: 60,
+    //              pinnaCount: 5, rachis: { len: 0.6, width: 0.09, angle: 0 } }
     instances: [{ shape: 0, scale: 1 }, { shape: 0, scale: 1 }, ...], // 5 leaflets
     petiole: { len: 1.5, width: 0.15, angle: 0 },
     colorRamp: [{ t: 0, color: "#4e8f2f" }, { t: 1, color: "#8a6d3b" }],

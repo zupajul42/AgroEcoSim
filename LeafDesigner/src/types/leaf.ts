@@ -89,6 +89,9 @@ export interface LeafLayout {
   arrangement: LeafArrangement;
   terminalLeaf: boolean;
   distributionCurve?: number;
+  whorlSize?: number; // leaflets per node for the whorled arrangement
+  pinnaCount?: number; // bipinnate: pinnae along the petiole, each carrying all instances
+  rachis?: Petiole; // bipinnate: the stem of one pinna
 }
 
 export interface LeafInstance {
