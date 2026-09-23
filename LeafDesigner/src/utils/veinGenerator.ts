@@ -139,23 +139,6 @@ export function ensureVeinData(v: VeinData | null | undefined): VeinData {
   return { root: v.root, params: { ...DEFAULT_VEIN_PARAMS, ...(v.params || {}) } };
 }
 
-type WithLegacyMargin<T> = T & { margin?: number };
-
-/** `veins` with the old `margin` of params and nodes renamed to `tipOffset`, null when there was none. */
-export function migrateLegacyMargin(veins: VeinData): VeinData | null {
-  let found = false;
-  const rename = <T extends { tipOffset?: number }>(o: WithLegacyMargin<T>): T => {
-    if (o.margin === undefined) return o;
-    found = true;
-    const { margin, ...rest } = o;
-    return { ...rest, tipOffset: rest.tipOffset ?? margin } as T;
-  };
-  const walk = (n: WithLegacyMargin<VeinNode>): VeinNode => ({ ...rename(n), children: n.children.map(walk) });
-  const root = walk(veins.root);
-  const params = veins.params && rename<VeinGenParams>(veins.params);
-  return found ? { root, params } : null;
-}
-
 // --- OUTLINE ---
 // One spline through the base, every tip and every notch between sibling veins, for the right
 // half of the leaf; the left half is its mirror.

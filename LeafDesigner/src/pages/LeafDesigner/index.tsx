@@ -15,7 +15,7 @@ import { historyKey, useHistory } from "../../hooks/useHistory";
 import {
   addLodGeom,
   getLodCount,
-  pickMostDetailedLod,
+  mostDetailedLod,
   removeLodGeom,
   removeLodScale,
   resolveLodGeom,
@@ -53,7 +53,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   const [leafGeometries, setLeafGeometries] = useState<LeafGeometry[]>([]);
   const [isCompound, setIsCompound] = useState(startLeaf?.instances?.length > 1);
   const [isChanged, setChanged] = useState(false);
-  const [activeLod, setActiveLod] = useState(() => pickMostDetailedLod(startLeaf?.shape?.[0]?.geom, state.geoms.all()));
+  const [activeLod, setActiveLod] = useState(() => mostDetailedLod(startLeaf?.shape?.[0]?.geom));
   const [previewLifetime, setPreviewLifetime] = useState(50);
   const [wireframe, setWireframe] = useState(false);
   const [flatShading, setFlatShading] = useState(false);
@@ -77,7 +77,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     if (!selected) return;
     if (!state.leafs.selected()) state.leafs.select(0);
     setLeaf(selected);
-    setActiveLod(pickMostDetailedLod(selected.shape?.[0]?.geom, geoms));
+    setActiveLod(mostDetailedLod(selected.shape?.[0]?.geom));
   }, []);
 
   useEffect(() => {

@@ -72,50 +72,13 @@
 }
 
 .leaf-shape-polygon {
-  fill: color-mix(in srgb, var(--accent) 25%, transparent);
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
   stroke: var(--accent);
   stroke-width: 2;
+  stroke-dasharray: 4 4;
   stroke-linejoin: round;
   stroke-linecap: round;
-}
-
-.leaf-shape-polygon.dashed {
-  stroke-dasharray: 4 4;
-  fill: color-mix(in srgb, var(--accent) 12%, transparent);
   opacity: 0.7;
-}
-
-.line-helper {
-  stroke: transparent;
-  stroke-width: 14;
-  cursor: pointer;
-}
-
-.line-helper:hover {
-  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
-}
-
-.point-handle {
-  fill: var(--fg-0);
-  stroke: var(--bg-0);
-  stroke-width: 2;
-  cursor: pointer;
-}
-
-.point-handle:hover {
-  fill: var(--accent);
-}
-
-.point-handle[data-selected="true"] {
-  fill: var(--accent);
-  stroke: var(--fg-0);
-  stroke-width: 2.5;
-}
-
-.point-handle[data-mirrored="true"] {
-  fill: var(--fg-3);
-  stroke: var(--accent);
-  opacity: 0.6;
 }
 
 .vein-line {
@@ -182,7 +145,7 @@
   fill: #e74c3c;
   stroke: var(--fg-0);
   stroke-width: 2;
-  cursor: grab;
+  cursor: pointer;
   transition:
     r 0.15s ease,
     fill 0.15s ease;
@@ -191,7 +154,6 @@
 .petiole-base-dot:hover {
   fill: #ff6b6b;
   r: 9;
-  cursor: grabbing;
 }
 
 .petiole-base-dot[data-selected="true"] {

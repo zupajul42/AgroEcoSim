@@ -1,7 +1,8 @@
-import { LeafGeometry, RandomRange } from "../types/leaf";
+import { RandomRange } from "../types/leaf";
 
-// A leaf shape picks one geometry per level of detail (slot 0 = most detailed); the number of
-// slots is per leaf. Scale arrays run in parallel to the geometry array.
+// A leaf shape picks one geometry per level of detail: slot 0 is the coarsest (the quad), every
+// further slot is more detailed than the one before, the last is the full geometry. The number
+// of slots is per leaf. Scale arrays run in parallel to the geometry array.
 
 type LodScales = (number | RandomRange)[] | undefined;
 
@@ -66,16 +67,7 @@ export function removeLodScale(scales: LodScales, index: number): LodScales {
   return next;
 }
 
-/** The LOD whose geometry has the most outline points. */
-export function pickMostDetailedLod(geom: string[] | undefined, geoms: LeafGeometry[]): number {
-  let bestLod = 0;
-  let bestPoints = -1;
-  for (let lod = 0; lod < getLodCount(geom); lod++) {
-    const points = geoms.find((g) => g.id === resolveLodGeom(geom, lod))?.points?.length ?? 0;
-    if (points > bestPoints) {
-      bestPoints = points;
-      bestLod = lod;
-    }
-  }
-  return bestLod;
+/** The most detailed LOD: the last slot. */
+export function mostDetailedLod(geom: string[] | undefined): number {
+  return getLodCount(geom) - 1;
 }

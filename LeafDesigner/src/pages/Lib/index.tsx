@@ -3,7 +3,7 @@ import { useLocation } from "preact-iso";
 import { geometryTriangleCount, Preview } from "../../components/designer/Preview";
 import { Leaf, LeafGeometry } from "../../types/leaf";
 import { state } from "../AppState";
-import { pickMostDetailedLod } from "../../utils/lod";
+import { mostDetailedLod } from "../../utils/lod";
 import { fromExportableLeaf } from "../../utils/leafConfigIO";
 import { downloadFile } from "../../utils/download";
 import { bounds } from "../../utils/math";
@@ -143,12 +143,7 @@ export function Library() {
                 (e) => removeLeaf(e, leaf),
                 "leaf model",
               )}
-              <Preview
-                width="100%"
-                height="180px"
-                leaf={leaf}
-                lod={pickMostDetailedLod(leaf.shape?.[0]?.geom, geoms)}
-              />
+              <Preview width="100%" height="180px" leaf={leaf} lod={mostDetailedLod(leaf.shape?.[0]?.geom)} />
               <div class="card-title">{leaf.name}</div>
             </div>
           ))}

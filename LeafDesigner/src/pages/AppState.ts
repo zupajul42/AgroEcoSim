@@ -2,7 +2,7 @@ import { PREDEFINED_GEOMETRIES } from "./PredefinedGeometries";
 import { Leaf, LeafGeometry, VeinNode } from "../types/leaf";
 import { createDefaultLodGeom } from "../utils/lod";
 import { DEFAULT_COLOR_RAMP } from "../utils/colorRamp";
-import { generateOutlineFromVeins, generateVeinMesh, migrateLegacyMargin } from "../utils/veinGenerator";
+import { generateOutlineFromVeins, generateVeinMesh } from "../utils/veinGenerator";
 import { newId } from "../utils/random";
 
 export const STORAGE_KEYS = { leafs: "leafLib", geoms: "geomLib", selected: "selectedLeaf" };
@@ -141,15 +141,6 @@ class GeometryStorage {
   private load() {
     const lib = window.localStorage.getItem(STORAGE_KEYS.geoms);
     this.geomLib = lib ? JSON.parse(lib) : [];
-
-    let migrated = false;
-    this.geomLib = this.geomLib.map((g) => {
-      const veins = g.veins?.root ? migrateLegacyMargin(g.veins) : null;
-      if (veins) migrated = true;
-      return veins ? { ...g, veins } : g;
-    });
-    if (migrated) this.save();
-
     return this.geomLib;
   }
 

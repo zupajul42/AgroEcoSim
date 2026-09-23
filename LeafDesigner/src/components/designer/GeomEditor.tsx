@@ -30,18 +30,7 @@ const MAX_ZOOM = 8;
 const TOUCH_DRAG_THRESHOLD = 4;
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-// The right half (x >= 0) followed by its mirror image, so the outline stays symmetric.
-function buildSymmetricContour(points: Point[]): Point[] {
-  const rightHalf = points.filter((p) => p.x >= 0);
-  if (rightHalf.length === 0) return points;
-  const leftHalf = rightHalf
-    .filter((p) => p.x > 0)
-    .reverse()
-    .map((p) => ({ x: -p.x, y: p.y }));
-  return [...rightHalf, ...leftHalf];
-}
-
-/** 2D editor for one geometry: outline points and the vein tree that generates the outline. */
+/** 2D editor for one geometry: the vein tree and the outline generated from it. */
 export function GeomEditor({ id }: { id: string }) {
   const location = useLocation();
   const initialGeom = state.geoms.get(id);
@@ -75,13 +64,10 @@ export function GeomEditor({ id }: { id: string }) {
 
   const { state: geom, set: setGeom, undo, redo, canUndo, canRedo, pushState } = useHistory<LeafGeometry>(initialGeom);
 
-  const [editorMode, setEditorMode] = useState<"outline" | "veins">("veins");
-  const [selectedPoint, setSelectedPoint] = useState(-1);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [genParams, setGenParams] = useState<VeinGenParams>({ ...DEFAULT_VEIN_PARAMS, ...initialGeom.veins?.params });
   const [enableSnap, setEnableSnap] = useState(true);
   const [gridSnap, setGridSnap] = useState(0.1);
-  const [mirrorX, setMirrorX] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<SVGSVGElement>(null);
@@ -100,8 +86,6 @@ export function GeomEditor({ id }: { id: string }) {
   // Latest values for the window-level mouse handlers, which outlive a render.
   const geomRef = useRef(geom);
   geomRef.current = geom;
-  const mirrorXRef = useRef(mirrorX);
-  mirrorXRef.current = mirrorX;
   const genParamsRef = useRef(genParams);
   genParamsRef.current = genParams;
 
@@ -128,14 +112,11 @@ export function GeomEditor({ id }: { id: string }) {
         return;
       }
       const inInput = ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement;
-      if (!inInput && (ev.key === "Backspace" || ev.key === "Delete")) {
-        if (editorMode === "outline") removeSelectedPoint();
-        else removeSelectedNode();
-      }
+      if (!inInput && (ev.key === "Backspace" || ev.key === "Delete")) removeSelectedNode();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedPoint, selectedNodeId, editorMode, geom, mirrorX, undo, redo]);
+  }, [selectedNodeId, geom, undo, redo]);
 
   const viewCenter = (width: number, height: number): Point => ({ x: width / 2, y: height / 2 + 80 });
   const { x: centerX, y: centerY } = viewCenter(viewSize.width, viewSize.height);
@@ -192,7 +173,7 @@ export function GeomEditor({ id }: { id: string }) {
   // Fingers currently down on the empty canvas, by pointer id (client coordinates).
   const touchesRef = useRef(new Map<number, Point>());
 
-  // Mouse: shift + drag pans. Touch: one finger pans (a tap still adds a point), two fingers pinch-zoom and pan.
+  // Mouse: shift + drag pans. Touch: one finger pans (a tap still adds a vein), two fingers pinch-zoom and pan.
   const onCanvasPointerDown = (e: PointerEvent) => {
     if (e.pointerType === "mouse") {
       if (!e.shiftKey || e.button !== 0) return;
@@ -208,7 +189,7 @@ export function GeomEditor({ id }: { id: string }) {
     const touches = touchesRef.current;
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touches.size > 1) {
-      // A second finger turns the gesture into pinch/pan; the trailing click must not add a point.
+      // A second finger turns the gesture into pinch/pan; the trailing click must not add a vein.
       dragRef.current = { moved: true };
       return;
     }
@@ -285,88 +266,6 @@ export function GeomEditor({ id }: { id: string }) {
     [displayPoints, viewSize, view],
   );
 
-  // --- OUTLINE MODE ---
-
-  // Stores `points` (mirrored when Mirror X is on) and returns what was stored.
-  const setPoints = (points: Point[], record = true) => {
-    const stored = mirrorXRef.current ? buildSymmetricContour(points) : points;
-    setGeom({ ...geomRef.current, points: stored }, record);
-    return stored;
-  };
-
-  const toggleMirrorX = (enabled: boolean) => {
-    setMirrorX(enabled);
-    if (enabled) setGeom({ ...geom, points: buildSymmetricContour(geom.points) });
-  };
-
-  const onPointPointerDown = (e: PointerEvent, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    pushState(geomRef.current);
-    setSelectedPoint(index);
-    dragUntilRelease((moveEv) => {
-      const pt = leafCoordAt(moveEv);
-      if (mirrorXRef.current && pt.x < 0) pt.x = 0;
-      const points = [...geomRef.current.points];
-      if (!points[index]) return;
-      points[index] = pt;
-      setPoints(points, false);
-    });
-  };
-
-  const onOriginPointerDown = (e: PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    pushState(geomRef.current);
-    const initialPoints = [...geomRef.current.points];
-    const startX = e.clientX;
-    const startY = e.clientY;
-    dragUntilRelease(
-      (moveEv) => {
-        let dx = (moveEv.clientX - startX) / scale;
-        let dy = -(moveEv.clientY - startY) / scale;
-        if (enableSnap && gridSnap > 0) {
-          dx = Math.round(dx / gridSnap) * gridSnap;
-          dy = Math.round(dy / gridSnap) * gridSnap;
-        }
-        if (mirrorXRef.current) dx = 0;
-        if (dx === 0 && dy === 0) return;
-        setPoints(
-          initialPoints.map((p) => ({ x: round2(p.x - dx), y: round2(p.y - dy) })),
-          false,
-        );
-      },
-      () => {
-        // A plain click on the origin selects the vein root.
-        if (!dragRef.current!.moved && editorMode === "veins") setSelectedNodeId(currentVeins.root.id);
-      },
-    );
-  };
-
-  const removeSelectedPoint = () => {
-    if (selectedPoint < 0 || selectedPoint >= geom.points.length) return;
-    if (geom.points.length <= 3) {
-      alert("A leaf shape requires at least 3 points.");
-      return;
-    }
-    setSelectedPoint(Math.max(0, selectedPoint - 1));
-    setPoints(geom.points.filter((_, i) => i !== selectedPoint));
-  };
-
-  const insertPointOnSegment = (e: PointerEvent, afterIndex: number) => {
-    const pt = leafCoordAt(e);
-    if (mirrorX) pt.x = Math.abs(pt.x);
-    const points = [...geom.points];
-    points.splice(afterIndex + 1, 0, pt);
-    const stored = setPoints(points);
-    const insertedIdx = stored.findIndex((p) => Math.abs(p.x - pt.x) < 0.001 && Math.abs(p.y - pt.y) < 0.001);
-    const targetIdx = insertedIdx !== -1 ? insertedIdx : afterIndex + 1;
-    setSelectedPoint(targetIdx);
-    onPointPointerDown(e, targetIdx);
-  };
-
   // --- VENATION MODE ---
 
   const currentVeins: VeinData = useMemo(() => ensureVeinData(geom.veins), [geom.veins]);
@@ -382,7 +281,7 @@ export function GeomEditor({ id }: { id: string }) {
   const regenOutline = (veinsOverride?: VeinData, paramsOverride?: VeinGenParams, record = true) => {
     const veins = veinsOverride || ensureVeinData(geomRef.current.veins);
     const params = paramsOverride || genParamsRef.current;
-    const points = generateOutlineFromVeins(veins, { mirrorX: mirrorXRef.current, params });
+    const points = generateOutlineFromVeins(veins, { mirrorX: true, params });
     setGeom({ ...geomRef.current, points, veins: { ...veins, params } }, record);
   };
 
@@ -476,14 +375,12 @@ export function GeomEditor({ id }: { id: string }) {
 
   const onCanvasClick = (e: MouseEvent) => {
     if (dragRef.current || e.shiftKey) return;
-    const pt = leafCoordAt(e);
-    if (editorMode === "outline") {
-      if (mirrorX) pt.x = Math.abs(pt.x);
-      const stored = setPoints([...geom.points, pt]);
-      setSelectedPoint(stored.length - 1);
-    } else {
-      addVein(pt);
-    }
+    addVein(leafCoordAt(e));
+  };
+
+  const selectRoot = (e: MouseEvent) => {
+    e.stopPropagation();
+    setSelectedNodeId(currentVeins.root.id);
   };
 
   const originScreen = toScreen({ x: 0, y: 0 });
@@ -501,20 +398,6 @@ export function GeomEditor({ id }: { id: string }) {
           <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y / Cmd+Shift+Z)">
             Redo
           </button>
-        </div>
-
-        <div class="toolbar-group">
-          <div class="seg-group">
-            <button
-              class={`seg-btn ${editorMode === "outline" ? "active" : ""}`}
-              onClick={() => setEditorMode("outline")}
-            >
-              Outline Mode
-            </button>
-            <button class={`seg-btn ${editorMode === "veins" ? "active" : ""}`} onClick={() => setEditorMode("veins")}>
-              Venation Mode
-            </button>
-          </div>
         </div>
 
         <div class="toolbar-group">
@@ -590,183 +473,177 @@ export function GeomEditor({ id }: { id: string }) {
               />
             </label>
           )}
-          <label class="label-row">
-            <input type="checkbox" checked={mirrorX} onChange={(e) => toggleMirrorX(e.currentTarget.checked)} />
-            Mirror X
-          </label>
         </div>
       </div>
 
-      {editorMode === "veins" && (
-        <div class="vein-controls-box">
-          <div class="vein-controls-actions">
-            <button onClick={() => addVein()} title="Add a new vein branching off the selected node (or the base)">
-              + Vein
+      <div class="vein-controls-box">
+        <div class="vein-controls-actions">
+          <button onClick={() => addVein()} title="Add a new vein branching off the selected node (or the base)">
+            + Vein
+          </button>
+          <button
+            onClick={() => addSiblingVein()}
+            title="Add a new vein next to the selected one, sharing its parent joint — use this repeatedly to build a palmate fan of many veins radiating from one point"
+          >
+            + Sibling
+          </button>
+          {selectedNodeId && !selectedIsRoot && (
+            <button onClick={removeSelectedNode} title="Delete selected vein & its branches">
+              Delete Vein
             </button>
-            <button
-              onClick={() => addSiblingVein()}
-              title="Add a new vein next to the selected one, sharing its parent joint — use this repeatedly to build a palmate fan of many veins radiating from one point"
-            >
-              + Sibling
-            </button>
-            {selectedNodeId && !selectedIsRoot && (
-              <button onClick={removeSelectedNode} title="Delete selected vein & its branches">
-                Delete Vein
-              </button>
-            )}
-            <button onClick={() => regenOutline()} title="Re-calculate polygon outline from vein structure">
-              Generate Outline
-            </button>
-          </div>
+          )}
+          <button onClick={() => regenOutline()} title="Re-calculate polygon outline from vein structure">
+            Generate Outline
+          </button>
+        </div>
 
-          <div class="vein-params-panel">
-            <h4>Outline Shape</h4>
+        <div class="vein-params-panel">
+          <h4>Outline Shape</h4>
+          <SliderInput
+            label="Default Lobe Depth"
+            min={0}
+            max={1}
+            step={0.02}
+            value={genParams.lobeDepth}
+            onInput={(v) => updateParam("lobeDepth", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
+            inline
+          />
+          <SliderInput
+            label="Lobe Threshold"
+            min={0}
+            max={1}
+            step={0.02}
+            value={genParams.lobeThreshold}
+            onInput={(v) => updateParam("lobeThreshold", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
+            inline
+          />
+          <SliderInput
+            label="Default Tip Offset"
+            min={0}
+            max={0.5}
+            step={0.01}
+            value={genParams.tipOffset}
+            onInput={(v) => updateParam("tipOffset", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.tipOffset}
+            inline
+          />
+          <SliderInput
+            label="Default Roundness"
+            min={0}
+            max={1}
+            step={0.02}
+            value={genParams.curvature}
+            onInput={(v) => updateParam("curvature", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.curvature}
+            inline
+          />
+          <SliderInput
+            label="Subdivisions"
+            min={1}
+            max={12}
+            step={1}
+            value={genParams.subdivisions}
+            onInput={(v) => updateParam("subdivisions", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.subdivisions}
+            inline
+          />
+        </div>
+
+        {selectedVeinNode && (
+          <div class="vein-params-panel vein-selected-panel">
+            <h4>{selectedIsRoot ? "Leaf Base" : "Selected Vein"}</h4>
             <SliderInput
-              label="Default Lobe Depth"
-              min={0}
-              max={1}
-              step={0.02}
-              value={genParams.lobeDepth}
-              onInput={(v) => updateParam("lobeDepth", v)}
-              defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
-              inline
-            />
-            <SliderInput
-              label="Lobe Threshold"
-              min={0}
-              max={1}
-              step={0.02}
-              value={genParams.lobeThreshold}
-              onInput={(v) => updateParam("lobeThreshold", v)}
-              defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
-              inline
-            />
-            <SliderInput
-              label="Default Tip Offset"
-              min={0}
-              max={0.5}
-              step={0.01}
-              value={genParams.tipOffset}
-              onInput={(v) => updateParam("tipOffset", v)}
-              defaultValue={DEFAULT_VEIN_PARAMS.tipOffset}
-              inline
-            />
-            <SliderInput
-              label="Default Roundness"
-              min={0}
-              max={1}
-              step={0.02}
-              value={genParams.curvature}
-              onInput={(v) => updateParam("curvature", v)}
-              defaultValue={DEFAULT_VEIN_PARAMS.curvature}
-              inline
-            />
-            <SliderInput
-              label="Subdivisions"
-              min={1}
-              max={12}
+              label="Bend (°)"
+              min={-MAX_ROTATION_DEG}
+              max={MAX_ROTATION_DEG}
               step={1}
-              value={genParams.subdivisions}
-              onInput={(v) => updateParam("subdivisions", v)}
-              defaultValue={DEFAULT_VEIN_PARAMS.subdivisions}
+              value={selectedVeinNode.bend ?? 0}
+              onInput={(v) => updateSelectedNode({ bend: v })}
+              onChange={commitNodeEdit}
+              defaultValue={0}
               inline
             />
-          </div>
-
-          {selectedVeinNode && (
-            <div class="vein-params-panel vein-selected-panel">
-              <h4>{selectedIsRoot ? "Leaf Base" : "Selected Vein"}</h4>
-              <SliderInput
-                label="Bend (°)"
-                min={-MAX_ROTATION_DEG}
-                max={MAX_ROTATION_DEG}
-                step={1}
-                value={selectedVeinNode.bend ?? 0}
-                onInput={(v) => updateSelectedNode({ bend: v })}
-                onChange={commitNodeEdit}
-                defaultValue={0}
-                inline
-              />
-              {selectedIsJoint && (
-                <>
-                  <SliderInput
-                    label="Fold (°)"
-                    min={-MAX_ROTATION_DEG}
-                    max={MAX_ROTATION_DEG}
-                    step={1}
-                    value={selectedVeinNode.fold ?? 0}
-                    onInput={(v) => updateSelectedNode({ fold: v })}
-                    onChange={commitNodeEdit}
-                    defaultValue={0}
-                    inline
-                  />
-                  <SliderInput
-                    label="Lobe Depth"
-                    min={0}
-                    max={1}
-                    step={0.02}
-                    value={getEffectiveLobeDepth(selectedVeinNode, genParams)}
-                    onInput={(v) => updateSelectedNode({ lobeDepth: v })}
-                    onChange={commitNodeEdit}
-                    defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
-                    inline
-                  />
-                  <SliderInput
-                    label="Lobe Threshold"
-                    min={0}
-                    max={1}
-                    step={0.02}
-                    value={getEffectiveLobeThreshold(selectedVeinNode, genParams)}
-                    onInput={(v) => updateSelectedNode({ lobeThreshold: v })}
-                    onChange={commitNodeEdit}
-                    defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
-                    inline
-                  />
-                </>
-              )}
-              {!selectedIsRoot && (
+            {selectedIsJoint && (
+              <>
                 <SliderInput
-                  label="Lateral Offset"
-                  min={0}
-                  max={2}
-                  step={0.02}
-                  value={getEffectiveLateralOffset(selectedVeinNode, genParams)}
-                  onInput={(v) => updateSelectedNode({ lateralOffset: v })}
+                  label="Fold (°)"
+                  min={-MAX_ROTATION_DEG}
+                  max={MAX_ROTATION_DEG}
+                  step={1}
+                  value={selectedVeinNode.fold ?? 0}
+                  onInput={(v) => updateSelectedNode({ fold: v })}
                   onChange={commitNodeEdit}
-                  defaultValue={DEFAULT_VEIN_PARAMS.lateralOffset}
+                  defaultValue={0}
                   inline
                 />
-              )}
-              {selectedIsTip && (
-                <>
-                  <SliderInput
-                    label="Tip Offset"
-                    min={0}
-                    max={0.5}
-                    step={0.01}
-                    value={getEffectiveTipParams(selectedVeinNode, genParams).tipOffset}
-                    onInput={(v) => updateSelectedNode({ tipOffset: v })}
-                    onChange={commitNodeEdit}
-                    defaultValue={DEFAULT_VEIN_PARAMS.tipOffset}
-                    inline
-                  />
-                  <SliderInput
-                    label="Roundness"
-                    min={0}
-                    max={1}
-                    step={0.02}
-                    value={getEffectiveTipParams(selectedVeinNode, genParams).curvature}
-                    onInput={(v) => updateSelectedNode({ curvature: v })}
-                    onChange={commitNodeEdit}
-                    defaultValue={DEFAULT_VEIN_PARAMS.curvature}
-                    inline
-                  />
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                <SliderInput
+                  label="Lobe Depth"
+                  min={0}
+                  max={1}
+                  step={0.02}
+                  value={getEffectiveLobeDepth(selectedVeinNode, genParams)}
+                  onInput={(v) => updateSelectedNode({ lobeDepth: v })}
+                  onChange={commitNodeEdit}
+                  defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
+                  inline
+                />
+                <SliderInput
+                  label="Lobe Threshold"
+                  min={0}
+                  max={1}
+                  step={0.02}
+                  value={getEffectiveLobeThreshold(selectedVeinNode, genParams)}
+                  onInput={(v) => updateSelectedNode({ lobeThreshold: v })}
+                  onChange={commitNodeEdit}
+                  defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
+                  inline
+                />
+              </>
+            )}
+            {!selectedIsRoot && (
+              <SliderInput
+                label="Lateral Offset"
+                min={0}
+                max={2}
+                step={0.02}
+                value={getEffectiveLateralOffset(selectedVeinNode, genParams)}
+                onInput={(v) => updateSelectedNode({ lateralOffset: v })}
+                onChange={commitNodeEdit}
+                defaultValue={DEFAULT_VEIN_PARAMS.lateralOffset}
+                inline
+              />
+            )}
+            {selectedIsTip && (
+              <>
+                <SliderInput
+                  label="Tip Offset"
+                  min={0}
+                  max={0.5}
+                  step={0.01}
+                  value={getEffectiveTipParams(selectedVeinNode, genParams).tipOffset}
+                  onInput={(v) => updateSelectedNode({ tipOffset: v })}
+                  onChange={commitNodeEdit}
+                  defaultValue={DEFAULT_VEIN_PARAMS.tipOffset}
+                  inline
+                />
+                <SliderInput
+                  label="Roundness"
+                  min={0}
+                  max={1}
+                  step={0.02}
+                  value={getEffectiveTipParams(selectedVeinNode, genParams).curvature}
+                  onInput={(v) => updateSelectedNode({ curvature: v })}
+                  onChange={commitNodeEdit}
+                  defaultValue={DEFAULT_VEIN_PARAMS.curvature}
+                  inline
+                />
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       <svg id="canvas" ref={canvasRef} onClick={onCanvasClick} onPointerDown={onCanvasPointerDown}>
         <defs>
@@ -783,56 +660,18 @@ export function GeomEditor({ id }: { id: string }) {
         {enableSnap && <rect width="100%" height="100%" fill="url(#dot-grid)" />}
 
         {/* The mirrored left side is dimmed */}
-        {mirrorX && (
-          <rect
-            x={0}
-            y={0}
-            width={originScreen.x}
-            height={viewSize.height}
-            fill="rgba(0, 0, 0, 0.35)"
-            style={{ pointerEvents: "none" }}
-          />
-        )}
+        <rect
+          x={0}
+          y={0}
+          width={originScreen.x}
+          height={viewSize.height}
+          fill="rgba(0, 0, 0, 0.35)"
+          style={{ pointerEvents: "none" }}
+        />
         <line x1={originScreen.x} y1={0} x2={originScreen.x} y2={viewSize.height} class="midrib-axis" />
         <line x1={0} y1={originScreen.y} x2={viewSize.width} y2={originScreen.y} class="axis-line" />
 
-        <polygon points={pointsString} class={`leaf-shape-polygon ${editorMode === "veins" ? "dashed" : ""}`} />
-
-        {editorMode === "outline" && (
-          <>
-            {/* Wide invisible segment lines: mouse down on one inserts a point there */}
-            {geom.points.map((p, i) => {
-              const sp1 = toScreen(p);
-              const sp2 = toScreen(geom.points[(i + 1) % geom.points.length]);
-              return (
-                <line
-                  key={`seg-${i}`}
-                  x1={sp1.x}
-                  y1={sp1.y}
-                  x2={sp2.x}
-                  y2={sp2.y}
-                  class="line-helper"
-                  onPointerDown={(e) => insertPointOnSegment(e, i)}
-                />
-              );
-            })}
-            {geom.points.map((p, i) => {
-              const sp = toScreen(p);
-              return (
-                <circle
-                  key={`pt-${i}`}
-                  cx={sp.x}
-                  cy={sp.y}
-                  r="6"
-                  class="point-handle"
-                  data-selected={i === selectedPoint}
-                  data-mirrored={mirrorX && p.x < -0.001}
-                  onPointerDown={(e) => onPointPointerDown(e, i)}
-                />
-              );
-            })}
-          </>
-        )}
+        <polygon points={pointsString} class="leaf-shape-polygon" />
 
         {veinEdges.map(({ parent, node }) => {
           const onMidrib = Math.abs(parent.x) < 0.03 && Math.abs(node.x) < 0.03;
@@ -840,7 +679,7 @@ export function GeomEditor({ id }: { id: string }) {
           const to = toScreen(node);
           const fromMirrored = toScreen({ x: -parent.x, y: parent.y });
           const toMirrored = toScreen({ x: -node.x, y: node.y });
-          const showMirror = mirrorX && (Math.abs(parent.x) > 0.001 || Math.abs(node.x) > 0.001);
+          const showMirror = Math.abs(parent.x) > 0.001 || Math.abs(node.x) > 0.001;
           // A halo behind the edge shows how strongly it is bent or folded.
           const maxAngle = Math.max(Math.abs(node.bend ?? 0), Math.abs(node.fold ?? 0));
           const haloOpacity = maxAngle ? Math.min(1, maxAngle / MAX_ROTATION_DEG) * 0.7 : 0;
@@ -884,47 +723,45 @@ export function GeomEditor({ id }: { id: string }) {
           );
         })}
 
-        {editorMode === "veins" &&
-          veinEdges.map(({ node }) => {
-            const sp = toScreen(node);
-            const spMirrored = toScreen({ x: -node.x, y: node.y });
-            const isTip = node.children.length === 0;
-            return (
-              <g key={`vein-handle-${node.id}`}>
-                <circle
-                  cx={sp.x}
-                  cy={sp.y}
-                  r={isTip ? 6 : 5.5}
-                  class="vein-handle"
-                  data-selected={selectedNodeId === node.id}
-                  data-tip={isTip}
-                  onPointerDown={(e) => onVeinNodePointerDown(e, node.id)}
-                >
-                  <title>
-                    {isTip
-                      ? "Vein tip — drag to reshape the outline, click canvas to branch further"
-                      : "Branch joint — drag to move, click canvas to add another vein from here"}
-                  </title>
-                </circle>
-                {mirrorX && node.x > 0.001 && (
-                  <circle cx={spMirrored.x} cy={spMirrored.y} r="5" class="vein-handle" data-mirrored="true" />
-                )}
-              </g>
-            );
-          })}
+        {veinEdges.map(({ node }) => {
+          const sp = toScreen(node);
+          const spMirrored = toScreen({ x: -node.x, y: node.y });
+          const isTip = node.children.length === 0;
+          return (
+            <g key={`vein-handle-${node.id}`}>
+              <circle
+                cx={sp.x}
+                cy={sp.y}
+                r={isTip ? 6 : 5.5}
+                class="vein-handle"
+                data-selected={selectedNodeId === node.id}
+                data-tip={isTip}
+                onPointerDown={(e) => onVeinNodePointerDown(e, node.id)}
+              >
+                <title>
+                  {isTip
+                    ? "Vein tip — drag to reshape the outline, click canvas to branch further"
+                    : "Branch joint — drag to move, click canvas to add another vein from here"}
+                </title>
+              </circle>
+              {node.x > 0.001 && (
+                <circle cx={spMirrored.x} cy={spMirrored.y} r="5" class="vein-handle" data-mirrored="true" />
+              )}
+            </g>
+          );
+        })}
 
         <circle
           cx={originScreen.x}
           cy={originScreen.y}
           r="7"
           class="petiole-base-dot"
-          data-selected={editorMode === "veins" && selectedNodeId === currentVeins.root.id}
-          onPointerDown={onOriginPointerDown}
+          data-selected={selectedNodeId === currentVeins.root.id}
+          onClick={selectRoot}
         >
           <title>
-            Drag red dot to set Stem Origin (0,0). In Venation Mode, click it (no drag) to select the root vein node —
-            its Bend/Fold (whole-blade hinge at the petiole) and, once it branches into more than one vein, Lobe
-            controls appear in the side panel.
+            Stem origin (0,0). Click to select the root vein node — its Bend/Fold (whole-blade hinge at the petiole)
+            and, once it branches into more than one vein, Lobe controls appear in the side panel.
           </title>
         </circle>
       </svg>
