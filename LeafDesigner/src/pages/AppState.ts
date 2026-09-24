@@ -134,8 +134,11 @@ class LeafStorage {
 class GeometryStorage {
   private geomLib: LeafGeometry[] = [];
 
+  public revision: number = 0;
+
   private save() {
     window.localStorage.setItem(STORAGE_KEYS.geoms, JSON.stringify(this.geomLib));
+    this.revision++;
   }
 
   private load() {

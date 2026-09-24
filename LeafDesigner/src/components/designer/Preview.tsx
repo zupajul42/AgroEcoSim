@@ -328,13 +328,35 @@ function boxMesh(width: number, length: number, height: number): MeshData {
 }
 
 export function geometryTriangleCount(geomId: string): number {
-  return generateShapeMesh({ geom: [geomId], petiolule: NO_STEM }).index.length / 3;
+  return shapeMesh(geomId).index.length / 3;
+}
+
+const shapeMeshCache = new Map<string, MeshData>();
+let cachedRevision = -1;
+
+function shapeMesh(geomId: string): MeshData {
+  if (cachedRevision !== state.geoms.revision) {
+    shapeMeshCache.clear();
+    cachedRevision = state.geoms.revision;
+  }
+  const cached = shapeMeshCache.get(geomId);
+  if (cached) return cached;
+
+  const mesh = buildShapeMesh(geomId);
+
+  cachedRevision = state.geoms.revision;
+  shapeMeshCache.set(geomId, mesh);
+  return mesh;
 }
 
 // The blade of one shape at `lod`, scaled so its larger side is 1 with the base at the origin.
-// With veins the blade is built over the vein tree, otherwise the outline is triangulated flat.
 function generateShapeMesh(shape: LeafShape, lod = 0): MeshData {
-  const geom = state.geoms.get(resolveLodGeom(shape?.geom, lod) ?? "");
+  return shapeMesh(resolveLodGeom(shape?.geom, lod) ?? "");
+}
+
+function buildShapeMesh(geomId: string): MeshData {
+  console.log("buildShapeMesh", geomId);
+  const geom = state.geoms.get(geomId);
   if (!geom || geom.points.length < 3) return EMPTY_MESH;
   const scale = Math.max(size(geom.points), 0.0001);
   const { veins, margin, marginToothSize: toothSize = 1, marginToothDepth: toothDepth = 1 } = geom;
