@@ -1,4 +1,4 @@
-import { CSSProperties, HTMLAttributes } from "preact";
+import { CSSProperties } from "preact";
 
 interface SliderInputProps {
   label?: string;
@@ -39,6 +39,8 @@ export function SliderInput({
   // The range input works on a 0..1 position; in log mode that position is the exponent between min and max.
   const toPosition = (val: number) => (log ? Math.log(val / min) / Math.log(max / min) : val);
   const fromPosition = (pos: number) => (log ? snap(min * Math.pow(max / min, pos)) : pos);
+  // The filled part of the track runs up to this fraction of the slider's travel.
+  const fraction = Math.min(1, Math.max(0, log ? toPosition(value) : (value - min) / (max - min)));
   const resetToDefault = () => {
     if (defaultValue === undefined) return;
     onInput(defaultValue);
@@ -55,7 +57,7 @@ export function SliderInput({
     if (!isNaN(val)) onChange?.(fromPosition(val));
   };
 
-  const range = (extra: HTMLAttributes<HTMLInputElement>) => (
+  const range = (extra: { class?: string; style?: CSSProperties }) => (
     <input
       type="range"
       min={log ? 0 : min}
@@ -66,7 +68,8 @@ export function SliderInput({
       onChange={commitRange}
       onDblClick={resetToDefault}
       title={resetTitle}
-      {...extra}
+      class={extra.class}
+      style={{ "--slider-max": fraction, ...extra.style }}
     />
   );
   const number = (
