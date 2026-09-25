@@ -19,8 +19,9 @@ import {
   MAX_ROTATION_DEG,
   DEFAULT_VEIN_PARAMS,
   ensureVeinData,
+  outlinePins,
 } from "../../utils/veinGenerator";
-import { applyMarginTeethToOutline } from "../../utils/marginTeeth";
+import { applyMarginTeethToOutline, resolveMarginParams } from "../../utils/marginTeeth";
 import { SliderInput } from "../common/SliderInput";
 import "./GeomEditor.css";
 
@@ -245,17 +246,26 @@ export function GeomEditor({ id }: { id: string }) {
     window.addEventListener("pointercancel", onPointerUp);
   };
 
+  const marginParams = useMemo(
+    () => resolveMarginParams(geom),
+    [geom.margin, geom.marginToothCount, geom.marginToothHeight],
+  );
+  const marginDefaults = useMemo(() => resolveMarginParams({ margin: geom.margin }), [geom.margin]);
+  const hasTeeth = !!geom.margin && geom.margin !== "entire";
+
+  const setMargin = (margin: LeafMargin) => {
+    const { marginToothCount: _count, marginToothHeight: _height, ...rest } = geom;
+    setGeom({ ...rest, margin });
+  };
+  const setMarginParams = (patch: Pick<LeafGeometry, "marginToothCount" | "marginToothHeight">) =>
+    setGeom({ ...geom, ...patch });
+
   const displayPoints = useMemo(() => {
     if (!geom.points || geom.points.length < 3) return [];
-    if (!geom.margin || geom.margin === "entire") return geom.points;
-    return applyMarginTeethToOutline(
-      geom.points,
-      geom.margin,
-      geom.marginToothSize ?? 1,
-      geom.marginToothDepth ?? 1,
-      geom.veins?.params?.subdivisions,
-    );
-  }, [geom.points, geom.margin, geom.marginToothSize, geom.marginToothDepth, geom.veins?.params?.subdivisions]);
+    if (!hasTeeth) return geom.points;
+    const pins = geom.veins?.root ? outlinePins(geom.veins, { mirrorX: true, params: geom.veins.params }) : [];
+    return applyMarginTeethToOutline(geom.points, geom.margin, marginParams, pins, geom.veins?.params?.subdivisions);
+  }, [geom.points, geom.margin, marginParams, geom.veins]);
 
   const pointsString = useMemo(
     () =>
@@ -385,7 +395,6 @@ export function GeomEditor({ id }: { id: string }) {
 
   const originScreen = toScreen({ x: 0, y: 0 });
   const patternStep = Math.max(gridSnap * scale, 4);
-  const hasTeeth = geom.margin && geom.margin !== "entire";
 
   return (
     <div class="geom-viewport" ref={containerRef}>
@@ -409,47 +418,6 @@ export function GeomEditor({ id }: { id: string }) {
             placeholder="Geometry Name"
           />
         </div>
-
-        <div class="toolbar-group">
-          <select
-            value={geom.margin || "entire"}
-            onChange={(e) => setGeom({ ...geom, margin: e.currentTarget.value as LeafMargin })}
-            title="Botanical margin (edge) type of this leaf shape"
-          >
-            <option value="entire">Entire</option>
-            <option value="serrate">Serrate</option>
-            <option value="dentate">Dentate</option>
-            <option value="lobed">Lobed</option>
-            <option value="incised">Incised</option>
-          </select>
-        </div>
-
-        {hasTeeth && (
-          <div class="toolbar-group" style={{ flexWrap: "wrap" }}>
-            <SliderInput
-              label="Tooth Size"
-              min={0.2}
-              max={3}
-              step={0.05}
-              value={geom.marginToothSize ?? 1}
-              onInput={(v) => setGeom({ ...geom, marginToothSize: v })}
-              defaultValue={1}
-              inline
-              style={{ width: "160px" }}
-            />
-            <SliderInput
-              label="Tooth Depth"
-              min={0}
-              max={3}
-              step={0.05}
-              value={geom.marginToothDepth ?? 1}
-              onInput={(v) => setGeom({ ...geom, marginToothDepth: v })}
-              defaultValue={1}
-              inline
-              style={{ width: "160px" }}
-            />
-          </div>
-        )}
 
         <div class="toolbar-group">
           <label class="label-row">
@@ -495,6 +463,46 @@ export function GeomEditor({ id }: { id: string }) {
           <button onClick={() => regenOutline()} title="Re-calculate polygon outline from vein structure">
             Generate Outline
           </button>
+        </div>
+
+        <div class="vein-params-panel">
+          <h4>Margin</h4>
+          <select
+            class="margin-select"
+            value={geom.margin || "entire"}
+            onChange={(e) => setMargin(e.currentTarget.value as LeafMargin)}
+            title="Botanical margin (edge) type of this leaf shape"
+          >
+            <option value="entire">Entire</option>
+            <option value="serrate">Serrate</option>
+            <option value="sinuate">Sinuate</option>
+            <option value="dentate">Dentate</option>
+            <option value="crenate">Crenate</option>
+          </select>
+          {hasTeeth && (
+            <>
+              <SliderInput
+                label="Teeth per Side"
+                min={1}
+                max={40}
+                step={1}
+                value={marginParams.toothCount}
+                onInput={(v) => setMarginParams({ marginToothCount: v })}
+                defaultValue={marginDefaults.toothCount}
+                inline
+              />
+              <SliderInput
+                label="Tooth Height"
+                min={0}
+                max={1.5}
+                step={0.05}
+                value={marginParams.toothHeight}
+                onInput={(v) => setMarginParams({ marginToothHeight: v })}
+                defaultValue={marginDefaults.toothHeight}
+                inline
+              />
+            </>
+          )}
         </div>
 
         <div class="vein-params-panel">

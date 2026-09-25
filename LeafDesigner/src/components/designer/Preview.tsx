@@ -20,7 +20,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Leaf, LeafLayout, LeafShape, MeshData, Petiole } from "../../types/leaf";
 import { state } from "../../pages/AppState";
 import { generateVeinMesh } from "../../utils/veinGenerator";
-import { applyMarginTeethToOutline, marginOutlineShaper } from "../../utils/marginTeeth";
+import { applyMarginTeethToOutline, marginOutlineShaper, resolveMarginParams } from "../../utils/marginTeeth";
 import { resolveLodGeom, resolveLodScale } from "../../utils/lod";
 import { renderTo } from "../../utils/sharedRenderer";
 import { resolveRandomValue } from "../../utils/random";
@@ -359,19 +359,18 @@ function buildShapeMesh(geomId: string): MeshData {
   const geom = state.geoms.get(geomId);
   if (!geom || geom.points.length < 3) return EMPTY_MESH;
   const scale = Math.max(size(geom.points), 0.0001);
-  const { veins, margin, marginToothSize: toothSize = 1, marginToothDepth: toothDepth = 1 } = geom;
+  const { veins, margin } = geom;
+  const marginParams = resolveMarginParams(geom);
 
   let mesh: MeshData;
   if (veins?.root && veins.root.children.length > 0) {
     mesh = generateVeinMesh(veins, {
       mirrorX: true,
       params: veins.params,
-      shapeOutline: marginOutlineShaper(margin, toothSize, toothDepth, veins.params?.subdivisions),
+      shapeOutline: marginOutlineShaper(margin, marginParams, veins.params?.subdivisions),
     });
   } else {
-    const outline = applyMarginTeethToOutline(geom.points, margin, toothSize, toothDepth).map(
-      (p) => new Vector2(p.x, p.y),
-    );
+    const outline = applyMarginTeethToOutline(geom.points, margin, marginParams).map((p) => new Vector2(p.x, p.y));
     mesh = {
       position: outline.flatMap((p) => [p.x, p.y, 0]),
       index: ShapeUtils.triangulateShape(outline, []).flat(),

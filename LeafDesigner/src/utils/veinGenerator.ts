@@ -265,7 +265,7 @@ function reparentCollinearChildren(node: VeinNode): VeinNode {
 }
 
 // A key point that knows which tip or which joint's side point (and where that joint is) it is.
-type KeyEntry = KeyPoint & { tipId?: string; lateralId?: string; joint?: Point };
+type KeyEntry = KeyPoint & { tipId?: string; lateralId?: string; joint?: Point; dir?: Point };
 
 // remove lateral points that are inside the leaf polygon
 function dropInwardSidePoints(entries: KeyEntry[], root: VeinNode): KeyEntry[] {
@@ -314,7 +314,8 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
       if (e.lateralId) lateralKeyIndex.set(e.lateralId, [...(lateralKeyIndex.get(e.lateralId) ?? []), i]);
     });
     const keyPoints: KeyPoint[] = list.map(({ x, y, curvature }) => ({ x, y, curvature }));
-    return { keyPoints, tipKeyIndex, lateralKeyIndex };
+    const keyDirs = list.map((e) => e.dir ?? null);
+    return { keyPoints, tipKeyIndex, lateralKeyIndex, keyDirs };
   };
 
   if (root.children.length === 0) {
@@ -372,16 +373,22 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
       // The child's own key points, between its side points if it has a lateral offset.
       const side = lateralPoints(node, child, getEffectiveLateralOffset(child, params));
       const sideCurvature = child.curvature ?? curvature;
-      if (side) entries.push({ ...side.entry, curvature: sideCurvature, lateralId: child.id, joint: child });
+      const sidePoint = (p: Point): KeyEntry => ({
+        ...p,
+        curvature: sideCurvature,
+        lateralId: child.id,
+        joint: child,
+        dir: unit(child, p) ?? undefined,
+      });
+      if (side) entries.push(sidePoint(side.entry));
       if (child.children.length === 0) {
         const tip = getEffectiveTipParams(child, params);
-        entries.push({ ...extendFrom(node, child, tip.tipOffset), curvature: tip.curvature, tipId: child.id });
+        const point = extendFrom(node, child, tip.tipOffset);
+        entries.push({ ...point, curvature: tip.curvature, tipId: child.id, dir: unit(node, point) ?? undefined });
       } else {
         walk(child, node);
       }
-      if (side && Math.abs(child.x) > AXIS_EPS) {
-        entries.push({ ...side.exit, curvature: sideCurvature, lateralId: child.id, joint: child });
-      }
+      if (side && Math.abs(child.x) > AXIS_EPS) entries.push(sidePoint(side.exit));
     });
   };
   walk(root, null);
@@ -443,9 +450,71 @@ function mirrorHalfOutline(half: Point[]): Point[] {
 // stretch of outline and the two vein paths back to their common joint; each face is
 // triangulated on its own. Bend and fold are applied last as smooth deformations of the flat mesh.
 
+/** A ring point that touches the vein tree (root, tip or side point of a joint) and the unit
+ *  direction of the vein reaching it: parent -> tip, joint -> side point, null for the root. */
+export interface OutlinePin {
+  index: number;
+  direction: Point | null;
+}
+
 /** Reshapes the flat outline ring before triangulation (margin teeth). May move points and
- *  insert new ones; `originalIndex[i]` is where original point i ended up. */
-export type OutlineShaper = (ring: Point[]) => { ring: Point[]; originalIndex: number[] };
+ *  insert new ones, but the `pins` must stay ring points; `originalIndex[i]` is where original
+ *  point i ended up. */
+export type OutlineShaper = (ring: Point[], pins: OutlinePin[]) => { ring: Point[]; originalIndex: number[] };
+
+// The ring, built like `mirrorHalfOutline` but tracked per point, plus a pin for every key point
+// in `pinnedKeys` on both halves (a key point cut off by an overlapping lobe has none).
+function ringLayout(
+  half: Point[],
+  keyAt: number[],
+  pinnedKeys: { key: number; dir: Point | null }[],
+  mirrorX: boolean,
+) {
+  const ringPoints = half.map((_, i) => ({ halfIdx: i, mirrored: false }));
+  const mirroredRingPos = new Map<number, number>();
+  if (mirrorX) {
+    for (let i = half.length - 1; i >= 0; i--) {
+      if (Math.abs(half[i].x) > AXIS_EPS) {
+        mirroredRingPos.set(i, ringPoints.length);
+        ringPoints.push({ halfIdx: i, mirrored: true });
+      }
+    }
+  }
+  const flatRing = ringPoints.map(({ halfIdx, mirrored }) => ({
+    x: mirrored ? -half[halfIdx].x : half[halfIdx].x,
+    y: half[halfIdx].y,
+  }));
+  const pins = new Map<number, Point | null>([[0, null]]);
+  for (const { key, dir } of pinnedKeys) {
+    const halfIdx = keyAt[key];
+    if (halfIdx < 0) continue;
+    pins.set(halfIdx, dir);
+    const mirroredPos = mirroredRingPos.get(halfIdx);
+    if (mirroredPos !== undefined) pins.set(mirroredPos, dir && { x: -dir.x, y: dir.y });
+  }
+  const sorted = [...pins].sort(([a], [b]) => a - b).map(([index, direction]) => ({ index, direction }));
+  return { mirroredRingPos, flatRing, pins: sorted };
+}
+
+// Every tip and side key point with the direction of its vein.
+function pinnedKeys(
+  tipKeyIndex: Map<string, number>,
+  lateralKeyIndex: Map<string, number[]>,
+  keyDirs: (Point | null)[],
+) {
+  const keys = [...tipKeyIndex.values(), ...[...lateralKeyIndex.values()].flat()];
+  return keys.map((key) => ({ key, dir: keyDirs[key] }));
+}
+
+/** Ring indices of the outline points that touch the vein tree (root, tips and the side points of
+ *  joints), for the ring `generateOutlineFromVeins` returns with the same options. */
+export function outlinePins(veins: VeinData, options: { mirrorX: boolean; params?: VeinGenParams }): OutlinePin[] {
+  const params = options.params || veins.params || DEFAULT_VEIN_PARAMS;
+  const root = reparentCollinearChildren(veins.root);
+  const { keyPoints, tipKeyIndex, lateralKeyIndex, keyDirs } = buildOutlineKeyPoints(root, params);
+  const { half, keyAt } = halfOutline(keyPoints, params.subdivisions, new Set(tipKeyIndex.values()));
+  return ringLayout(half, keyAt, pinnedKeys(tipKeyIndex, lateralKeyIndex, keyDirs), options.mirrorX).pins;
+}
 
 // A joint or tip of the (mirrored) vein tree as placed in the mesh.
 interface MeshNode {
@@ -677,25 +746,15 @@ export function generateVeinMesh(
 
   // `keyAt[k]` is where key point k sits in the half outline; that's how a tip or a joint's side
   // point finds its ring point. A side point cut off with an overlapping lobe has none.
-  const { keyPoints, tipKeyIndex, lateralKeyIndex } = buildOutlineKeyPoints(root, params);
+  const { keyPoints, tipKeyIndex, lateralKeyIndex, keyDirs } = buildOutlineKeyPoints(root, params);
   const { half, keyAt } = halfOutline(keyPoints, params.subdivisions, new Set(tipKeyIndex.values()));
 
-  // The ring, built like `mirrorHalfOutline` but tracked per point.
-  const ringPoints = half.map((_, i) => ({ halfIdx: i, mirrored: false }));
-  const mirroredRingPos = new Map<number, number>();
-  if (mirrorX) {
-    for (let i = half.length - 1; i >= 0; i--) {
-      if (Math.abs(half[i].x) > AXIS_EPS) {
-        mirroredRingPos.set(i, ringPoints.length);
-        ringPoints.push({ halfIdx: i, mirrored: true });
-      }
-    }
-  }
-  const flatRing = ringPoints.map(({ halfIdx, mirrored }) => ({
-    x: mirrored ? -half[halfIdx].x : half[halfIdx].x,
-    y: half[halfIdx].y,
-  }));
-  const shaped = options.shapeOutline?.(flatRing) ?? { ring: flatRing, originalIndex: flatRing.map((_, i) => i) };
+  const layout = ringLayout(half, keyAt, pinnedKeys(tipKeyIndex, lateralKeyIndex, keyDirs), mirrorX);
+  const { mirroredRingPos, flatRing, pins: ringPins } = layout;
+  const shaped = options.shapeOutline?.(flatRing, ringPins) ?? {
+    ring: flatRing,
+    originalIndex: flatRing.map((_, i) => i),
+  };
   const outline = shaped.ring;
 
   // Interior spacing (along veins and the grid): twice the untoothed ring's own point spacing,

@@ -47,8 +47,8 @@ export interface LeafGeometry {
   points: Point[];
   veins?: VeinData | null;
   margin?: LeafMargin;
-  marginToothSize?: number;
-  marginToothDepth?: number;
+  marginToothCount?: number;
+  marginToothHeight?: number;
 }
 
 export interface Leaf {
@@ -71,7 +71,7 @@ export interface RandomRange {
   max: number;
 }
 
-export type LeafMargin = "entire" | "serrate" | "dentate" | "lobed" | "incised";
+export type LeafMargin = "entire" | "serrate" | "sinuate" | "dentate" | "crenate";
 
 export interface LeafShape {
   geom: string[]; // one geometry id per level of detail
