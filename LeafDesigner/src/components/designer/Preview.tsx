@@ -8,6 +8,7 @@ import {
   DoubleSide,
   GridHelper,
   DirectionalLight,
+  Matrix4,
   Mesh,
   MeshLambertMaterial,
   PerspectiveCamera,
@@ -38,6 +39,7 @@ interface PreviewProps {
   wireframe?: boolean;
   flatShading?: boolean;
   lightAngle?: number;
+  tilt?: number; // rotate the whole leaf to face the camera
   onMesh?: (mesh: MeshData) => void;
 }
 
@@ -58,6 +60,7 @@ export function Preview({
   wireframe,
   flatShading,
   lightAngle = 45,
+  tilt = 0,
   onMesh,
 }: PreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -177,6 +180,7 @@ export function Preview({
     const geom = new BufferGeometry();
     geom.setAttribute("position", new BufferAttribute(new Float32Array(mesh.position), 3));
     geom.setIndex(mesh.index);
+    if (tilt) geom.applyMatrix4(new Matrix4().makeRotationX((tilt / 180) * Math.PI));
     geom.computeVertexNormals();
     three.leaf.geometry.dispose();
     three.leaf.geometry = geom;
@@ -190,7 +194,7 @@ export function Preview({
       const maxDim = Math.max(extent.x, extent.y, extent.z, 0.1);
       const fov = three.camera.fov * (Math.PI / 180);
       const distance = (maxDim / 2 / Math.tan(fov / 2)) * 1.3;
-      three.camera.position.set(center.x, center.y, center.z + distance);
+      three.camera.position.set(center.x, center.y, geom.boundingBox!.max.z + distance);
       three.camera.lookAt(center);
       if (three.controls) {
         three.controls.target.copy(center);
@@ -200,7 +204,7 @@ export function Preview({
     three.requestRender();
 
     onMesh?.(mesh);
-  }, [leaf, lod]);
+  }, [leaf, lod, tilt]);
 
   return (
     <div

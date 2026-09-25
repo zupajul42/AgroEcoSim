@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { useLocation } from "preact-iso";
 import { geometryTriangleCount, Preview } from "../../components/designer/Preview";
+import { sampleColorRamp } from "../../utils/colorRamp";
 import { Leaf, LeafGeometry } from "../../types/leaf";
 import { state } from "../AppState";
 import { mostDetailedLod } from "../../utils/lod";
@@ -143,7 +144,14 @@ export function Library() {
                 (e) => removeLeaf(e, leaf),
                 "leaf model",
               )}
-              <Preview width="100%" height="180px" leaf={leaf} lod={mostDetailedLod(leaf.shape?.[0]?.geom)} />
+              <Preview
+                width="100%"
+                height="180px"
+                leaf={leaf}
+                lod={mostDetailedLod(leaf.shape?.[0]?.geom)}
+                color={sampleColorRamp(leaf.colorRamp, 0.1)}
+                tilt={leaf.petiole?.angle}
+              />
               <div class="card-title">{leaf.name}</div>
             </div>
           ))}
