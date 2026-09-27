@@ -101,12 +101,9 @@ class LeafStorage {
     return this.leafLib.length - 1;
   }
 
-  remove(leaf: Leaf): boolean {
-    const i = this.load().findIndex((l) => l.name === leaf.name);
-    if (i === -1) return false;
-    this.leafLib.splice(i, 1);
+  remove(index: number) {
+    this.load().splice(index, 1);
     this.save();
-    return true;
   }
 
   select(index: number) {

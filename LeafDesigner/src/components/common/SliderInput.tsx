@@ -47,9 +47,16 @@ export function SliderInput({
     onChange?.(defaultValue);
   };
   const resetTitle = defaultValue !== undefined ? `Double-click to reset to ${defaultValue}${unit}` : undefined;
-  const commit = (e: Event) => {
-    const val = parseFloat((e.currentTarget as HTMLInputElement).value);
-    if (!isNaN(val)) onChange?.(val);
+
+  const commitNumber = (e: Event) => {
+    const input = e.currentTarget as HTMLInputElement;
+    const val = parseFloat(input.value);
+    if (isNaN(val)) {
+      input.value = String(value);
+      return;
+    }
+    onInput(val);
+    onChange?.(val);
   };
 
   const commitRange = (e: Event) => {
@@ -74,18 +81,7 @@ export function SliderInput({
   );
   const number = (
     <div>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onInput={(e) => {
-          const val = parseFloat(e.currentTarget.value);
-          if (!isNaN(val)) onInput(val);
-        }}
-        onChange={commit}
-      />
+      <input type="number" step={step} value={value} onChange={commitNumber} />
       {unit && <span>{unit}</span>}
     </div>
   );

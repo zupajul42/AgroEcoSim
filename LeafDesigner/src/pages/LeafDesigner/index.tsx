@@ -251,8 +251,8 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         label: "Length",
         field: "len",
         min: isPetiole ? 0.01 : 0,
-        max: isPetiole ? 3 : 5,
-        step: isPetiole ? 0.005 : 0.1,
+        max: isPetiole ? 5 : 3,
+        step: 0.005,
         unit: "m",
         value: target?.len || 0,
         defaultValue: isPetiole ? 1.5 : type === "rachis" ? rachisFallback.len : 0,
@@ -261,9 +261,9 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
       {
         label: "Width",
         field: "width",
-        min: isPetiole ? 0.005 : 0.05,
+        min: isPetiole ? 0.03 : 0.005,
         max: 1,
-        step: isPetiole ? 0.005 : 0.05,
+        step: 0.005,
         unit: "m",
         value: target?.width || 0.1,
         defaultValue: isPetiole ? 0.05 : type === "rachis" ? rachisFallback.width : 0.1,
@@ -302,16 +302,23 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
     ));
   };
 
-  const angleSlider = (label: string, min: number, max: number, step: number, fallback: number) => (
+  const angleSlider = (
+    label: string,
+    field: "angle" | "orbit",
+    min: number,
+    max: number,
+    step: number,
+    fallback: number,
+  ) => (
     <DoubleRangeSlider
       label={label}
       min={min}
       max={max}
       step={step}
       unit="°"
-      valueMin={toRange(leaf.layout?.angle, fallback).min}
-      valueMax={toRange(leaf.layout?.angle, fallback).max}
-      onChange={(lo, hi) => updateLayout({ angle: { min: lo, max: hi } })}
+      valueMin={toRange(leaf.layout?.[field], fallback).min}
+      valueMax={toRange(leaf.layout?.[field], fallback).max}
+      onChange={(lo, hi) => updateLayout({ [field]: { min: lo, max: hi } })}
       defaultMin={fallback}
       defaultMax={fallback}
     />
@@ -423,7 +430,8 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                       defaultValue={3}
                     />
                   )}
-                  {angleSlider("Branch Angle", 5, 90, 1, 60)}
+                  {angleSlider("Branch Angle", "angle", 0, 180, 1, 60)}
+                  {angleSlider("Orbit Angle", "orbit", 0, 360, 1, 0)}
                   <SliderInput
                     label="Leaflet Distribution"
                     min={0.05}
@@ -444,7 +452,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                   </label>
                 </>
               ) : (
-                angleSlider("Fanning Angle", 0, 360, 5, 140)
+                angleSlider("Fanning Angle", "angle", 0, 360, 5, 140)
               )}
             </div>
 

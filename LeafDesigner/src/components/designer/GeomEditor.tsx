@@ -337,16 +337,32 @@ export function GeomEditor({ id }: { id: string }) {
     );
   };
 
-  // Adds a vein under `parentId` (at `targetPt`, or a bit past the parent) and returns the id
-  // of the node it ended up as: the new node or the one it merged into.
+  const findFreeSpot = (root: VeinNode, parent: VeinNode): Point => {
+    const nodes = [root, ...flattenVeinEdges(root).map((edge) => edge.node)];
+    const clearance = veinMergeThreshold() * 2;
+    let best = { x: round2(parent.x + 0.5), y: round2(parent.y + 0.4) };
+    let bestRoom = -1;
+    for (const radius of [0.64, 1, 1.4]) {
+      for (const deg of [50, 30, 70, 10, 90, 110, 130, 150, 170]) {
+        const rad = (deg * Math.PI) / 180;
+        const spot = { x: round2(parent.x + radius * Math.sin(rad)), y: round2(parent.y + radius * Math.cos(rad)) };
+        const room = Math.min(...nodes.map((n) => Math.hypot(n.x - spot.x, n.y - spot.y)));
+        if (room > clearance) return spot;
+        if (room > bestRoom) {
+          best = spot;
+          bestRoom = room;
+        }
+      }
+    }
+    return best;
+  };
+
   const addVeinUnder = (parentId: string, targetPt?: Point) => {
     pushState(geomRef.current);
     const veins = ensureVeinData(geomRef.current.veins);
     const parent = findVeinNode(veins.root, parentId) || veins.root;
-    const node = createVeinNode(
-      targetPt ? snapToAxis(targetPt.x) : round2(parent.x + 0.5),
-      targetPt ? targetPt.y : round2(parent.y + 0.4),
-    );
+    const spot = targetPt ? { x: snapToAxis(targetPt.x), y: targetPt.y } : findFreeSpot(veins.root, parent);
+    const node = createVeinNode(spot.x, spot.y);
     const withNode = addVeinChild(veins.root, parentId, node);
     const { root, mergedInto } = mergeNearbyVeinNode(withNode, node.id, veinMergeThreshold());
     setVeinRoot(root);
@@ -610,19 +626,6 @@ export function GeomEditor({ id }: { id: string }) {
                 />
               </>
             )}
-            {!selectedIsRoot && (
-              <SliderInput
-                label="Lateral Offset"
-                min={0}
-                max={2}
-                step={0.02}
-                value={getEffectiveLateralOffset(selectedVeinNode, genParams)}
-                onInput={(v) => updateSelectedNode({ lateralOffset: v })}
-                onChange={commitNodeEdit}
-                defaultValue={DEFAULT_VEIN_PARAMS.lateralOffset}
-                inline
-              />
-            )}
             {selectedIsTip && (
               <>
                 <SliderInput
@@ -648,6 +651,19 @@ export function GeomEditor({ id }: { id: string }) {
                   inline
                 />
               </>
+            )}
+            {!selectedIsRoot && (
+              <SliderInput
+                label="Lateral Offset"
+                min={0}
+                max={2}
+                step={0.02}
+                value={getEffectiveLateralOffset(selectedVeinNode, genParams)}
+                onInput={(v) => updateSelectedNode({ lateralOffset: v })}
+                onChange={commitNodeEdit}
+                defaultValue={DEFAULT_VEIN_PARAMS.lateralOffset}
+                inline
+              />
             )}
           </div>
         )}

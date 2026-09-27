@@ -59,9 +59,7 @@ export function Library() {
     location.route("/leaf");
   };
 
-  const openLeaf = (leaf: Leaf) => {
-    let index = leafs.findIndex((l) => l.name === leaf.name);
-    if (index === -1) index = state.leafs.add(leaf);
+  const openLeaf = (index: number) => {
     state.leafs.select(index);
     location.route("/leaf");
   };
@@ -72,10 +70,10 @@ export function Library() {
     refresh();
   };
 
-  const removeLeaf = (e: MouseEvent, leaf: Leaf) => {
+  const removeLeaf = (e: MouseEvent, index: number) => {
     e.stopPropagation();
-    if (!confirm(`Delete leaf "${leaf.name}"?`)) return;
-    state.leafs.remove(leaf);
+    if (!confirm(`Delete leaf "${leafs[index].name}"?`)) return;
+    state.leafs.remove(index);
     refresh();
   };
 
@@ -138,10 +136,10 @@ export function Library() {
 
         <div class="leaf-list">
           {leafs.map((leaf, i) => (
-            <div key={leaf.name + i} class="leaf-card" onClick={() => openLeaf(leaf)}>
+            <div key={leaf.name + i} class="leaf-card" onClick={() => openLeaf(i)}>
               {cardActions(
                 (e) => duplicateLeaf(e, leaf),
-                (e) => removeLeaf(e, leaf),
+                (e) => removeLeaf(e, i),
                 "leaf model",
               )}
               <Preview

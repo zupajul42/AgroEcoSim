@@ -85,6 +85,7 @@ export type LeafArrangement = "alternate" | "opposite" | "whorled";
 
 export interface LeafLayout {
   angle: number | RandomRange; // branch (pinnate) or fanning (palmate) angle
+  orbit?: number | RandomRange; // pinnate: degrees each leaflet turns around the stem, mirrored on the two sides
   type: LeafLayoutType;
   arrangement: LeafArrangement;
   terminalLeaf: boolean;

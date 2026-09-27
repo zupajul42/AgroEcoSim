@@ -151,7 +151,9 @@ export function Preview({
 
   useEffect(() => {
     const m = material();
-    if (m) m.wireframe = !!wireframe;
+    if (!m) return;
+    m.wireframe = !!wireframe;
+    m.emissive.set(wireframe ? m.color : 0x000000);
     threeRef.current?.requestRender();
   }, [wireframe]);
 
@@ -232,6 +234,7 @@ function childTransform(
     arrangement,
     terminalLeaf,
     angle,
+    orbit,
     distributionCurve = 1,
     whorlSize = 3,
   } = layout ?? {
@@ -256,18 +259,21 @@ function childTransform(
     whorl = arrangement === "whorled";
     const perNode = whorl ? Math.max(2, Math.round(whorlSize)) : arrangement === "opposite" ? 2 : 1;
     const hasTerminal = terminalLeaf && (perNode === 1 ? count % 2 !== 0 : count % perNode === 1);
+    const orbitKey = key - (index % perNode);
+    const orbitRad = (resolveRandomValue(orbit, seed, "orbit", orbitKey, 0) * Math.PI) / 180;
     if (hasTerminal && index === count - 1) {
       position.set(0, stemLength, 0);
     } else {
       const sideCount = hasTerminal ? count - 1 : count;
       const halfWidth = (stem.width || 1) / 2;
       if (whorl) {
-        // The children of a whorl stand around the stem, each leaning out by the branch angle.
-        rotationY = ((index % perNode) / perNode) * Math.PI * 2;
+        // The children of a whorl stand around the stem, each leaning out by the branch angle; the orbit turns the whole whorl.
+        rotationY = ((index % perNode) / perNode) * Math.PI * 2 + orbitRad;
         rotationZ = -angleRad;
         position.x = halfWidth;
       } else {
         const isLeft = index % 2 === 0;
+        rotationY = isLeft ? orbitRad : -orbitRad;
         rotationZ = isLeft ? angleRad : -angleRad;
         position.x = halfWidth * (isLeft ? -1 : 1);
       }
@@ -286,8 +292,8 @@ function childTransform(
 }
 
 // Matrix of child `index` of `count` on the stem whose base `parent` places. The stem angle tilts the
-// child away from the stem; a whorl turns the child around the stem before it steps out to its side,
-// then spins the blade onto its own midrib so its face points along the stem, not around it.
+// child away from the stem; the orbit (and a whorl) turns the child around the stem before it steps out
+// to its side; a whorl then spins the blade onto its own midrib so its face points along the stem.
 function childMatrix(
   parent: mat4,
   index: number,
@@ -301,7 +307,7 @@ function childMatrix(
   const m = mat4.clone(parent);
   mat4.translate(m, m, [0, position.y, position.z]);
   mat4.rotateX(m, m, -((stem.angle || 0) / 180) * Math.PI);
-  if (whorl) mat4.rotateY(m, m, rotationY);
+  mat4.rotateY(m, m, rotationY);
   mat4.translate(m, m, [position.x, 0, 0]);
   mat4.rotateZ(m, m, rotationZ);
   if (whorl) mat4.rotateY(m, m, Math.PI / 2);

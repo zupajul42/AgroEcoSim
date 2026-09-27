@@ -39,10 +39,9 @@ export function DoubleRangeSlider({
   // Passing the other end swaps the two; landing on it gives both ends the same value.
   const setHandle = (handle: Handle, v: number): Handle => {
     const other = handle === "min" ? valueMax : valueMin;
-    const val = snap(v);
-    const goesAbove = handle === "min" ? val > other : val >= other;
-    if (goesAbove) onChange(other, val);
-    else onChange(val, other);
+    const goesAbove = handle === "min" ? v > other : v >= other;
+    if (goesAbove) onChange(other, v);
+    else onChange(v, other);
     return goesAbove ? "max" : "min";
   };
 
@@ -58,7 +57,7 @@ export function DoubleRangeSlider({
   };
   // A swap hands the drag over to the other end, so the pointer keeps hold of the thumb it grabbed.
   const drag = (clientX: number) => {
-    const next = setHandle(dragging.current!, valueAt(clientX));
+    const next = setHandle(dragging.current!, snap(valueAt(clientX)));
     if (next !== dragging.current) focusHandle(next);
     dragging.current = next;
   };
@@ -87,7 +86,7 @@ export function DoubleRangeSlider({
     else if (e.key === "Home") target = min;
     else if (e.key === "End") target = max;
     else return;
-    const next = setHandle(handle, target);
+    const next = setHandle(handle, snap(target));
     if (next !== handle) focusHandle(next);
     e.preventDefault();
   };
@@ -109,18 +108,15 @@ export function DoubleRangeSlider({
       onKeyDown={onKeyDown(which)}
     />
   );
+
+  const commitNumber = (which: Handle, value: number) => (e: Event) => {
+    const input = e.currentTarget as HTMLInputElement;
+    const val = parseFloat(input.value);
+    if (isNaN(val)) input.value = String(value);
+    else setHandle(which, val);
+  };
   const number = (which: Handle, value: number) => (
-    <input
-      type="number"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onInput={(e) => {
-        const val = parseFloat(e.currentTarget.value);
-        if (!isNaN(val)) setHandle(which, val);
-      }}
-    />
+    <input type="number" step={step} value={value} onChange={commitNumber(which, value)} />
   );
 
   return (
