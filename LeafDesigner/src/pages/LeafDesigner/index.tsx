@@ -10,6 +10,7 @@ import {
   LeafShape,
 } from "../../types/leaf";
 import {
+  DEFAULT_STEM_WIDTH,
   defaultRachis,
   generateMesh,
   geometryTriangleCount,
@@ -265,7 +266,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         max: 1,
         step: 0.005,
         unit: "m",
-        value: target?.width || 0.1,
+        value: target?.width || DEFAULT_STEM_WIDTH,
         defaultValue: isPetiole ? 0.05 : type === "rachis" ? rachisFallback.width : 0.1,
         log: isPetiole,
       },

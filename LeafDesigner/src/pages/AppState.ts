@@ -71,7 +71,7 @@ class LeafStorage {
       name: "Unnamed leaf",
       instances: [{ shape: 0, scale: 1 }],
       petiole: { len: 3, width: 0.1, x: 0, y: 0, angle: 0 },
-      shape: [{ geom: createDefaultLodGeom(), petiolule: { len: 0, width: 0, x: 0, y: 0, angle: 0 } }],
+      shape: [{ geom: createDefaultLodGeom(), petiolule: { len: 0, width: 0.1, x: 0, y: 0, angle: 0 } }],
       colorRamp: DEFAULT_COLOR_RAMP.map((s) => ({ ...s })),
     };
   }

@@ -2,10 +2,19 @@
   position: relative;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
+  box-sizing: border-box;
   background-color: var(--bg-0);
   color: var(--fg-0);
   overflow: hidden;
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.geom-viewport input {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 #canvas {
@@ -14,6 +23,7 @@
   background-color: var(--bg-0);
   cursor: crosshair;
   touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .overlay-header {

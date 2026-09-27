@@ -45,6 +45,7 @@ interface PreviewProps {
 
 const EMPTY_MESH: MeshData = { position: [], index: [] };
 const NO_STEM: Petiole = { len: 0, width: 0, x: 0, y: 0, angle: 0 };
+export const DEFAULT_STEM_WIDTH = 0.1;
 
 const accentColor = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4e7711";
 
@@ -403,7 +404,13 @@ function buildShapeMesh(geomId: string): MeshData {
 /** The pinna stem a bipinnate leaf gets until one is set: a shorter, thinner copy of its petiole. */
 export function defaultRachis(petiole: Petiole): Petiole {
   const round2 = (v: number) => Math.round(v * 100) / 100;
-  return { len: round2((petiole?.len ?? 1) * 0.4), width: round2((petiole?.width || 0.2) * 0.6), angle: 0, x: 0, y: 0 };
+  return {
+    len: round2((petiole?.len ?? 1) * 0.4),
+    width: round2((petiole?.width || DEFAULT_STEM_WIDTH) * 0.6),
+    angle: 0,
+    x: 0,
+    y: 0,
+  };
 }
 
 /**
@@ -428,14 +435,14 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
 
   const petiole: Petiole = leaf.petiole ?? { ...NO_STEM, len: 1 };
   const petioleLength = petiole.len ?? 1;
-  const petioleWidth = petiole.width || 0.2;
+  const petioleWidth = petiole.width || DEFAULT_STEM_WIDTH;
   if (petioleLength > 0) append(boxMesh(petioleWidth, petioleLength, petioleWidth), mat4.create());
 
   const shape: LeafShape = leaf.shape?.[0] ?? { geom: ["def:obovate"], petiolule: NO_STEM };
   const petioluleLength = shape.petiolule?.len || 0;
+  const petioluleWidth = shape.petiolule?.width || DEFAULT_STEM_WIDTH;
   const petioluleAngleRad = -((shape.petiolule?.angle || 0) / 180) * Math.PI;
-  const petioluleMesh =
-    petioluleLength > 0 ? boxMesh(shape.petiolule.width || 0, petioluleLength, shape.petiolule.width || 0) : null;
+  const petioluleMesh = petioluleLength > 0 ? boxMesh(petioluleWidth, petioluleLength, petioluleWidth) : null;
   const bladeMesh = generateShapeMesh(shape, lod);
   const bladeScaleX = resolveLodScale(shape.scaleX, lod);
   const bladeScaleY = resolveLodScale(shape.scaleY, lod);
@@ -467,7 +474,8 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
   if (layout?.type === "bipinnate") {
     const rachis = layout.rachis ?? defaultRachis(petiole);
     const pinnaCount = Math.max(1, Math.round(layout.pinnaCount ?? 5));
-    const rachisMesh = rachis.len > 0 ? boxMesh(rachis.width || 0, rachis.len, rachis.width || 0) : null;
+    const rachisWidth = rachis.width || DEFAULT_STEM_WIDTH;
+    const rachisMesh = rachis.len > 0 ? boxMesh(rachisWidth, rachis.len, rachisWidth) : null;
     for (let p = 0; p < pinnaCount; p++) {
       const pinna = childMatrix(mat4.create(), p, pinnaCount, petiole, layout, seed, p);
       if (rachisMesh) append(rachisMesh, pinna);
