@@ -304,7 +304,7 @@ export function GeomEditor({ id }: { id: string }) {
     regenOutline(undefined, params, false);
   };
 
-  const veinMergeThreshold = () => (enableSnap && gridSnap > 0 ? Math.max(gridSnap * 0.6, 0.05) : 0.08);
+  const veinMergeThreshold = () => (enableSnap && gridSnap > 0 ? gridSnap - 1e-6 : 0.08);
 
   const snapToAxis = (rawX: number) => {
     const ax = Math.abs(rawX);

@@ -5,8 +5,9 @@ import { sampleColorRamp } from "../../utils/colorRamp";
 import { Leaf, LeafGeometry } from "../../types/leaf";
 import { state } from "../AppState";
 import { mostDetailedLod } from "../../utils/lod";
-import { fromExportableLeaf } from "../../utils/leafConfigIO";
+import { fromExportableLeaf, toExportableLeaf } from "../../utils/leafConfigIO";
 import { downloadFile } from "../../utils/download";
+import { fitBytes, tarArchive } from "../../utils/tar";
 import { bounds } from "../../utils/math";
 import "./style.css";
 
@@ -29,6 +30,9 @@ function GeomPreview({ geomId }: { geomId: string }) {
     </svg>
   );
 }
+
+const fileBase = (name: string) => fitBytes(name.replace(/[\/\\:\x00-\x1f]/g, "_").trim() || "leaf", 80);
+const leafConfig = (leaf: Leaf) => JSON.stringify(toExportableLeaf(leaf), null, 2);
 
 const readText = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -68,6 +72,11 @@ export function Library() {
     e.stopPropagation();
     state.leafs.add({ ...JSON.parse(JSON.stringify(leaf)), name: state.leafs.uniqueName(`${leaf.name} (Copy)`) });
     refresh();
+  };
+
+  const exportLeaf = (e: MouseEvent, leaf: Leaf) => {
+    e.stopPropagation();
+    downloadFile(`${fileBase(leaf.name)}.json`, leafConfig(leaf));
   };
 
   const removeLeaf = (e: MouseEvent, index: number) => {
@@ -110,10 +119,32 @@ export function Library() {
     refresh();
   };
 
+  const exportLeafs = () => {
+    const used = new Set<string>();
+    const files = leafs.map((leaf) => {
+      const base = fileBase(leaf.name);
+      let name = base;
+      for (let counter = 2; used.has(name); counter++) name = `${base} (${counter})`;
+      used.add(name);
+      return { name: `${name}.json`, content: leafConfig(leaf) };
+    });
+    downloadFile("leaves.tar", tarArchive(files), "application/x-tar");
+  };
+
   const exportGeoms = () => downloadFile("geometries.json", JSON.stringify(state.geoms.all(), null, 2));
 
-  const cardActions = (onDuplicate: (e: MouseEvent) => void, onDelete: (e: MouseEvent) => void, what: string) => (
+  const cardActions = (
+    onDuplicate: (e: MouseEvent) => void,
+    onDelete: (e: MouseEvent) => void,
+    what: string,
+    onExport?: (e: MouseEvent) => void,
+  ) => (
     <div class="card-actions">
+      {onExport && (
+        <button class="card-action-btn export-btn" onClick={onExport} title={`Export ${what}`}>
+          ⤓
+        </button>
+      )}
       <button class="card-action-btn duplicate-btn" onClick={onDuplicate} title={`Duplicate ${what}`}>
         ⧉
       </button>
@@ -128,10 +159,13 @@ export function Library() {
       <section>
         <div class="section-header">
           <h1>Leaf Models</h1>
-          <label class="button">
-            Load Config (.json)
-            <input type="file" accept=".json" hidden onInput={(e) => importLeafs(e.currentTarget.files)} />
-          </label>
+          <div class="btn-group">
+            <label class="button">
+              Load Leaves (.json)
+              <input type="file" accept=".json" multiple hidden onInput={(e) => importLeafs(e.currentTarget.files)} />
+            </label>
+            <button onClick={exportLeafs}>Export All</button>
+          </div>
         </div>
 
         <div class="leaf-list">
@@ -141,6 +175,7 @@ export function Library() {
                 (e) => duplicateLeaf(e, leaf),
                 (e) => removeLeaf(e, i),
                 "leaf model",
+                (e) => exportLeaf(e, leaf),
               )}
               <Preview
                 width="100%"

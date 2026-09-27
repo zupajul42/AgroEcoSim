@@ -25,7 +25,7 @@ import { applyMarginTeethToOutline, marginOutlineShaper, resolveMarginParams } f
 import { resolveLodGeom, resolveLodScale } from "../../utils/lod";
 import { renderTo } from "../../utils/sharedRenderer";
 import { resolveRandomValue } from "../../utils/random";
-import { clamp01, size } from "../../utils/math";
+import { size } from "../../utils/math";
 import { vec3, mat4 } from "gl-matrix";
 
 interface PreviewProps {
@@ -235,7 +235,9 @@ function childTransform(
     terminalLeaf,
     angle,
     orbit,
-    distributionCurve = 1,
+    zoneStart = 0,
+    zoneEnd = 0.95,
+    spacingTaper = 1,
     whorlSize = 3,
   } = layout ?? {
     type: "palmate",
@@ -278,17 +280,26 @@ function childTransform(
         position.x = halfWidth * (isLeft ? -1 : 1);
       }
 
-      // Children spread over the top `distributionCurve` share of the stem, ending at 95%.
-      const maxH = 0.95;
-      const minH = maxH - Math.max(0.02, Math.min(1, distributionCurve)) * maxH;
-      const heightAt = (t: number) => minH + clamp01(t) * (maxH - minH);
       const nodeIndex = Math.floor(index / perNode);
       const nodeCount = Math.ceil(sideCount / perNode);
-      position.y = stemLength * heightAt(nodeCount > 1 ? nodeIndex / (nodeCount - 1) : 0);
+      position.y = stemLength * nodeHeight(nodeIndex, nodeCount, zoneStart, zoneEnd, spacingTaper);
     }
   }
 
   return { position, whorl, rotationY, rotationZ };
+}
+
+function nodeHeight(k: number, count: number, start: number, end: number, taper: number) {
+  if (count < 2) return start;
+  const gap = (end - start) / (count - 1);
+  const t = Math.max(0.01, taper);
+  const ratio = count > 2 ? Math.pow(Math.min(t, 1 / t), 1 / (count - 2)) : 1;
+
+  const fromCrowded = (i: number) =>
+    Math.abs(ratio - 1) < 1e-9
+      ? gap * (count - 1 - i)
+      : (gap * (Math.pow(ratio, i) - Math.pow(ratio, count - 1))) / (1 - ratio);
+  return t <= 1 ? end - fromCrowded(k) : start + fromCrowded(count - 1 - k);
 }
 
 // Matrix of child `index` of `count` on the stem whose base `parent` places. The stem angle tilts the

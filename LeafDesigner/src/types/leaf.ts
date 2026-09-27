@@ -89,7 +89,9 @@ export interface LeafLayout {
   type: LeafLayoutType;
   arrangement: LeafArrangement;
   terminalLeaf: boolean;
-  distributionCurve?: number;
+  zoneStart?: number; // pinnate: lowest node as a fraction of the stem length
+  zoneEnd?: number; // pinnate: highest node (below the terminal leaflet) as a fraction of the stem length
+  spacingTaper?: number; // pinnate: 1 = even, < 1 nodes crowd toward zoneEnd, > 1 toward zoneStart
   whorlSize?: number; // leaflets per node for the whorled arrangement
   pinnaCount?: number; // bipinnate: pinnae along the petiole, each carrying all instances
   rachis?: Petiole; // bipinnate: the stem of one pinna

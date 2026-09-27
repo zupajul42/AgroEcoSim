@@ -432,14 +432,26 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                   )}
                   {angleSlider("Branch Angle", "angle", 0, 180, 1, 60)}
                   {angleSlider("Orbit Angle", "orbit", 0, 360, 1, 0)}
-                  <SliderInput
-                    label="Leaflet Distribution"
-                    min={0.05}
+                  <DoubleRangeSlider
+                    label="Leaflet Zone"
+                    min={0}
                     max={1}
-                    step={0.05}
+                    step={0.01}
+                    valueMin={leaf.layout?.zoneStart ?? 0}
+                    valueMax={leaf.layout?.zoneEnd ?? 0.95}
+                    onChange={(lo, hi) => updateLayout({ zoneStart: lo, zoneEnd: hi })}
+                    defaultMin={0}
+                    defaultMax={0.95}
+                  />
+                  <SliderInput
+                    label="Spacing Taper"
+                    min={0.1}
+                    max={10}
+                    step={0.01}
                     unit="x"
-                    value={leaf.layout?.distributionCurve || 1}
-                    onInput={(val) => updateLayout({ distributionCurve: val })}
+                    log
+                    value={leaf.layout?.spacingTaper ?? 1}
+                    onInput={(val) => updateLayout({ spacingTaper: val })}
                     defaultValue={1}
                   />
                   <label class="label-row">

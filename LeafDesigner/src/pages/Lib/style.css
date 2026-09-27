@@ -109,7 +109,8 @@
   color: #ffffff;
 }
 
-.card-action-btn.duplicate-btn:hover {
+.card-action-btn.duplicate-btn:hover,
+.card-action-btn.export-btn:hover {
   background-color: var(--accent);
   color: #ffffff;
 }

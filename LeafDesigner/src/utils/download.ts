@@ -1,5 +1,5 @@
 /** Offers `content` as a file download in the browser. */
-export function downloadFile(name: string, content: string, type = "application/json") {
+export function downloadFile(name: string, content: BlobPart, type = "application/json") {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const a = document.createElement("a");
   a.href = url;
