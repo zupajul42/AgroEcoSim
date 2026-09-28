@@ -128,32 +128,29 @@ class LeafStorage {
   }
 }
 
+const isBuiltIn = (g: LeafGeometry) => String(g.id).startsWith("def:");
+
 class GeometryStorage {
   private geomLib: LeafGeometry[] = [];
 
   public revision: number = 0;
 
   private save() {
-    window.localStorage.setItem(STORAGE_KEYS.geoms, JSON.stringify(this.geomLib));
+    const custom = this.geomLib.filter((g) => !isBuiltIn(g));
+    window.localStorage.setItem(STORAGE_KEYS.geoms, JSON.stringify(custom));
     this.revision++;
   }
 
   private load() {
     const lib = window.localStorage.getItem(STORAGE_KEYS.geoms);
-    this.geomLib = lib ? JSON.parse(lib) : [];
+    const stored: LeafGeometry[] = lib ? JSON.parse(lib) : [];
+    this.geomLib = [...PREDEFINED_GEOMETRIES, ...stored.filter((g) => !isBuiltIn(g))];
     return this.geomLib;
   }
 
-  /** All stored geometries; the built-in ones are added on first use. */
+  /** All geometries: the built-in ones first, then the stored ones. */
   all(): LeafGeometry[] {
-    this.load();
-    for (const p of PREDEFINED_GEOMETRIES) {
-      if (!this.geomLib.some((g) => g.id === p.id)) {
-        this.geomLib.push(p);
-        this.save();
-      }
-    }
-    return this.geomLib;
+    return this.load();
   }
 
   get(id: string) {
