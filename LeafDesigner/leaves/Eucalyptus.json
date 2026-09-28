@@ -1,0 +1,100 @@
+{
+  "name": "Eucalyptus",
+  "instances": [
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    }
+  ],
+  "petiole": {
+    "len": 3,
+    "width": 0.1,
+    "x": 0,
+    "y": 0,
+    "angle": 0
+  },
+  "shape": [
+    {
+      "geom": [
+        "def:quad",
+        "def:orbicular"
+      ],
+      "petiolule": {
+        "len": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0,
+        "angle": 0
+      }
+    }
+  ],
+  "colorRamp": [
+    {
+      "t": 0,
+      "color": "#65ba80"
+    },
+    {
+      "t": 1,
+      "color": "#63865b"
+    }
+  ],
+  "layout": {
+    "type": "pinnate",
+    "arrangement": "whorled",
+    "terminalLeaf": true,
+    "angle": 60,
+    "whorlSize": 2,
+    "orbit": {
+      "min": 0,
+      "max": 90
+    }
+  },
+  "randomSeed": 304779128
+}

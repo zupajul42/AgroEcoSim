@@ -1,0 +1,261 @@
+{
+  "name": "Honey Locust",
+  "instances": [
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": 0
+    }
+  ],
+  "petiole": {
+    "len": 6.7,
+    "width": 0.12,
+    "x": 0,
+    "y": 0,
+    "angle": 0
+  },
+  "shape": [
+    {
+      "geom": [
+        "def:quad",
+        "def:ovate",
+        {
+          "id": "geom:d17kmlc",
+          "name": "Honey Locust Leaflet",
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0.0103,
+              "y": 0.0034
+            },
+            {
+              "x": 0.0365,
+              "y": 0.0142
+            },
+            {
+              "x": 0.075,
+              "y": 0.035
+            },
+            {
+              "x": 0.193,
+              "y": 0.0904
+            },
+            {
+              "x": 0.3239,
+              "y": 0.1674
+            },
+            {
+              "x": 0.4415,
+              "y": 0.3207
+            },
+            {
+              "x": 0.5622,
+              "y": 0.7633
+            },
+            {
+              "x": 0.5635,
+              "y": 1.2757
+            },
+            {
+              "x": 0.4389,
+              "y": 1.7315
+            },
+            {
+              "x": 0.2728,
+              "y": 1.9261
+            },
+            {
+              "x": 0.0885,
+              "y": 2.035
+            },
+            {
+              "x": 0,
+              "y": 2.07
+            },
+            {
+              "x": -0.0885,
+              "y": 2.035
+            },
+            {
+              "x": -0.2728,
+              "y": 1.9261
+            },
+            {
+              "x": -0.4389,
+              "y": 1.7315
+            },
+            {
+              "x": -0.5635,
+              "y": 1.2757
+            },
+            {
+              "x": -0.5622,
+              "y": 0.7633
+            },
+            {
+              "x": -0.4415,
+              "y": 0.3207
+            },
+            {
+              "x": -0.3239,
+              "y": 0.1674
+            },
+            {
+              "x": -0.193,
+              "y": 0.0904
+            },
+            {
+              "x": -0.075,
+              "y": 0.035
+            },
+            {
+              "x": -0.0365,
+              "y": 0.0142
+            },
+            {
+              "x": -0.0103,
+              "y": 0.0034
+            }
+          ],
+          "veins": {
+            "root": {
+              "id": "vein-root",
+              "x": 0,
+              "y": 0,
+              "children": [
+                {
+                  "id": "vein-k8w1fxm",
+                  "x": 0,
+                  "y": 0.1,
+                  "children": [
+                    {
+                      "id": "vein-qsqcb24",
+                      "x": 0,
+                      "y": 1,
+                      "children": [
+                        {
+                          "id": "vein-69hj8za",
+                          "x": 0,
+                          "y": 1.8,
+                          "children": []
+                        },
+                        {
+                          "id": "vein-0w3qjlc",
+                          "x": 0.3,
+                          "y": 1.5,
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "id": "vein-lb6lgfp",
+                      "x": 0.2,
+                      "y": 0.2,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            "params": {
+              "lobeDepth": 0,
+              "lobeThreshold": 0,
+              "tipOffset": 0.27,
+              "lateralOffset": 0,
+              "curvature": 0.66,
+              "subdivisions": 3
+            }
+          }
+        }
+      ],
+      "petiolule": {
+        "len": 0,
+        "width": 0.1,
+        "x": 0,
+        "y": 0,
+        "angle": 0
+      }
+    }
+  ],
+  "colorRamp": [
+    {
+      "t": 0,
+      "color": "#4e8f2f"
+    },
+    {
+      "t": 1,
+      "color": "#8a6d3b"
+    }
+  ],
+  "layout": {
+    "type": "bipinnate",
+    "arrangement": "opposite",
+    "terminalLeaf": true,
+    "angle": {
+      "min": 58,
+      "max": 70
+    },
+    "rachis": {
+      "len": 4,
+      "width": 0.12,
+      "angle": 0,
+      "x": 0,
+      "y": 0
+    },
+    "zoneStart": 0.18,
+    "zoneEnd": 0.88,
+    "pinnaCount": 7,
+    "orbit": {
+      "min": 0,
+      "max": 19
+    }
+  }
+}

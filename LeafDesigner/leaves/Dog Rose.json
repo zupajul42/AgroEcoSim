@@ -1,0 +1,234 @@
+{
+  "name": "Dog Rose",
+  "instances": [
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": -0.2
+    },
+    {
+      "shape": 0,
+      "scale": 1,
+      "scaleOffset": -0.2
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    },
+    {
+      "shape": 0,
+      "scale": 1
+    }
+  ],
+  "petiole": {
+    "len": 0.99,
+    "width": 0.055,
+    "x": 0,
+    "y": 0,
+    "angle": -4
+  },
+  "shape": [
+    {
+      "geom": [
+        "def:quad",
+        "def:ovate",
+        {
+          "id": "geom:dxusdhr",
+          "name": "Dog Rose Leaflet",
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0.0081,
+              "y": 0.0113
+            },
+            {
+              "x": 0.0374,
+              "y": 0.0523
+            },
+            {
+              "x": 0.1,
+              "y": 0.14
+            },
+            {
+              "x": 0.3039,
+              "y": 0.3496
+            },
+            {
+              "x": 0.4823,
+              "y": 0.5234
+            },
+            {
+              "x": 0.616,
+              "y": 0.862
+            },
+            {
+              "x": 0.6511,
+              "y": 1.1064
+            },
+            {
+              "x": 0.609,
+              "y": 1.2611
+            },
+            {
+              "x": 0.4909,
+              "y": 1.4909
+            },
+            {
+              "x": 0.2891,
+              "y": 1.7961
+            },
+            {
+              "x": 0.091,
+              "y": 1.9962
+            },
+            {
+              "x": 0,
+              "y": 2.07
+            },
+            {
+              "x": -0.091,
+              "y": 1.9962
+            },
+            {
+              "x": -0.2891,
+              "y": 1.7961
+            },
+            {
+              "x": -0.4909,
+              "y": 1.4909
+            },
+            {
+              "x": -0.609,
+              "y": 1.2611
+            },
+            {
+              "x": -0.6511,
+              "y": 1.1064
+            },
+            {
+              "x": -0.616,
+              "y": 0.862
+            },
+            {
+              "x": -0.4823,
+              "y": 0.5234
+            },
+            {
+              "x": -0.3039,
+              "y": 0.3496
+            },
+            {
+              "x": -0.1,
+              "y": 0.14
+            },
+            {
+              "x": -0.0374,
+              "y": 0.0523
+            },
+            {
+              "x": -0.0081,
+              "y": 0.0113
+            }
+          ],
+          "veins": {
+            "root": {
+              "id": "vein-root",
+              "x": 0,
+              "y": 0,
+              "children": [
+                {
+                  "id": "vein-k8w1fxm",
+                  "x": 0,
+                  "y": 0.4,
+                  "children": [
+                    {
+                      "id": "vein-qsqcb24",
+                      "x": 0,
+                      "y": 1,
+                      "children": [
+                        {
+                          "id": "vein-69hj8za",
+                          "x": 0,
+                          "y": 1.8,
+                          "children": []
+                        },
+                        {
+                          "id": "vein-0w3qjlc",
+                          "x": 0.3,
+                          "y": 1.3,
+                          "children": [],
+                          "curvature": 0.66
+                        }
+                      ]
+                    },
+                    {
+                      "id": "vein-lb6lgfp",
+                      "x": 0.4,
+                      "y": 0.7,
+                      "children": []
+                    }
+                  ],
+                  "fold": 10
+                }
+              ],
+              "lobeThreshold": 0
+            },
+            "params": {
+              "lobeDepth": 0,
+              "lobeThreshold": 0,
+              "tipOffset": 0.27,
+              "lateralOffset": 0,
+              "curvature": 1,
+              "subdivisions": 3
+            }
+          },
+          "margin": "serrate",
+          "marginToothCount": 19,
+          "marginToothHeight": 0.45
+        }
+      ],
+      "petiolule": {
+        "len": 0.06,
+        "width": 0.045,
+        "x": 0,
+        "y": 0,
+        "angle": 0
+      },
+      "scaleY": [
+        1,
+        {
+          "min": 1,
+          "max": 1.05
+        }
+      ]
+    }
+  ],
+  "colorRamp": [
+    {
+      "t": 0,
+      "color": "#4e8f2f"
+    },
+    {
+      "t": 1,
+      "color": "#8a6d3b"
+    }
+  ],
+  "layout": {
+    "type": "pinnate",
+    "arrangement": "opposite",
+    "terminalLeaf": true,
+    "angle": {
+      "min": 74,
+      "max": 78
+    },
+    "zoneStart": 0.3,
+    "zoneEnd": 0.92
+  }
+}

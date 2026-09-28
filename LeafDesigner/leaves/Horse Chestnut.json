@@ -1,0 +1,312 @@
+{
+  "name": "Horse Chestnut",
+  "shape": [
+    {
+      "geom": [
+        "def:quad",
+        "def:obovate",
+        {
+          "id": "geom:76ja2tc",
+          "name": "Horse Chestnut Leaflet",
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 0.04,
+              "y": 0.0552
+            },
+            {
+              "x": 0.1415,
+              "y": 0.2026
+            },
+            {
+              "x": 0.2832,
+              "y": 0.4248
+            },
+            {
+              "x": 0.4172,
+              "y": 0.6305
+            },
+            {
+              "x": 0.5052,
+              "y": 0.7723
+            },
+            {
+              "x": 0.6061,
+              "y": 1.0061
+            },
+            {
+              "x": 0.6708,
+              "y": 1.2025
+            },
+            {
+              "x": 0.7255,
+              "y": 1.4279
+            },
+            {
+              "x": 0.746,
+              "y": 1.6216
+            },
+            {
+              "x": 0.7276,
+              "y": 1.7881
+            },
+            {
+              "x": 0.6808,
+              "y": 1.9683
+            },
+            {
+              "x": 0.6061,
+              "y": 2.1061
+            },
+            {
+              "x": 0.3604,
+              "y": 2.268
+            },
+            {
+              "x": 0.1142,
+              "y": 2.3356
+            },
+            {
+              "x": 0,
+              "y": 2.35
+            },
+            {
+              "x": -0.1142,
+              "y": 2.3356
+            },
+            {
+              "x": -0.3604,
+              "y": 2.268
+            },
+            {
+              "x": -0.6061,
+              "y": 2.1061
+            },
+            {
+              "x": -0.6808,
+              "y": 1.9683
+            },
+            {
+              "x": -0.7276,
+              "y": 1.7881
+            },
+            {
+              "x": -0.746,
+              "y": 1.6216
+            },
+            {
+              "x": -0.7255,
+              "y": 1.4279
+            },
+            {
+              "x": -0.6708,
+              "y": 1.2025
+            },
+            {
+              "x": -0.6061,
+              "y": 1.0061
+            },
+            {
+              "x": -0.5052,
+              "y": 0.7723
+            },
+            {
+              "x": -0.4172,
+              "y": 0.6305
+            },
+            {
+              "x": -0.2832,
+              "y": 0.4248
+            },
+            {
+              "x": -0.1415,
+              "y": 0.2026
+            },
+            {
+              "x": -0.04,
+              "y": 0.0552
+            }
+          ],
+          "veins": {
+            "root": {
+              "id": "vein-root",
+              "x": 0,
+              "y": 0,
+              "children": [
+                {
+                  "id": "vein-mid-1",
+                  "x": 0,
+                  "y": 0.4,
+                  "children": [
+                    {
+                      "id": "vein-1",
+                      "x": 0.5,
+                      "y": 0.9,
+                      "children": []
+                    },
+                    {
+                      "id": "vein-mid-2",
+                      "x": 0,
+                      "y": 1,
+                      "children": [
+                        {
+                          "id": "vein-2",
+                          "x": 0.6,
+                          "y": 1.5,
+                          "children": [],
+                          "curvature": 0,
+                          "tipOffset": 0.19
+                        },
+                        {
+                          "id": "vein-mid-3",
+                          "x": 0,
+                          "y": 1.5,
+                          "children": [
+                            {
+                              "id": "vein-3",
+                              "x": 0.5,
+                              "y": 2,
+                              "children": []
+                            },
+                            {
+                              "id": "vein-apex",
+                              "x": 0,
+                              "y": 2.2,
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "vein-190lu23",
+                  "x": 0.2,
+                  "y": 0.3,
+                  "children": []
+                }
+              ]
+            },
+            "params": {
+              "lobeDepth": 0,
+              "lobeThreshold": 0,
+              "curvature": 0.82,
+              "subdivisions": 3,
+              "tipOffset": 0.15,
+              "lateralOffset": 0
+            }
+          },
+          "margin": "incised",
+          "marginToothCount": 19
+        }
+      ],
+      "margin": "serrate",
+      "venation": "palmate",
+      "folding": "none",
+      "petiolule": {
+        "len": 0,
+        "angle": 0,
+        "width": 0.05,
+        "x": 0,
+        "y": 0
+      },
+      "scaleX": [
+        {
+          "min": 0.45,
+          "max": 0.55
+        },
+        {
+          "min": 0.8,
+          "max": 0.9
+        },
+        {
+          "min": 0.8,
+          "max": 0.9
+        }
+      ],
+      "scaleY": [
+        {
+          "min": 1.05,
+          "max": 1.15
+        }
+      ]
+    }
+  ],
+  "layout": {
+    "type": "palmate",
+    "arrangement": "opposite",
+    "terminalLeaf": true,
+    "angle": {
+      "min": 240,
+      "max": 275
+    },
+    "pinnaCount": 6,
+    "rachis": {
+      "len": 1.2,
+      "width": 0.01,
+      "angle": 0,
+      "x": 0,
+      "y": 0
+    }
+  },
+  "instances": [
+    {
+      "shape": 0,
+      "scale": {
+        "min": 1.05,
+        "max": 1.05
+      },
+      "scaleOffset": 0
+    },
+    {
+      "shape": 0,
+      "scale": {
+        "min": 1.05,
+        "max": 1.05
+      }
+    },
+    {
+      "shape": 0,
+      "scale": {
+        "min": 1.05,
+        "max": 1.05
+      }
+    },
+    {
+      "shape": 0,
+      "scale": {
+        "min": 1.05,
+        "max": 1.05
+      }
+    },
+    {
+      "shape": 0,
+      "scale": {
+        "min": 1.05,
+        "max": 1.05
+      }
+    }
+  ],
+  "petiole": {
+    "len": 1.145,
+    "angle": 0,
+    "width": 0.0215,
+    "x": 0,
+    "y": 0
+  },
+  "colorRamp": [
+    {
+      "t": 0,
+      "color": "#7ad000"
+    },
+    {
+      "t": 1,
+      "color": "#8a6d3b"
+    }
+  ],
+  "randomSeed": 1743820523
+}
