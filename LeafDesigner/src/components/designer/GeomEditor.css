@@ -221,3 +221,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+.vein-params-panel .double-range-slider input[type="number"] {
+  width: 56px;
+}

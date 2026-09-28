@@ -12,6 +12,7 @@ export const DEFAULT_VEIN_PARAMS: VeinGenParams = {
   lateralOffset: 0,
   curvature: 0.5,
   subdivisions: 6,
+  marginInfluence: 1,
 };
 
 export const MAX_ROTATION_DEG = 180;
@@ -114,6 +115,10 @@ export function getEffectiveTipParams(node: VeinNode, params: VeinGenParams) {
 
 export function getEffectiveLateralOffset(node: VeinNode, params: VeinGenParams): number {
   return node.lateralOffset ?? params.lateralOffset ?? 0;
+}
+
+export function getEffectiveMarginInfluence(node: VeinNode, params: VeinGenParams): number {
+  return node.marginInfluence ?? params.marginInfluence ?? 1;
 }
 
 export function getEffectiveLobeDepth(node: VeinNode, params: VeinGenParams): number {
@@ -264,8 +269,20 @@ function reparentCollinearChildren(node: VeinNode): VeinNode {
   return { ...node, children: merged };
 }
 
-// A key point that knows which tip or which joint's side point (and where that joint is) it is.
-type KeyEntry = KeyPoint & { tipId?: string; lateralId?: string; joint?: Point; dir?: Point };
+// A key point that knows which tip or which joint's side point (and where that joint is) it is,
+// or that it is the notch between a joint's sibling veins; `dir` is the direction of the vein
+// reaching it (parent -> tip, joint -> side point), `influence` the margin influence it carries.
+type KeyEntry = KeyPoint & {
+  tipId?: string;
+  lateralId?: string;
+  notch?: boolean;
+  joint?: Point;
+  dir?: Point;
+  influence?: number;
+};
+
+// A key point the margin must keep as a ring point (root, tips, side points, notches).
+type PinnedKey = { key: number; dir: Point | null; influence: number };
 
 // remove lateral points that are inside the leaf polygon
 function dropInwardSidePoints(entries: KeyEntry[], root: VeinNode): KeyEntry[] {
@@ -304,18 +321,21 @@ function dropInwardSidePoints(entries: KeyEntry[], root: VeinNode): KeyEntry[] {
 // point, `lateralKeyIndex` each node id to its side points.
 function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
   const { tipOffset, curvature } = params;
-  const entries: KeyEntry[] = [{ x: 0, y: 0, curvature }];
+  const entries: KeyEntry[] = [{ x: 0, y: 0, curvature, influence: getEffectiveMarginInfluence(root, params) }];
 
   const indexed = (list: KeyEntry[]) => {
     const tipKeyIndex = new Map<string, number>();
     const lateralKeyIndex = new Map<string, number[]>();
+    const pinnedKeys: PinnedKey[] = [];
     list.forEach((e, i) => {
       if (e.tipId) tipKeyIndex.set(e.tipId, i);
       if (e.lateralId) lateralKeyIndex.set(e.lateralId, [...(lateralKeyIndex.get(e.lateralId) ?? []), i]);
+      if (i === 0 || e.tipId || e.lateralId || e.notch) {
+        pinnedKeys.push({ key: i, dir: e.dir ?? null, influence: e.influence ?? 1 });
+      }
     });
     const keyPoints: KeyPoint[] = list.map(({ x, y, curvature }) => ({ x, y, curvature }));
-    const keyDirs = list.map((e) => e.dir ?? null);
-    return { keyPoints, tipKeyIndex, lateralKeyIndex, keyDirs };
+    return { keyPoints, tipKeyIndex, lateralKeyIndex, pinnedKeys };
   };
 
   if (root.children.length === 0) {
@@ -367,6 +387,8 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
             x: round(Math.max(lerp((prev.x + child.x) / 2, node.x, depth), 0)),
             y: round(lerp((prev.y + child.y) / 2, node.y, depth)),
             curvature: sinusCurvature(curvature),
+            notch: true,
+            influence: getEffectiveMarginInfluence(node, params),
           });
         }
       }
@@ -379,12 +401,19 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
         lateralId: child.id,
         joint: child,
         dir: unit(child, p) ?? undefined,
+        influence: getEffectiveMarginInfluence(child, params),
       });
       if (side) entries.push(sidePoint(side.entry));
       if (child.children.length === 0) {
         const tip = getEffectiveTipParams(child, params);
         const point = extendFrom(node, child, tip.tipOffset);
-        entries.push({ ...point, curvature: tip.curvature, tipId: child.id, dir: unit(node, point) ?? undefined });
+        entries.push({
+          ...point,
+          curvature: tip.curvature,
+          tipId: child.id,
+          dir: unit(node, point) ?? undefined,
+          influence: getEffectiveMarginInfluence(child, params),
+        });
       } else {
         walk(child, node);
       }
@@ -450,11 +479,13 @@ function mirrorHalfOutline(half: Point[]): Point[] {
 // stretch of outline and the two vein paths back to their common joint; each face is
 // triangulated on its own. Bend and fold are applied last as smooth deformations of the flat mesh.
 
-/** A ring point that touches the vein tree (root, tip or side point of a joint) and the unit
- *  direction of the vein reaching it: parent -> tip, joint -> side point, null for the root. */
+/** A ring point that belongs to the vein tree (root, tip, side point of a joint, or the notch
+ *  between a joint's sibling veins) and the unit direction of the vein reaching it: parent -> tip,
+ *  joint -> side point, null for the root and the notches. */
 export interface OutlinePin {
   index: number;
   direction: Point | null;
+  influence: number;
 }
 
 /** Reshapes the flat outline ring before triangulation (margin teeth). May move points and
@@ -464,12 +495,7 @@ export type OutlineShaper = (ring: Point[], pins: OutlinePin[]) => { ring: Point
 
 // The ring, built like `mirrorHalfOutline` but tracked per point, plus a pin for every key point
 // in `pinnedKeys` on both halves (a key point cut off by an overlapping lobe has none).
-function ringLayout(
-  half: Point[],
-  keyAt: number[],
-  pinnedKeys: { key: number; dir: Point | null }[],
-  mirrorX: boolean,
-) {
+function ringLayout(half: Point[], keyAt: number[], pinnedKeys: PinnedKey[], mirrorX: boolean) {
   const ringPoints = half.map((_, i) => ({ halfIdx: i, mirrored: false }));
   const mirroredRingPos = new Map<number, number>();
   if (mirrorX) {
@@ -484,36 +510,26 @@ function ringLayout(
     x: mirrored ? -half[halfIdx].x : half[halfIdx].x,
     y: half[halfIdx].y,
   }));
-  const pins = new Map<number, Point | null>([[0, null]]);
-  for (const { key, dir } of pinnedKeys) {
+  const pins = new Map<number, Omit<OutlinePin, "index">>();
+  for (const { key, dir, influence } of pinnedKeys) {
     const halfIdx = keyAt[key];
     if (halfIdx < 0) continue;
-    pins.set(halfIdx, dir);
+    pins.set(halfIdx, { direction: dir, influence });
     const mirroredPos = mirroredRingPos.get(halfIdx);
-    if (mirroredPos !== undefined) pins.set(mirroredPos, dir && { x: -dir.x, y: dir.y });
+    if (mirroredPos !== undefined) pins.set(mirroredPos, { direction: dir && { x: -dir.x, y: dir.y }, influence });
   }
-  const sorted = [...pins].sort(([a], [b]) => a - b).map(([index, direction]) => ({ index, direction }));
+  const sorted = [...pins].sort(([a], [b]) => a - b).map(([index, pin]) => ({ index, ...pin }));
   return { mirroredRingPos, flatRing, pins: sorted };
 }
 
-// Every tip and side key point with the direction of its vein.
-function pinnedKeys(
-  tipKeyIndex: Map<string, number>,
-  lateralKeyIndex: Map<string, number[]>,
-  keyDirs: (Point | null)[],
-) {
-  const keys = [...tipKeyIndex.values(), ...[...lateralKeyIndex.values()].flat()];
-  return keys.map((key) => ({ key, dir: keyDirs[key] }));
-}
-
-/** Ring indices of the outline points that touch the vein tree (root, tips and the side points of
- *  joints), for the ring `generateOutlineFromVeins` returns with the same options. */
+/** The pins (root, tips, side points of joints and notches between sibling veins) for the ring
+ *  `generateOutlineFromVeins` returns with the same options. */
 export function outlinePins(veins: VeinData, options: { mirrorX: boolean; params?: VeinGenParams }): OutlinePin[] {
   const params = options.params || veins.params || DEFAULT_VEIN_PARAMS;
   const root = reparentCollinearChildren(veins.root);
-  const { keyPoints, tipKeyIndex, lateralKeyIndex, keyDirs } = buildOutlineKeyPoints(root, params);
+  const { keyPoints, tipKeyIndex, pinnedKeys } = buildOutlineKeyPoints(root, params);
   const { half, keyAt } = halfOutline(keyPoints, params.subdivisions, new Set(tipKeyIndex.values()));
-  return ringLayout(half, keyAt, pinnedKeys(tipKeyIndex, lateralKeyIndex, keyDirs), options.mirrorX).pins;
+  return ringLayout(half, keyAt, pinnedKeys, options.mirrorX).pins;
 }
 
 // A joint or tip of the (mirrored) vein tree as placed in the mesh.
@@ -746,11 +762,10 @@ export function generateVeinMesh(
 
   // `keyAt[k]` is where key point k sits in the half outline; that's how a tip or a joint's side
   // point finds its ring point. A side point cut off with an overlapping lobe has none.
-  const { keyPoints, tipKeyIndex, lateralKeyIndex, keyDirs } = buildOutlineKeyPoints(root, params);
+  const { keyPoints, tipKeyIndex, lateralKeyIndex, pinnedKeys } = buildOutlineKeyPoints(root, params);
   const { half, keyAt } = halfOutline(keyPoints, params.subdivisions, new Set(tipKeyIndex.values()));
 
-  const layout = ringLayout(half, keyAt, pinnedKeys(tipKeyIndex, lateralKeyIndex, keyDirs), mirrorX);
-  const { mirroredRingPos, flatRing, pins: ringPins } = layout;
+  const { mirroredRingPos, flatRing, pins: ringPins } = ringLayout(half, keyAt, pinnedKeys, mirrorX);
   const shaped = options.shapeOutline?.(flatRing, ringPins) ?? {
     ring: flatRing,
     originalIndex: flatRing.map((_, i) => i),

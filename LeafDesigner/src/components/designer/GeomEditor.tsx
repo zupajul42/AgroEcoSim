@@ -16,6 +16,7 @@ import {
   getEffectiveLateralOffset,
   getEffectiveLobeDepth,
   getEffectiveLobeThreshold,
+  getEffectiveMarginInfluence,
   MAX_ROTATION_DEG,
   DEFAULT_VEIN_PARAMS,
   ensureVeinData,
@@ -23,6 +24,7 @@ import {
 } from "../../utils/veinGenerator";
 import { applyMarginTeethToOutline, resolveMarginParams } from "../../utils/marginTeeth";
 import { SliderInput } from "../common/SliderInput";
+import { DoubleRangeSlider } from "../common/DoubleRangeSlider";
 import "./GeomEditor.css";
 
 const ZOOM = 140; // screen pixels per leaf unit at zoom 1
@@ -248,16 +250,16 @@ export function GeomEditor({ id }: { id: string }) {
 
   const marginParams = useMemo(
     () => resolveMarginParams(geom),
-    [geom.margin, geom.marginToothCount, geom.marginToothHeight],
+    [geom.margin, geom.marginToothCount, geom.marginToothHeight, geom.marginToothLean],
   );
   const marginDefaults = useMemo(() => resolveMarginParams({ margin: geom.margin }), [geom.margin]);
   const hasTeeth = !!geom.margin && geom.margin !== "entire";
 
   const setMargin = (margin: LeafMargin) => {
-    const { marginToothCount: _count, marginToothHeight: _height, ...rest } = geom;
+    const { marginToothCount: _count, marginToothHeight: _height, marginToothLean: _lean, ...rest } = geom;
     setGeom({ ...rest, margin });
   };
-  const setMarginParams = (patch: Pick<LeafGeometry, "marginToothCount" | "marginToothHeight">) =>
+  const setMarginParams = (patch: Pick<LeafGeometry, "marginToothCount" | "marginToothHeight" | "marginToothLean">) =>
     setGeom({ ...geom, ...patch });
 
   const displayPoints = useMemo(() => {
@@ -507,14 +509,35 @@ export function GeomEditor({ id }: { id: string }) {
                 defaultValue={marginDefaults.toothCount}
                 inline
               />
-              <SliderInput
+              <DoubleRangeSlider
                 label="Tooth Height"
                 min={0}
                 max={1.5}
                 step={0.05}
-                value={marginParams.toothHeight}
-                onInput={(v) => setMarginParams({ marginToothHeight: v })}
-                defaultValue={marginDefaults.toothHeight}
+                valueMin={marginParams.toothHeight.min}
+                valueMax={marginParams.toothHeight.max}
+                onChange={(lo, hi) => setMarginParams({ marginToothHeight: { min: lo, max: hi } })}
+                defaultMin={marginDefaults.toothHeight.min}
+                defaultMax={marginDefaults.toothHeight.max}
+              />
+              <SliderInput
+                label="Tooth Lean"
+                min={-1}
+                max={1}
+                step={0.05}
+                value={marginParams.toothLean}
+                onInput={(v) => setMarginParams({ marginToothLean: v })}
+                defaultValue={0}
+                inline
+              />
+              <SliderInput
+                label="Default Influence"
+                min={0}
+                max={1}
+                step={0.02}
+                value={genParams.marginInfluence ?? 1}
+                onInput={(v) => updateParam("marginInfluence", v)}
+                defaultValue={DEFAULT_VEIN_PARAMS.marginInfluence ?? 1}
                 inline
               />
             </>
@@ -662,6 +685,19 @@ export function GeomEditor({ id }: { id: string }) {
                 onInput={(v) => updateSelectedNode({ lateralOffset: v })}
                 onChange={commitNodeEdit}
                 defaultValue={DEFAULT_VEIN_PARAMS.lateralOffset}
+                inline
+              />
+            )}
+            {hasTeeth && (
+              <SliderInput
+                label="Margin Influence"
+                min={0}
+                max={1}
+                step={0.02}
+                value={getEffectiveMarginInfluence(selectedVeinNode, genParams)}
+                onInput={(v) => updateSelectedNode({ marginInfluence: v })}
+                onChange={commitNodeEdit}
+                defaultValue={DEFAULT_VEIN_PARAMS.marginInfluence ?? 1}
                 inline
               />
             )}

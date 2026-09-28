@@ -350,33 +350,34 @@ function boxMesh(width: number, length: number, height: number): MeshData {
 }
 
 export function geometryTriangleCount(geomId: string): number {
-  return shapeMesh(geomId).index.length / 3;
+  return shapeMesh(geomId, 0).index.length / 3;
 }
 
 const shapeMeshCache = new Map<string, MeshData>();
 let cachedRevision = -1;
 
-function shapeMesh(geomId: string): MeshData {
+function shapeMesh(geomId: string, seed: number): MeshData {
   if (cachedRevision !== state.geoms.revision) {
     shapeMeshCache.clear();
     cachedRevision = state.geoms.revision;
   }
-  const cached = shapeMeshCache.get(geomId);
+  const key = `${geomId}:${seed}`;
+  const cached = shapeMeshCache.get(key);
   if (cached) return cached;
 
-  const mesh = buildShapeMesh(geomId);
+  const mesh = buildShapeMesh(geomId, seed);
 
   cachedRevision = state.geoms.revision;
-  shapeMeshCache.set(geomId, mesh);
+  shapeMeshCache.set(key, mesh);
   return mesh;
 }
 
-// The blade of one shape at `lod`, scaled so its larger side is 1 with the base at the origin.
-function generateShapeMesh(shape: LeafShape, lod = 0): MeshData {
-  return shapeMesh(resolveLodGeom(shape?.geom, lod) ?? "");
+// The blade of one shape at `lod`, scaled so its larger side is 1 with the base at the origin
+function generateShapeMesh(shape: LeafShape, lod: number, seed: number): MeshData {
+  return shapeMesh(resolveLodGeom(shape?.geom, lod) ?? "", seed);
 }
 
-function buildShapeMesh(geomId: string): MeshData {
+function buildShapeMesh(geomId: string, seed: number): MeshData {
   console.log("buildShapeMesh", geomId);
   const geom = state.geoms.get(geomId);
   if (!geom || geom.points.length < 3) return EMPTY_MESH;
@@ -389,10 +390,12 @@ function buildShapeMesh(geomId: string): MeshData {
     mesh = generateVeinMesh(veins, {
       mirrorX: true,
       params: veins.params,
-      shapeOutline: marginOutlineShaper(margin, marginParams, veins.params?.subdivisions),
+      shapeOutline: marginOutlineShaper(margin, marginParams, veins.params?.subdivisions, seed),
     });
   } else {
-    const outline = applyMarginTeethToOutline(geom.points, margin, marginParams).map((p) => new Vector2(p.x, p.y));
+    const outline = applyMarginTeethToOutline(geom.points, margin, marginParams, [], undefined, seed).map(
+      (p) => new Vector2(p.x, p.y),
+    );
     mesh = {
       position: outline.flatMap((p) => [p.x, p.y, 0]),
       index: ShapeUtils.triangulateShape(outline, []).flat(),
@@ -443,12 +446,12 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
   const petioluleWidth = shape.petiolule?.width || DEFAULT_STEM_WIDTH;
   const petioluleAngleRad = -((shape.petiolule?.angle || 0) / 180) * Math.PI;
   const petioluleMesh = petioluleLength > 0 ? boxMesh(petioluleWidth, petioluleLength, petioluleWidth) : null;
-  const bladeMesh = generateShapeMesh(shape, lod);
+  const seed = leaf.randomSeed ?? 0;
+  const bladeMesh = generateShapeMesh(shape, lod, seed);
   const bladeScaleX = resolveLodScale(shape.scaleX, lod);
   const bladeScaleY = resolveLodScale(shape.scaleY, lod);
 
   const instances = leaf.instances?.length ? leaf.instances : [{ shape: 0, scale: 1 }];
-  const seed = leaf.randomSeed ?? 0;
   const layout = leaf.layout;
 
   // All instances along `stem`, whose base `parent` places; `keyOffset` gives every pinna its own rolls.

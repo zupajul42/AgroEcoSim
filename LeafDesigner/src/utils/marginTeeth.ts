@@ -1,16 +1,20 @@
-import { LeafGeometry, LeafMargin, Point } from "../types/leaf";
+import { LeafGeometry, LeafMargin, Point, RandomRange } from "../types/leaf";
 import { OutlinePin, OutlineShaper } from "./veinGenerator";
 import { dist, lerp } from "./math";
+import { resolveRandomValue, toRange } from "./random";
 
-/** The two margin values a geometry stores. */
+/** The margin values a geometry stores. */
 export interface MarginParams {
   toothCount: number; // teeth along one side of the blade, base -> apex
-  toothHeight: number; // height of a tooth as a fraction of its wavelength
+  toothHeight: RandomRange; // height of a tooth as a fraction of its wavelength, rolled per tooth
+  toothLean: number; // -1..1: leans every tooth toward the nearest vein tip (> 0) or away from it (< 0)
 }
 
 type ToothShape = "triangle" | "halfSine" | "sine";
 
-interface MarginConfig extends MarginParams {
+interface MarginConfig {
+  toothCount: number;
+  toothHeight: number;
   peak: number; // phase (0-1) of a tooth's highest point; above 0.5 the tooth leans toward the apex
   apexPhase: number; // phase (0-1) at which the two sides' waves meet at the leaf apex (peak = at full height, 0 = in a notch)
   shape: ToothShape;
@@ -36,14 +40,15 @@ function marginConfig(marginType: LeafMargin | undefined): MarginConfig | undefi
   return marginType && marginType !== "entire" ? MARGIN_CONFIGS[marginType] : undefined;
 }
 
-/** Tooth count and height of a geometry, falling back to its margin type's defaults. */
+/** Tooth count, height range and lean of a geometry, falling back to its margin type's defaults. */
 export function resolveMarginParams(
-  geom: Pick<LeafGeometry, "margin" | "marginToothCount" | "marginToothHeight">,
+  geom: Pick<LeafGeometry, "margin" | "marginToothCount" | "marginToothHeight" | "marginToothLean">,
 ): MarginParams {
   const config = marginConfig(geom.margin) ?? MARGIN_CONFIGS.serrate;
   return {
     toothCount: geom.marginToothCount ?? config.toothCount,
-    toothHeight: geom.marginToothHeight ?? config.toothHeight,
+    toothHeight: toRange(geom.marginToothHeight, config.toothHeight),
+    toothLean: geom.marginToothLean ?? 0,
   };
 }
 
@@ -196,6 +201,7 @@ interface Side {
 interface Sample {
   s: number;
   phase: number;
+  peak: number; // phase of the highest point of this sample's tooth
   tooth: number;
   anchor: number; // side index of the anchor this sample is, or -1
 }
@@ -212,16 +218,23 @@ function addTeeth(
   config: MarginConfig,
   params: MarginParams,
   subdivisions: number,
+  seed: number,
 ): { ring: Point[]; originalIndex: number[] } | null {
   const n = ring.length;
-  if (n < 6 || !(params.toothHeight > 0)) return null;
+  if (n < 6 || !(params.toothHeight.max > 0)) return null;
   const toothCount = Math.max(1, Math.round(params.toothCount));
+  const lean = Math.max(-1, Math.min(1, params.toothLean));
+  const peakAhead = lean >= 0 ? lerp(config.peak, 0.95, lean) : lerp(config.peak, 0.05, -lean);
+  const peakBehind = lean >= 0 ? lerp(config.peak, 0.05, lean) : lerp(config.peak, 0.95, -lean);
 
   let twiceArea = 0;
   for (let i = 0; i < n; i++) twiceArea += ring[i].x * ring[(i + 1) % n].y - ring[(i + 1) % n].x * ring[i].y;
   const ringIsCcw = twiceArea >= 0;
 
-  const pinDirection = new Map(pins.filter((p) => p.index >= 0 && p.index < n).map((p) => [p.index, p.direction]));
+  const validPins = pins.filter((p) => p.index >= 0 && p.index < n);
+  const pinDirection = new Map(validPins.map((p) => [p.index, p.direction]));
+  const pinInfluence = new Map(validPins.map((p) => [p.index, p.influence]));
+  if (validPins.length > 0 && validPins.every((p) => !(p.influence > 0))) return null;
   // Base and apex are the lowest and highest points on the mirror axis, so a lateral tip that
   // hangs lower or reaches higher doesn't split the ring off-axis; the root pin is always the base.
   const onAxis = (i: number) => Math.abs(ring[i].x) <= AXIS_EPS;
@@ -303,8 +316,8 @@ function addTeeth(
 
   // Both sides share one wavelength, so a symmetric ring gets symmetric teeth.
   const wavelength = Math.max(right.curve.length, left.curve.length) / toothCount;
-  const amplitude = params.toothHeight * wavelength;
-  const phases = toothPhases(config.shape, config.peak, subdivisions);
+  // The tallest tooth possible; each tooth rolls its own height below that.
+  const amplitude = Math.max(params.toothHeight.min, params.toothHeight.max) * wavelength;
 
   // Points of the smooth outline a tooth could run into: both reference curves, thinned to about
   // a quarter wavelength. Points within a wavelength along the outline (also around the apex onto
@@ -331,6 +344,7 @@ function addTeeth(
   const shapeSide = (side: Side): { points: Point[]; samples: Sample[] } => {
     const { curve, anchors, outwardSign } = side;
     const anchorArc = (a: Anchor) => curve.arc[curve.atSide[a.at]];
+    const anchorAt = new Map(anchors.map((a) => [a.at, a]));
     const anchorPhase = (a: Anchor) => a.phase ?? (a.kind === "notch" ? 0 : config.peak);
     const normalAt = (s: number) => {
       const here = curveAt(curve, s);
@@ -379,32 +393,43 @@ function addTeeth(
       const frac = (((anchorPhase(to) - phaseFrom) % 1) + 1) % 1;
       const span = Math.max(0, Math.round(length / wavelength - frac)) + frac;
       if (from.kind === "notch" && ai > 0) tooth++;
-      samples.push({ s: anchorArc(from), phase: phaseFrom, tooth, anchor: from.at });
+      samples.push({ s: anchorArc(from), phase: phaseFrom, peak: config.peak, tooth, anchor: from.at });
       if (span < 1e-9) continue;
       const end = phaseFrom + span;
       const firstToothEnd = Math.floor(phaseFrom) + 1;
       const lastToothStart = Math.floor(end - 1e-9);
+      // Which tip a tooth leans toward: the one ahead, the one behind, or the nearer of both.
+      const fromTip = from.kind === "peak";
+      const toTip = to.kind === "peak";
+      const peakOf = (period: number) => {
+        if ((fromTip && period < firstToothEnd) || (toTip && period >= lastToothStart)) return config.peak;
+        if (fromTip && toTip) return (period + 0.5 - phaseFrom) / span < 0.5 ? peakBehind : peakAhead;
+        if (fromTip) return peakBehind;
+        if (toTip) return peakAhead;
+        return config.peak;
+      };
       for (let period = Math.floor(phaseFrom); period < end; period++) {
-        for (const phase of phases) {
+        const peak = peakOf(period);
+        for (const phase of toothPhases(config.shape, peak, subdivisions)) {
           const psi = period + phase;
           if (psi <= phaseFrom + 1e-9 || psi >= end - 1e-9) continue;
           if (phase === 0) tooth++;
-          const profile = toothProfile(config.shape, config.peak, phase);
+          const profile = toothProfile(config.shape, peak, phase);
           let s = startArc + ((psi - phaseFrom) / span) * length;
           if (driftFrom > 0 && psi < firstToothEnd) s -= driftFrom * profile;
           if (driftTo < 0 && psi > lastToothStart) s -= driftTo * profile;
-          samples.push({ s, phase, tooth, anchor: -1 });
+          samples.push({ s, phase, peak, tooth, anchor: -1 });
         }
       }
     }
     const last = anchors[anchors.length - 1];
     if (last.kind === "notch") tooth++;
-    samples.push({ s: anchorArc(last), phase: anchorPhase(last), tooth, anchor: last.at });
+    samples.push({ s: anchorArc(last), phase: anchorPhase(last), peak: config.peak, tooth, anchor: last.at });
 
     // The direction a tooth moves in: along the vein of the pinned point it holds, else outward.
     const toothAlong = new Map<number, Point>();
     for (const sample of samples) {
-      const anchor = sample.anchor >= 0 ? anchors.find((a) => a.at === sample.anchor) : undefined;
+      const anchor = anchorAt.get(sample.anchor);
       const along = anchor && anchorAlong.get(anchor);
       if (along && !toothAlong.has(sample.tooth)) toothAlong.set(sample.tooth, along);
     }
@@ -414,14 +439,14 @@ function addTeeth(
     // toward (both may move, so a point stops at the plane halfway between them).
     const at = samples.map((sample) => {
       const here = normalAt(sample.s);
-      const anchor = sample.anchor >= 0 ? anchors.find((a) => a.at === sample.anchor) : undefined;
+      const anchor = anchorAt.get(sample.anchor);
       const own = anchor && anchorAlong.get(anchor);
       let along = own ?? toothAlong.get(sample.tooth) ?? here.normal;
       if (Math.abs(here.pos.x) <= AXIS_EPS) along = { x: 0, y: Math.sign(along.y) || 1 };
       // Room along the normal (curvature, notch wedge, points further along the same flank), of
       // which a leaning tooth only uses the normal share of its height, and room toward other
       // flanks along the direction the tooth actually moves in.
-      const profile = toothProfile(config.shape, config.peak, sample.phase);
+      const profile = toothProfile(config.shape, sample.peak, sample.phase);
       const normalShare = along.x * here.normal.x + along.y * here.normal.y;
       const limitBy = (room: number, share: number) =>
         profile * share >= MIN_PROFILE ? (ROOM_SHARE * room) / (profile * share) : Infinity;
@@ -438,30 +463,58 @@ function addTeeth(
       }
       return { pos: here.pos, along, limit, profile };
     });
+    // Margin influence along the side: the pinned vein points carry theirs, everything between two
+    // of them blends linearly by arc length; without any pins the whole side is at full strength.
+    const influencePoints = side.indices
+      .map((ringIdx, i) => ({ s: curve.arc[curve.atSide[i]], value: pinInfluence.get(ringIdx) }))
+      .filter((p): p is { s: number; value: number } => p.value !== undefined);
+    const influenceAt = (s: number) => {
+      if (influencePoints.length === 0) return 1;
+      if (s <= influencePoints[0].s) return influencePoints[0].value;
+      for (let i = 1; i < influencePoints.length; i++) {
+        const a = influencePoints[i - 1];
+        const b = influencePoints[i];
+        if (s <= b.s) return lerp(a.value, b.value, b.s > a.s ? (s - a.s) / (b.s - a.s) : 1);
+      }
+      return influencePoints[influencePoints.length - 1].value;
+    };
+
+    // Every tooth starts from its own rolled height (the same roll on both sides, so the leaf
+    // stays symmetric), scaled by the margin influence at its center, and is then cut to its room.
+    const toothSpan = new Map<number, { from: number; to: number }>();
+    for (const sample of samples) {
+      const span = toothSpan.get(sample.tooth) ?? { from: sample.s, to: sample.s };
+      toothSpan.set(sample.tooth, { from: Math.min(span.from, sample.s), to: Math.max(span.to, sample.s) });
+    }
     const toothAmplitude = new Map<number, number>();
+    for (const [tooth, span] of toothSpan) {
+      const height = resolveRandomValue(params.toothHeight, seed, "toothHeight", tooth, 0);
+      const influence = Math.max(0, influenceAt((span.from + span.to) / 2));
+      toothAmplitude.set(tooth, Math.min(amplitude, height * wavelength * influence));
+    }
     samples.forEach((sample, i) => {
-      toothAmplitude.set(sample.tooth, Math.min(toothAmplitude.get(sample.tooth) ?? amplitude, at[i].limit));
+      toothAmplitude.set(sample.tooth, Math.min(toothAmplitude.get(sample.tooth)!, at[i].limit));
     });
 
     const points = samples.map((sample, i) => {
-      const height = (toothAmplitude.get(sample.tooth) ?? amplitude) * at[i].profile;
+      const height = toothAmplitude.get(sample.tooth)! * at[i].profile;
       return { x: at[i].pos.x + at[i].along.x * height, y: at[i].pos.y + at[i].along.y * height };
     });
 
     // The flanks next to a tip can hug its vein; the points of the tip's tooth are kept a little
     // off the vein line on their flank's side, or the face between outline and vein collapses.
     const clearance = wavelength * VEIN_CLEARANCE;
+    const sidePoints = side.indices.map((r) => ring[r]);
     samples.forEach((pinSample, ip) => {
-      const anchor = pinSample.anchor >= 0 ? anchors.find((a) => a.at === pinSample.anchor) : undefined;
+      const anchor = anchorAt.get(pinSample.anchor);
       const vein = anchor && anchorAlong.get(anchor);
-      if (!vein || anchor.at === 0 || anchor.at === side.indices.length - 1) return;
+      if (!vein || anchor.at === 0 || anchor.at === sidePoints.length - 1) return;
       const tip = points[ip];
-      const q = side.indices.map((r) => ring[r]);
-      const pinPoint = q[anchor.at];
+      const pinPoint = sidePoints[anchor.at];
       // Which side of the vein line each flank lies on, from the nearest point not on the line.
       const flankSign = (step: 1 | -1) => {
-        for (let k = anchor.at + step; k >= 0 && k < q.length; k += step) {
-          const c = cross2(vein, sub(q[k], pinPoint));
+        for (let k = anchor.at + step; k >= 0 && k < sidePoints.length; k += step) {
+          const c = cross2(vein, sub(sidePoints[k], pinPoint));
           if (Math.abs(c) > 1e-9) return Math.sign(c);
         }
         return 0;
@@ -515,16 +568,17 @@ function addTeeth(
   return { ring: out, originalIndex };
 }
 
-/** The margin as an OutlineShaper. `undefined` for an entire margin. */
+/** The margin as an OutlineShaper; `seed` rolls the tooth heights. `undefined` for an entire margin. */
 export function marginOutlineShaper(
   marginType: LeafMargin | undefined,
   params: MarginParams,
   subdivisions = 6,
+  seed = 0,
 ): OutlineShaper | undefined {
   const config = marginConfig(marginType);
   if (!config) return undefined;
   return (ring, pins) =>
-    addTeeth(ring, pins, config, params, subdivisions) ?? {
+    addTeeth(ring, pins, config, params, subdivisions, seed) ?? {
       ring: ring.map((p) => ({ x: p.x, y: p.y })),
       originalIndex: ring.map((_, i) => i),
     };
@@ -538,7 +592,8 @@ export function applyMarginTeethToOutline(
   params: MarginParams,
   pins: OutlinePin[] = [],
   subdivisions?: number,
+  seed = 0,
 ): Point[] {
-  const shaper = marginOutlineShaper(marginType, params, subdivisions);
+  const shaper = marginOutlineShaper(marginType, params, subdivisions, seed);
   return shaper ? shaper(points, pins).ring : points;
 }

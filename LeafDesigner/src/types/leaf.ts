@@ -25,6 +25,7 @@ export interface VeinNode {
   curvature?: number;
   lobeDepth?: number;
   lobeThreshold?: number;
+  marginInfluence?: number;
 }
 
 export interface VeinGenParams {
@@ -34,6 +35,7 @@ export interface VeinGenParams {
   lateralOffset: number; // how far the outline bulges sideways at a joint without its own value
   curvature: number; // 0-1: roundness of each tip, 0 = pointed
   subdivisions: number; // outline points per spline segment
+  marginInfluence?: number; // 0-1: how strongly the margin's teeth show at a vein point without its own value
 }
 
 export interface VeinData {
@@ -48,7 +50,8 @@ export interface LeafGeometry {
   veins?: VeinData | null;
   margin?: LeafMargin;
   marginToothCount?: number;
-  marginToothHeight?: number;
+  marginToothHeight?: number | RandomRange;
+  marginToothLean?: number;
 }
 
 export interface Leaf {
