@@ -88,11 +88,7 @@ class LeafStorage {
   }
 
   all(): Leaf[] {
-    if (!this.has(demoLeaf.name)) {
-      this.leafLib.push(demoLeaf);
-      this.save();
-    }
-    return this.leafLib;
+    return this.load();
   }
 
   add(leaf: Leaf): number {
@@ -130,6 +126,28 @@ class LeafStorage {
 
 const isBuiltIn = (g: LeafGeometry) => String(g.id).startsWith("def:");
 
+const RENAMED_VEIN_FIELDS: Record<string, string> = { lobeDepth: "sinusDepth", lobeThreshold: "sinusThreshold" };
+
+function renameVeinFields(target: object | undefined) {
+  const fields = target as Record<string, unknown> | undefined;
+  if (!fields) return;
+  for (const [from, to] of Object.entries(RENAMED_VEIN_FIELDS)) {
+    if (!(from in fields)) continue;
+    fields[to] ??= fields[from];
+    delete fields[from];
+  }
+}
+
+function migrateGeometry(geom: LeafGeometry): LeafGeometry {
+  const walk = (node: VeinNode) => {
+    renameVeinFields(node);
+    node.children?.forEach(walk);
+  };
+  renameVeinFields(geom.veins?.params);
+  if (geom.veins?.root) walk(geom.veins.root);
+  return geom;
+}
+
 class GeometryStorage {
   private geomLib: LeafGeometry[] = [];
 
@@ -144,7 +162,7 @@ class GeometryStorage {
   private load() {
     const lib = window.localStorage.getItem(STORAGE_KEYS.geoms);
     const stored: LeafGeometry[] = lib ? JSON.parse(lib) : [];
-    this.geomLib = [...PREDEFINED_GEOMETRIES, ...stored.filter((g) => !isBuiltIn(g))];
+    this.geomLib = [...PREDEFINED_GEOMETRIES, ...stored.filter((g) => !isBuiltIn(g)).map(migrateGeometry)];
     return this.geomLib;
   }
 

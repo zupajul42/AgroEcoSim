@@ -42,7 +42,7 @@ const chestnutLeaf = {
 ```
 
 A vein node has a position, children, and optional `bend` / `fold` angles that deform the blade
-around that vein in 3D. Tips push the outline out by their `tipOffset`; joints control the lobe
+around that vein in 3D. Tips push the outline out by their `tipOffset`; joints control the sinus
 between their children.
 
 ## Questions:

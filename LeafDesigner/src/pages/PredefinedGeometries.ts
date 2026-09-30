@@ -49,7 +49,7 @@ const ovate: VeinGeometry = {
         { id: "vein-y7ogjf3", x: 0.2, y: 0.1, children: [] },
       ],
     },
-    params: { lobeDepth: 0, lobeThreshold: 0, tipOffset: 0.27, lateralOffset: 0, curvature: 0.66, subdivisions: 3 },
+    params: { sinusDepth: 0, sinusThreshold: 0, tipOffset: 0.27, lateralOffset: 0, curvature: 0.66, subdivisions: 3 },
   },
 };
 
@@ -90,7 +90,7 @@ const obovate: VeinGeometry = {
         { id: "vein-190lu23", x: 0.2, y: 0.3, children: [] },
       ],
     },
-    params: { lobeDepth: 0, lobeThreshold: 0, tipOffset: 0.15, lateralOffset: 0, curvature: 0.82, subdivisions: 3 },
+    params: { sinusDepth: 0, sinusThreshold: 0, tipOffset: 0.15, lateralOffset: 0, curvature: 0.82, subdivisions: 3 },
   },
 };
 
@@ -131,8 +131,8 @@ const elliptic: VeinGeometry = {
       ],
     },
     params: {
-      lobeDepth: 0,
-      lobeThreshold: 1,
+      sinusDepth: 0,
+      sinusThreshold: 1,
       tipOffset: 0.15,
       lateralOffset: 0,
       curvature: 0.5,
@@ -170,7 +170,7 @@ const oblong: VeinGeometry = {
         },
       ],
     },
-    params: { lobeDepth: 0, lobeThreshold: 0, tipOffset: 0.27, lateralOffset: 0, curvature: 0.66, subdivisions: 3 },
+    params: { sinusDepth: 0, sinusThreshold: 0, tipOffset: 0.27, lateralOffset: 0, curvature: 0.66, subdivisions: 3 },
   },
 };
 
@@ -211,7 +211,7 @@ const lanceolate: VeinGeometry = {
         },
       ],
     },
-    params: { lobeDepth: 0, lobeThreshold: 0, tipOffset: 0.09, lateralOffset: 0, curvature: 0.56, subdivisions: 3 },
+    params: { sinusDepth: 0, sinusThreshold: 0, tipOffset: 0.09, lateralOffset: 0, curvature: 0.56, subdivisions: 3 },
   },
 };
 
@@ -245,8 +245,8 @@ const linear: VeinGeometry = {
       ],
     },
     params: {
-      lobeDepth: 0,
-      lobeThreshold: 0.15,
+      sinusDepth: 0,
+      sinusThreshold: 0.15,
       tipOffset: 0.1,
       lateralOffset: 0,
       curvature: 0.5,
@@ -304,7 +304,7 @@ const orbicular: VeinGeometry = {
         },
       ],
     },
-    params: { lobeDepth: 0, lobeThreshold: 0, tipOffset: 0.18, lateralOffset: 0, curvature: 0.5, subdivisions: 3 },
+    params: { sinusDepth: 0, sinusThreshold: 0, tipOffset: 0.18, lateralOffset: 0, curvature: 0.5, subdivisions: 3 },
   },
 };
 
@@ -324,8 +324,8 @@ const flabellate: VeinGeometry = {
       ],
     },
     params: {
-      lobeDepth: 0,
-      lobeThreshold: 0.15,
+      sinusDepth: 0,
+      sinusThreshold: 0.15,
       tipOffset: 0.15,
       lateralOffset: 0,
       curvature: 0.5,
@@ -364,7 +364,7 @@ const deltoid: VeinGeometry = {
         { id: "vein-05yprpc", x: 0.6, y: 0.1, children: [] },
       ],
     },
-    params: { lobeDepth: 0, lobeThreshold: 0, tipOffset: 0.27, lateralOffset: 0, curvature: 0.5, subdivisions: 4 },
+    params: { sinusDepth: 0, sinusThreshold: 0, tipOffset: 0.27, lateralOffset: 0, curvature: 0.5, subdivisions: 4 },
   },
 };
 
@@ -399,8 +399,8 @@ const cordate: VeinGeometry = {
       ],
     },
     params: {
-      lobeDepth: 0,
-      lobeThreshold: 0,
+      sinusDepth: 0,
+      sinusThreshold: 0,
       tipOffset: 0.27,
       lateralOffset: 0,
       curvature: 0.66,
@@ -435,14 +435,14 @@ const obcordate: VeinGeometry = {
             },
             { id: "vein-lb6lgfp", x: 0.3, y: 0.7, children: [], curvature: 1 },
           ],
-          lobeDepth: 0,
-          lobeThreshold: 0,
+          sinusDepth: 0,
+          sinusThreshold: 0,
         },
       ],
     },
     params: {
-      lobeDepth: 0,
-      lobeThreshold: 0,
+      sinusDepth: 0,
+      sinusThreshold: 0,
       tipOffset: 0.27,
       lateralOffset: 0,
       curvature: 0.54,
@@ -490,8 +490,8 @@ const truncate: VeinGeometry = {
       ],
     },
     params: {
-      lobeDepth: 0,
-      lobeThreshold: 0,
+      sinusDepth: 0,
+      sinusThreshold: 0,
       tipOffset: 0.15,
       lateralOffset: 0,
       curvature: 0.82,
@@ -546,7 +546,7 @@ const lobbed: VeinGeometry = {
         },
       ],
     },
-    params: { lobeDepth: 0.26, lobeThreshold: 0.4, tipOffset: 0.15, lateralOffset: 0, curvature: 1, subdivisions: 3 },
+    params: { sinusDepth: 0.26, sinusThreshold: 0.4, tipOffset: 0.15, lateralOffset: 0, curvature: 1, subdivisions: 3 },
   },
 };
 
@@ -583,8 +583,8 @@ const palmatifid: VeinGeometry = {
       ],
     },
     params: {
-      lobeDepth: 0.36,
-      lobeThreshold: 0.44,
+      sinusDepth: 0.36,
+      sinusThreshold: 0.44,
       tipOffset: 0.15,
       lateralOffset: 0,
       curvature: 0.5,
@@ -616,7 +616,14 @@ const palmatilobate: VeinGeometry = {
         { id: "vein-uwkxaqf", x: 0.8, y: 1.1, children: [] },
       ],
     },
-    params: { lobeDepth: 0.22, lobeThreshold: 0.52, tipOffset: 0.27, lateralOffset: 0, curvature: 1, subdivisions: 6 },
+    params: {
+      sinusDepth: 0.22,
+      sinusThreshold: 0.52,
+      tipOffset: 0.27,
+      lateralOffset: 0,
+      curvature: 1,
+      subdivisions: 6,
+    },
   },
 };
 

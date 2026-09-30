@@ -14,8 +14,8 @@ import {
   flattenVeinEdges,
   getEffectiveTipParams,
   getEffectiveLateralOffset,
-  getEffectiveLobeDepth,
-  getEffectiveLobeThreshold,
+  getEffectiveSinusDepth,
+  getEffectiveSinusThreshold,
   getEffectiveMarginInfluence,
   MAX_ROTATION_DEG,
   DEFAULT_VEIN_PARAMS,
@@ -290,20 +290,19 @@ export function GeomEditor({ id }: { id: string }) {
   const selectedIsTip = !!selectedVeinNode && selectedVeinNode.children.length === 0;
   const selectedIsJoint = !!selectedVeinNode && selectedVeinNode.children.length > 0;
 
-  const regenOutline = (veinsOverride?: VeinData, paramsOverride?: VeinGenParams, record = true) => {
+  const regenOutline = (veinsOverride?: VeinData, paramsOverride?: VeinGenParams) => {
     const veins = veinsOverride || ensureVeinData(geomRef.current.veins);
     const params = paramsOverride || genParamsRef.current;
     const points = generateOutlineFromVeins(veins, { mirrorX: true, params });
-    setGeom({ ...geomRef.current, points, veins: { ...veins, params } }, record);
+    setGeom({ ...geomRef.current, points, veins: { ...veins, params } }, false);
   };
 
-  const setVeinRoot = (root: VeinNode) =>
-    regenOutline({ ...ensureVeinData(geomRef.current.veins), root }, undefined, false);
+  const setVeinRoot = (root: VeinNode) => regenOutline({ ...ensureVeinData(geomRef.current.veins), root });
 
   const updateParam = (key: keyof VeinGenParams, value: number) => {
     const params = { ...genParamsRef.current, [key]: value };
     setGenParams(params);
-    regenOutline(undefined, params, false);
+    regenOutline(undefined, params);
   };
 
   const veinMergeThreshold = () => (enableSnap && gridSnap > 0 ? gridSnap - 1e-6 : 0.08);
@@ -478,9 +477,6 @@ export function GeomEditor({ id }: { id: string }) {
               Delete Vein
             </button>
           )}
-          <button onClick={() => regenOutline()} title="Re-calculate polygon outline from vein structure">
-            Generate Outline
-          </button>
         </div>
 
         <div class="vein-params-panel">
@@ -547,23 +543,23 @@ export function GeomEditor({ id }: { id: string }) {
         <div class="vein-params-panel">
           <h4>Outline Shape</h4>
           <SliderInput
-            label="Default Lobe Depth"
+            label="Default Sinus Depth"
             min={0}
             max={1}
             step={0.02}
-            value={genParams.lobeDepth}
-            onInput={(v) => updateParam("lobeDepth", v)}
-            defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
+            value={genParams.sinusDepth}
+            onInput={(v) => updateParam("sinusDepth", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.sinusDepth}
             inline
           />
           <SliderInput
-            label="Lobe Threshold"
+            label="Sinus Threshold"
             min={0}
             max={1}
             step={0.02}
-            value={genParams.lobeThreshold}
-            onInput={(v) => updateParam("lobeThreshold", v)}
-            defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
+            value={genParams.sinusThreshold}
+            onInput={(v) => updateParam("sinusThreshold", v)}
+            defaultValue={DEFAULT_VEIN_PARAMS.sinusThreshold}
             inline
           />
           <SliderInput
@@ -626,25 +622,25 @@ export function GeomEditor({ id }: { id: string }) {
                   inline
                 />
                 <SliderInput
-                  label="Lobe Depth"
+                  label="Sinus Depth"
                   min={0}
                   max={1}
                   step={0.02}
-                  value={getEffectiveLobeDepth(selectedVeinNode, genParams)}
-                  onInput={(v) => updateSelectedNode({ lobeDepth: v })}
+                  value={getEffectiveSinusDepth(selectedVeinNode, genParams)}
+                  onInput={(v) => updateSelectedNode({ sinusDepth: v })}
                   onChange={commitNodeEdit}
-                  defaultValue={DEFAULT_VEIN_PARAMS.lobeDepth}
+                  defaultValue={DEFAULT_VEIN_PARAMS.sinusDepth}
                   inline
                 />
                 <SliderInput
-                  label="Lobe Threshold"
+                  label="Sinus Threshold"
                   min={0}
                   max={1}
                   step={0.02}
-                  value={getEffectiveLobeThreshold(selectedVeinNode, genParams)}
-                  onInput={(v) => updateSelectedNode({ lobeThreshold: v })}
+                  value={getEffectiveSinusThreshold(selectedVeinNode, genParams)}
+                  onInput={(v) => updateSelectedNode({ sinusThreshold: v })}
                   onChange={commitNodeEdit}
-                  defaultValue={DEFAULT_VEIN_PARAMS.lobeThreshold}
+                  defaultValue={DEFAULT_VEIN_PARAMS.sinusThreshold}
                   inline
                 />
               </>
@@ -821,7 +817,7 @@ export function GeomEditor({ id }: { id: string }) {
         >
           <title>
             Stem origin (0,0). Click to select the root vein node — its Bend/Fold (whole-blade hinge at the petiole)
-            and, once it branches into more than one vein, Lobe controls appear in the side panel.
+            and, once it branches into more than one vein, Sinus controls appear in the side panel.
           </title>
         </circle>
       </svg>

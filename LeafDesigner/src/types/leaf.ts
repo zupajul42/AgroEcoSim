@@ -23,14 +23,14 @@ export interface VeinNode {
   tipOffset?: number;
   lateralOffset?: number;
   curvature?: number;
-  lobeDepth?: number;
-  lobeThreshold?: number;
+  sinusDepth?: number;
+  sinusThreshold?: number;
   marginInfluence?: number;
 }
 
 export interface VeinGenParams {
-  lobeDepth: number; // 0-1: how deep the outline dips toward the joint between two sibling veins
-  lobeThreshold: number; // minimum gap between two sibling veins before a lobe forms between them
+  sinusDepth: number; // 0-1: how deep the outline dips toward the joint between two sibling veins
+  sinusThreshold: number; // minimum gap between two sibling veins before a sinus forms between them
   tipOffset: number; // 0-0.5: how far the outline extends beyond each vein tip
   lateralOffset: number; // how far the outline bulges sideways at a joint without its own value
   curvature: number; // 0-1: roundness of each tip, 0 = pointed

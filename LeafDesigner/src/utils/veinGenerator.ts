@@ -6,8 +6,8 @@ type Point3 = Point & { z: number };
 type KeyPoint = Point & { curvature: number };
 
 export const DEFAULT_VEIN_PARAMS: VeinGenParams = {
-  lobeDepth: 0.15,
-  lobeThreshold: 0.15,
+  sinusDepth: 0.15,
+  sinusThreshold: 0.15,
   tipOffset: 0.15,
   lateralOffset: 0,
   curvature: 0.5,
@@ -121,12 +121,12 @@ export function getEffectiveMarginInfluence(node: VeinNode, params: VeinGenParam
   return node.marginInfluence ?? params.marginInfluence ?? 1;
 }
 
-export function getEffectiveLobeDepth(node: VeinNode, params: VeinGenParams): number {
-  return node.lobeDepth ?? params.lobeDepth;
+export function getEffectiveSinusDepth(node: VeinNode, params: VeinGenParams): number {
+  return node.sinusDepth ?? params.sinusDepth;
 }
 
-export function getEffectiveLobeThreshold(node: VeinNode, params: VeinGenParams): number {
-  return node.lobeThreshold ?? params.lobeThreshold ?? 0;
+export function getEffectiveSinusThreshold(node: VeinNode, params: VeinGenParams): number {
+  return node.sinusThreshold ?? params.sinusThreshold ?? 0;
 }
 
 // A simple pinnate default: midrib with three side veins.
@@ -241,10 +241,10 @@ function lateralPoints(parent: Point, node: VeinNode, offset: number): { entry: 
   };
 }
 
-// Lobe depth eased in once two sibling veins are more than `threshold` apart (0 disables the gate).
-function gatedLobeDepth(lobeDepth: number, siblingGap: number, threshold: number): number {
-  if (threshold <= 0) return lobeDepth;
-  return lobeDepth * clamp01((siblingGap - threshold) / Math.max(threshold, 0.01));
+// Sinus depth eased in once two sibling veins are more than `threshold` apart (0 disables the gate).
+function gatedSinusDepth(sinusDepth: number, siblingGap: number, threshold: number): number {
+  if (threshold <= 0) return sinusDepth;
+  return sinusDepth * clamp01((siblingGap - threshold) / Math.max(threshold, 0.01));
 }
 
 // Two children at the exact same angle from their parent would overlap; the farther one is
@@ -374,12 +374,12 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
 
   const walk = (node: VeinNode, parent: Point | null) => {
     const children = childrenInOutlineOrder(node, parent);
-    const lobeDepth = getEffectiveLobeDepth(node, params);
-    const lobeThreshold = getEffectiveLobeThreshold(node, params);
+    const sinusDepth = getEffectiveSinusDepth(node, params);
+    const sinusThreshold = getEffectiveSinusThreshold(node, params);
 
     children.forEach((child, idx) => {
       if (idx > 0) {
-        const depth = gatedLobeDepth(lobeDepth, dist(children[idx - 1], child), lobeThreshold);
+        const depth = gatedSinusDepth(sinusDepth, dist(children[idx - 1], child), sinusThreshold);
         if (depth > 0.001) {
           // Measured from the last tip or notch: side points may still be dropped.
           const prev = [...entries].reverse().find((e) => !e.lateralId)!;
