@@ -223,8 +223,8 @@
               "fold": 23
             },
             "params": {
-              "lobeDepth": 0,
-              "lobeThreshold": 0,
+              "sinusDepth": 0,
+              "sinusThreshold": 0,
               "tipOffset": 0.09,
               "lateralOffset": 0,
               "curvature": 0.56,

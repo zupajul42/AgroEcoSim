@@ -260,8 +260,8 @@
               ]
             },
             "params": {
-              "lobeDepth": 0,
-              "lobeThreshold": 1,
+              "sinusDepth": 0,
+              "sinusThreshold": 1,
               "tipOffset": 0.12,
               "lateralOffset": 0,
               "curvature": 0.55,

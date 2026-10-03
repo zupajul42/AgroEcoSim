@@ -614,18 +614,18 @@
                       "marginInfluence": 1
                     }
                   ],
-                  "lobeDepth": 0.22,
+                  "sinusDepth": 0.22,
                   "lateralOffset": 0.38,
                   "marginInfluence": 0
                 }
               ],
-              "lobeDepth": 0.02,
-              "lobeThreshold": 0,
+              "sinusDepth": 0.02,
+              "sinusThreshold": 0,
               "marginInfluence": 0
             },
             "params": {
-              "lobeDepth": 0.18,
-              "lobeThreshold": 0.44,
+              "sinusDepth": 0.18,
+              "sinusThreshold": 0.44,
               "tipOffset": 0.15,
               "lateralOffset": 0,
               "curvature": 0.5,

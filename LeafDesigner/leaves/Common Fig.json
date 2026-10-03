@@ -470,7 +470,7 @@
                       "curvature": 0.5
                     }
                   ],
-                  "lobeThreshold": 9
+                  "sinusThreshold": 9
                 },
                 {
                   "id": "fig-l1",
@@ -494,7 +494,7 @@
                       "lateralOffset": 0.48
                     }
                   ],
-                  "lobeThreshold": 9
+                  "sinusThreshold": 9
                 },
                 {
                   "id": "fig-apex",
@@ -544,14 +544,14 @@
                       "curvature": 1
                     }
                   ],
-                  "lobeThreshold": 9,
+                  "sinusThreshold": 9,
                   "lateralOffset": 0
                 }
               ]
             },
             "params": {
-              "lobeDepth": 0.34,
-              "lobeThreshold": 0.8,
+              "sinusDepth": 0.34,
+              "sinusThreshold": 0.8,
               "tipOffset": 0.16,
               "lateralOffset": 0,
               "curvature": 0.5,

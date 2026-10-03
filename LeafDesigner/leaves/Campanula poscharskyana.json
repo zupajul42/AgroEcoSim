@@ -365,8 +365,8 @@
               "fold": 20
             },
             "params": {
-              "lobeDepth": 0.15,
-              "lobeThreshold": 0.6,
+              "sinusDepth": 0.15,
+              "sinusThreshold": 0.6,
               "curvature": 0.5,
               "subdivisions": 6,
               "tipOffset": 0.15,

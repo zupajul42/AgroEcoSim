@@ -2950,7 +2950,7 @@
                       "curvature": 0.5,
                       "tipOffset": 0.15,
                       "lateralOffset": 0,
-                      "lobeDepth": 0.34
+                      "sinusDepth": 0.34
                     },
                     {
                       "id": "vein-5qrppl8",
@@ -2968,8 +2968,8 @@
                     }
                   ],
                   "lateralOffset": 0.14,
-                  "lobeThreshold": 0,
-                  "lobeDepth": 0.32
+                  "sinusThreshold": 0,
+                  "sinusDepth": 0.32
                 },
                 {
                   "id": "vein-xryc4v9",
@@ -3010,8 +3010,8 @@
                       "lateralOffset": 0,
                       "curvature": 0.5,
                       "tipOffset": 0.15,
-                      "lobeThreshold": 0.08,
-                      "lobeDepth": 0.3
+                      "sinusThreshold": 0.08,
+                      "sinusDepth": 0.3
                     },
                     {
                       "id": "vein-ecgqzfh",
@@ -3023,7 +3023,7 @@
                     }
                   ],
                   "lateralOffset": 0,
-                  "lobeDepth": 0.04
+                  "sinusDepth": 0.04
                 },
                 {
                   "id": "vein-mj5jucd",
@@ -3083,7 +3083,7 @@
                       "curvature": 0.5,
                       "lateralOffset": 0,
                       "tipOffset": 0.15,
-                      "lobeDepth": 0.22
+                      "sinusDepth": 0.22
                     },
                     {
                       "id": "vein-zfixd0f",
@@ -3104,8 +3104,8 @@
                     }
                   ],
                   "lateralOffset": 0.16,
-                  "lobeThreshold": 0,
-                  "lobeDepth": 0.38
+                  "sinusThreshold": 0,
+                  "sinusDepth": 0.38
                 },
                 {
                   "id": "vein-6h6mvt8",
@@ -3146,7 +3146,7 @@
                       ],
                       "lateralOffset": 0.22,
                       "curvature": 0.46,
-                      "lobeDepth": 0.38
+                      "sinusDepth": 0.38
                     },
                     {
                       "id": "vein-rzfb5ov",
@@ -3165,11 +3165,11 @@
                   "lateralOffset": 0.16
                 }
               ],
-              "lobeDepth": 0.5
+              "sinusDepth": 0.5
             },
             "params": {
-              "lobeDepth": 0.52,
-              "lobeThreshold": 0,
+              "sinusDepth": 0.52,
+              "sinusThreshold": 0,
               "tipOffset": 0.15,
               "lateralOffset": 0,
               "curvature": 1,

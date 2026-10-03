@@ -385,8 +385,8 @@
                   ],
                   "lateralOffset": 0,
                   "tipOffset": 0.23,
-                  "lobeThreshold": 0.15,
-                  "lobeDepth": 0
+                  "sinusThreshold": 0.15,
+                  "sinusDepth": 0
                 },
                 {
                   "id": "vein-rfi5e2m",
@@ -396,13 +396,13 @@
                   "lateralOffset": 0.12
                 }
               ],
-              "lobeDepth": 0.15,
-              "lobeThreshold": 0.46,
+              "sinusDepth": 0.15,
+              "sinusThreshold": 0.46,
               "fold": 13
             },
             "params": {
-              "lobeDepth": 0.28,
-              "lobeThreshold": 0.15,
+              "sinusDepth": 0.28,
+              "sinusThreshold": 0.15,
               "tipOffset": 0.15,
               "lateralOffset": 0,
               "curvature": 0.5,
