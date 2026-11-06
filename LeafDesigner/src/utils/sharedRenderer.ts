@@ -20,6 +20,7 @@ export function renderTo(target: HTMLCanvasElement, scene: Scene, camera: Camera
   if (width === 0 || height === 0) return;
 
   const gl = sharedRenderer();
+  //gl.setClearColor(0xFFFFFF);
   gl.getSize(currentSize);
   if (currentSize.x !== width || currentSize.y !== height) gl.setSize(width, height, false);
   gl.render(scene, camera);

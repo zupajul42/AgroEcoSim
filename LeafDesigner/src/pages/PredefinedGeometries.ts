@@ -519,9 +519,9 @@ const lobbed: VeinGeometry = {
             {
               id: "vein-mid-2",
               x: 0,
-              y: 1.5,
+              y: 1.4,
               children: [
-                { id: "vein-2", x: 0.6, y: 1.8, children: [] },
+                { id: "vein-2", x: 0.4, y: 1.6, children: [], curvature: 1 },
                 {
                   id: "vein-mid-3",
                   x: 0,
@@ -536,17 +536,22 @@ const lobbed: VeinGeometry = {
             {
               id: "vein-wsj0m98",
               x: 0,
-              y: 0.6,
-              children: [
-                { id: "vein-nfv9zdu", x: 0.6, y: 0.9, children: [] },
-                { id: "vein-8is5o48", x: 0.7, y: 1.2, children: [] },
-              ],
+              y: 0.8,
+              children: [{ id: "vein-nfv9zdu", x: 0.6, y: 1, children: [] }],
             },
           ],
         },
       ],
     },
-    params: { sinusDepth: 0.26, sinusThreshold: 0.4, tipOffset: 0.15, lateralOffset: 0, curvature: 1, subdivisions: 3 },
+    params: {
+      sinusDepth: 0.42,
+      sinusThreshold: 0.24,
+      tipOffset: 0.15,
+      lateralOffset: 0,
+      curvature: 1,
+      subdivisions: 5,
+      marginInfluence: 1,
+    },
   },
 };
 
@@ -583,8 +588,8 @@ const palmatifid: VeinGeometry = {
       ],
     },
     params: {
-      sinusDepth: 0.36,
-      sinusThreshold: 0.44,
+      sinusDepth: 0.52,
+      sinusThreshold: 0.32,
       tipOffset: 0.15,
       lateralOffset: 0,
       curvature: 0.5,
@@ -617,8 +622,8 @@ const palmatilobate: VeinGeometry = {
       ],
     },
     params: {
-      sinusDepth: 0.22,
-      sinusThreshold: 0.52,
+      sinusDepth: 0.26,
+      sinusThreshold: 0.42,
       tipOffset: 0.27,
       lateralOffset: 0,
       curvature: 1,

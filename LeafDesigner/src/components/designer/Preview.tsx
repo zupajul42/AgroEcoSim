@@ -82,6 +82,7 @@ export function Preview({
     const leafMesh = new Mesh(new BoxGeometry(), material);
     scene.add(leafMesh);
 
+    //showAxis = false;
     if (showAxis) {
       const axes = new AxesHelper(100);
       axes.translateY(0.01);

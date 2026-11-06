@@ -372,6 +372,11 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
     return [...node.children].sort((a, b) => angle(a) - angle(b) || dist(node, a) - dist(node, b));
   };
 
+  const firstTip = (node: VeinNode, parent: Point): Point => {
+    if (node.children.length === 0) return extendFrom(parent, node, getEffectiveTipParams(node, params).tipOffset);
+    return firstTip(childrenInOutlineOrder(node, parent)[0], node);
+  };
+
   const walk = (node: VeinNode, parent: Point | null) => {
     const children = childrenInOutlineOrder(node, parent);
     const sinusDepth = getEffectiveSinusDepth(node, params);
@@ -381,11 +386,12 @@ function buildOutlineKeyPoints(root: VeinNode, params: VeinGenParams) {
       if (idx > 0) {
         const depth = gatedSinusDepth(sinusDepth, dist(children[idx - 1], child), sinusThreshold);
         if (depth > 0.001) {
-          // Measured from the last tip or notch: side points may still be dropped.
+          // Measured between the two neighboring tips: side points may still be dropped.
           const prev = [...entries].reverse().find((e) => !e.lateralId)!;
+          const next = firstTip(child, node);
           entries.push({
-            x: round(Math.max(lerp((prev.x + child.x) / 2, node.x, depth), 0)),
-            y: round(lerp((prev.y + child.y) / 2, node.y, depth)),
+            x: round(Math.max(lerp((prev.x + next.x) / 2, node.x, depth), 0)),
+            y: round(lerp((prev.y + next.y) / 2, node.y, depth)),
             curvature: sinusCurvature(curvature),
             notch: true,
             influence: getEffectiveMarginInfluence(node, params),
