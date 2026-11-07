@@ -721,7 +721,7 @@ export function GeomEditor({ id }: { id: string }) {
           y={0}
           width={originScreen.x}
           height={viewSize.height}
-          fill="rgba(0, 0, 0, 0.35)"
+          fill="rgba(0, 0, 0, var(--overlay-alpha))"
           style={{ pointerEvents: "none" }}
         />
         <line x1={originScreen.x} y1={0} x2={originScreen.x} y2={viewSize.height} class="midrib-axis" />

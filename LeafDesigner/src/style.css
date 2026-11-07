@@ -33,6 +33,7 @@ html[data-theme="dark"] {
   font-weight: 400;
 
   --accent: #4e7711;
+  --overlay-alpha: 0.35; /* used in vein editor (for print styles) */
 
   /* sliders: a rounded bar as track, a rounded bar as thumb */
   --slider-track-h: 10px;

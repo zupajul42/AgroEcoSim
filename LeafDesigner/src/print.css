@@ -1,0 +1,29 @@
+@media print {
+  :root,
+  html,
+  html[data-theme="dark"],
+  html[data-theme="light"] {
+    color-scheme: light;
+    --accent: #2e4a08;
+    --overlay-alpha: 0.05;
+
+    --pre-mix--fg-0: #000;
+    --pre-mix--bg-0: #fff;
+
+    --pre-mix--fg-1: #000;
+    --pre-mix--bg-1: #fff;
+
+    --pre-mix--fg-2: #000;
+    --pre-mix--bg-2: #e6e6e6;
+
+    --pre-mix--fg-3: #000;
+    --pre-mix--bg-3: #ccc;
+
+    --bg-0: #fff;
+    --bg-1: #fff;
+  }
+
+  .preview-overlay-top-right {
+    text-shadow: none;
+  }
+}

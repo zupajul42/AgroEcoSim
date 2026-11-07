@@ -7,7 +7,9 @@ import { GeomEditorPage } from "./pages/GeomEditor";
 import { NotFound } from "./pages/_404";
 import { RecoverStorage } from "./pages/RecoverStorage";
 import { state } from "./pages/AppState";
+
 import "./style.css";
+import "./print.css";
 
 export function App() {
   const problem = state.storageProblem();

@@ -62,6 +62,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
   const [isChanged, setChanged] = useState(false);
   const [activeLod, setActiveLod] = useState(() => mostDetailedLod(startLeaf?.shape?.[0]?.geom));
   const [previewLifetime, setPreviewLifetime] = useState(50);
+  const [showAxis, setShowAxis] = useState(true);
   const [wireframe, setWireframe] = useState(false);
   const [flatShading, setFlatShading] = useState(false);
   const [lightAngle, setLightAngle] = useState(45);
@@ -660,6 +661,10 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         </div>
         <div class="preview-overlay-bottom-right">
           <label class="label-row">
+            <input type="checkbox" checked={showAxis} onChange={(e) => setShowAxis(e.currentTarget.checked)} />
+            <span>Grid & Axis</span>
+          </label>
+          <label class="label-row">
             <input type="checkbox" checked={wireframe} onChange={(e) => setWireframe(e.currentTarget.checked)} />
             <span>Wireframe</span>
           </label>
@@ -681,7 +686,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         <Preview
           leaf={leaf}
           controls
-          showAxis
+          showAxis={showAxis}
           lod={activeLod}
           color={sampleColorRamp(leaf.colorRamp, previewLifetime / 100)}
           wireframe={wireframe}

@@ -69,6 +69,8 @@ export function Preview({
   const threeRef = useRef<{
     scene: Scene;
     leaf: Mesh;
+    axes: AxesHelper;
+    grid: GridHelper;
     light: DirectionalLight;
     camera: PerspectiveCamera;
     controls?: OrbitControls;
@@ -82,12 +84,12 @@ export function Preview({
     const leafMesh = new Mesh(new BoxGeometry(), material);
     scene.add(leafMesh);
 
-    //showAxis = false;
-    if (showAxis) {
-      const axes = new AxesHelper(100);
-      axes.translateY(0.01);
-      scene.add(axes, new GridHelper(10));
-    }
+    const axes = new AxesHelper(100);
+    axes.translateY(0.01);
+    const grid = new GridHelper(10);
+    axes.visible = !!showAxis;
+    grid.visible = !!showAxis;
+    scene.add(axes, grid);
 
     const light = new DirectionalLight(0xffffff, 2.2);
     light.position.set(10, 10, 10);
@@ -129,12 +131,14 @@ export function Preview({
 
     const resizeObserver = new ResizeObserver(requestRender);
     resizeObserver.observe(container);
-    threeRef.current = { scene, leaf: leafMesh, light, camera, controls: orbit, requestRender };
+    threeRef.current = { scene, leaf: leafMesh, axes, grid, light, camera, controls: orbit, requestRender };
 
     return () => {
       cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
       orbit?.dispose();
+      axes.dispose();
+      grid.dispose();
       leafMesh.geometry.dispose();
       material.dispose();
       threeRef.current = null;
@@ -142,6 +146,14 @@ export function Preview({
   }, []);
 
   const material = () => threeRef.current?.leaf.material as MeshLambertMaterial | undefined;
+
+  useEffect(() => {
+    const three = threeRef.current;
+    if (!three) return;
+    three.axes.visible = !!showAxis;
+    three.grid.visible = !!showAxis;
+    three.requestRender();
+  }, [showAxis]);
 
   useEffect(() => {
     const m = material();
