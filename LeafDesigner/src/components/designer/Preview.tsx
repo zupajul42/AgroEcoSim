@@ -264,16 +264,19 @@ function childTransform(
 
   const position = new Vector3();
   let whorl = false;
+  let mirrorTwist = false;
+  let rotationX = 0;
   let rotationY = 0;
   let rotationZ = 0;
 
   if (type === "palmate") {
     position.set(0, stemLength, 0);
     rotationZ = count === 1 ? 0 : -angleRad / 2 + (index / (count - 1)) * angleRad;
+    rotationX = -(resolveRandomValue(orbit, seed, "orbit", key, 0) * Math.PI) / 180;
   } else {
     // Children per node along the stem: a pair (opposite), a whorl, or one (alternate).
     whorl = arrangement === "whorled";
-    const perNode = whorl ? Math.max(2, Math.round(whorlSize)) : arrangement === "opposite" ? 2 : 1;
+    const perNode = whorl ? Math.max(1, Math.round(whorlSize)) : arrangement === "opposite" ? 2 : 1;
     const hasTerminal = terminalLeaf && (perNode === 1 ? count % 2 !== 0 : count % perNode === 1);
     const orbitKey = key - (index % perNode);
     const orbitRad = (resolveRandomValue(orbit, seed, "orbit", orbitKey, 0) * Math.PI) / 180;
@@ -289,6 +292,7 @@ function childTransform(
         position.x = halfWidth;
       } else {
         const isLeft = index % 2 === 0;
+        mirrorTwist = !isLeft;
         rotationY = isLeft ? orbitRad : -orbitRad;
         rotationZ = isLeft ? angleRad : -angleRad;
         position.x = halfWidth * (isLeft ? -1 : 1);
@@ -300,7 +304,7 @@ function childTransform(
     }
   }
 
-  return { position, whorl, rotationY, rotationZ };
+  return { position, whorl, mirrorTwist, rotationX, rotationY, rotationZ };
 }
 
 function nodeHeight(k: number, count: number, start: number, end: number, taper: number) {
@@ -327,15 +331,25 @@ function childMatrix(
   layout: LeafLayout | undefined,
   seed: number,
   key: number,
+  twist = 0,
 ): mat4 {
-  const { position, whorl, rotationY, rotationZ } = childTransform(index, count, stem, layout, seed, key);
+  const { position, whorl, mirrorTwist, rotationX, rotationY, rotationZ } = childTransform(
+    index,
+    count,
+    stem,
+    layout,
+    seed,
+    key,
+  );
   const m = mat4.clone(parent);
   mat4.translate(m, m, [0, position.y, position.z]);
   mat4.rotateX(m, m, -((stem.angle || 0) / 180) * Math.PI);
   mat4.rotateY(m, m, rotationY);
   mat4.translate(m, m, [position.x, 0, 0]);
   mat4.rotateZ(m, m, rotationZ);
+  if (rotationX) mat4.rotateX(m, m, rotationX);
   if (whorl) mat4.rotateY(m, m, Math.PI / 2);
+  if (twist) mat4.rotateY(m, m, mirrorTwist ? -twist : twist);
   return m;
 }
 
@@ -457,7 +471,7 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
   const shape: LeafShape = leaf.shape?.[0] ?? { geom: ["def:obovate"], petiolule: NO_STEM };
   const petioluleLength = shape.petiolule?.len || 0;
   const petioluleWidth = shape.petiolule?.width || DEFAULT_STEM_WIDTH;
-  const petioluleAngleRad = -((shape.petiolule?.angle || 0) / 180) * Math.PI;
+  const petioluleTwistRad = ((shape.petiolule?.angle || 0) / 180) * Math.PI;
   const petioluleMesh = petioluleLength > 0 ? boxMesh(petioluleWidth, petioluleLength, petioluleWidth) : null;
   const seed = leaf.randomSeed ?? 0;
   const bladeMesh = generateShapeMesh(shape, lod, seed);
@@ -475,9 +489,8 @@ export function generateMesh(leaf: Leaf, lod = 0): MeshData {
       const scaleX = resolveRandomValue(bladeScaleX, seed, "bladeScaleX", key, 1);
       const scaleY = resolveRandomValue(bladeScaleY, seed, "bladeScaleY", key, 1);
 
-      const base = childMatrix(parent, i, instances.length, stem, layout, seed, key);
+      const base = childMatrix(parent, i, instances.length, stem, layout, seed, key, petioluleTwistRad);
       mat4.scale(base, base, [scale, scale, scale]);
-      mat4.rotateX(base, base, petioluleAngleRad);
       if (petioluleMesh) append(petioluleMesh, base);
 
       const blade = mat4.clone(base);

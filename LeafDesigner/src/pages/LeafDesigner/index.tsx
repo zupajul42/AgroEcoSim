@@ -272,7 +272,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
         log: isPetiole,
       },
       {
-        label: "Angle",
+        label: type === "petiolule" ? "Twist" : "Angle",
         field: "angle",
         min: -90,
         max: 90,
@@ -396,7 +396,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                   { value: "pinnate", label: "Pinnate" },
                   { value: "bipinnate", label: "Bipinnate" },
                 ],
-                (val) => updateLayout({ type: val as LeafLayoutType, angle: val === "palmate" ? 140 : 60 }),
+                (val) => updateLayout({ type: val as LeafLayoutType, angle: val === "palmate" ? 140 : 60, orbit: 0 }),
               )}
               {isPinnate ? (
                 <>
@@ -424,7 +424,7 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                   {leaf.layout?.arrangement === "whorled" && (
                     <SliderInput
                       label="Leaflets per Whorl"
-                      min={2}
+                      min={1}
                       max={8}
                       step={1}
                       value={leaf.layout?.whorlSize ?? 3}
@@ -466,7 +466,10 @@ export function LeafDesigner(props: { leaf?: Leaf }) {
                   </label>
                 </>
               ) : (
-                angleSlider("Fanning Angle", "angle", 0, 360, 5, 140)
+                <>
+                  {angleSlider("Fanning Angle", "angle", 0, 360, 5, 140)}
+                  {angleSlider("Tilt Angle", "orbit", -90, 90, 1, 0)}
+                </>
               )}
             </div>
 

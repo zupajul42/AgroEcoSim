@@ -260,7 +260,7 @@
         "width": 0.025,
         "x": 0,
         "y": 0,
-        "angle": -13
+        "angle": 0
       },
       "scaleX": [
         1,
@@ -295,6 +295,10 @@
     "angle": {
       "min": 265,
       "max": 265
+    },
+    "orbit": {
+      "min": -13,
+      "max": -13
     }
   },
   "randomSeed": 659239748

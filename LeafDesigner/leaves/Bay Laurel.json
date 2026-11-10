@@ -75,7 +75,7 @@
         "def:quad",
         "def:lanceolate",
         {
-          "id": "geom:oc0z5wn",
+          "id": "geom:fxz1s8g",
           "name": "Bay Laurel",
           "points": [
             {
@@ -306,7 +306,7 @@
         "width": 0.025,
         "x": 0,
         "y": 0,
-        "angle": 0
+        "angle": 70
       }
     }
   ],
@@ -322,7 +322,7 @@
   ],
   "layout": {
     "type": "pinnate",
-    "arrangement": "opposite",
+    "arrangement": "alternate",
     "terminalLeaf": true,
     "angle": {
       "min": 42,
@@ -330,9 +330,10 @@
     },
     "orbit": {
       "min": 0,
-      "max": 152
+      "max": 360
     },
     "zoneStart": 0.04,
     "zoneEnd": 0.93
-  }
+  },
+  "randomSeed": 1806663248
 }
